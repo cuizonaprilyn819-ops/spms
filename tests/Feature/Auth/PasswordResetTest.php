@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -69,5 +70,29 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_signed_in_user_can_use_forgot_password_and_is_signed_out_after_reset(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/forgot-password')->assertOk();
+        $this->post('/forgot-password', ['email' => $user->email]);
+
+        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+            $this->get('/reset-password/'.$notification->token)->assertOk();
+            $this->post('/reset-password', [
+                'token' => $notification->token,
+                'email' => $user->email,
+                'password' => 'NewPassword123!',
+                'password_confirmation' => 'NewPassword123!',
+            ])->assertRedirect(route('login'));
+
+            return true;
+        });
+
+        $this->assertGuest();
+        $this->assertTrue(Hash::check('NewPassword123!', $user->fresh()->password));
     }
 }

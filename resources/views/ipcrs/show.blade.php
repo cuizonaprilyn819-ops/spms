@@ -17,7 +17,16 @@
                 </div>
             @endif
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <x-report-workflow :report="$ipcr" type="ipcr" />
+            @if($ipcr->office_target_id)
+                <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                    <a href="{{ route('office-targets.show', $ipcr->office_target_id) }}#target-movs" class="font-semibold text-spms-navy underline">View Target MOV</a>
+                </div>
+            @endif
+            @if($ipcr->isApproved() && (int) $ipcr->employee_id === (int) Auth::id())
+                <div class="mt-4"><a href="{{ route('reports.index') }}" class="font-semibold text-spms-navy underline">My Reports — Export approved IPCR to PDF or Excel</a></div>
+            @endif
+            <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <p class="text-sm font-semibold uppercase text-spms-sky">Individual Performance Commitment and Review</p>
@@ -28,31 +37,24 @@
                         @if ($ipcr->isApproved())
                             <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
                         @else
-                            <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
-                            @hasanyrole('Administrator|Campus Director|Office Head|Supervisor')
-                                <form method="POST" action="{{ route('ipcrs.approve', $ipcr) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="rounded-lg bg-spms-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600">Approve IPCR</button>
-                                </form>
-                            @endhasanyrole
+                            <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ ucfirst(str_replace('_', ' ', $ipcr->status)) }}</span>
                         @endif
                     </div>
                 </div>
 
                 <div class="mt-6 grid gap-4 sm:grid-cols-3">
                     <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-xs font-bold uppercase text-gray-500">Linked UPCR</p>
-                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr->title }}</p>
+                        <p class="text-xs font-bold uppercase text-gray-500">Source</p>
+                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr?->title ?? $ipcr->officeTarget?->title }}</p>
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
                         <p class="text-xs font-bold uppercase text-gray-500">Assigned Employee</p>
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->employee->name }}</p>
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-xs font-bold uppercase text-gray-500">Office / Cycle</p>
-                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr->dpcr->opcr->office->name }}</p>
-                        <p class="mt-1 text-xs text-gray-500">{{ $ipcr->upcr->dpcr->opcr->evaluationCycle->label }}</p>
+                        <p class="text-xs font-bold uppercase text-gray-500">Office / Period</p>
+                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr?->dpcr?->opcr?->office?->name ?? $ipcr->employee?->office?->name }}</p>
+                        <p class="mt-1 text-xs text-gray-500">{{ $ipcr->upcr?->dpcr?->opcr?->evaluationCycle?->label ?? $ipcr->officeTarget?->evaluationCycle?->label }}</p>
                     </div>
                 </div>
 

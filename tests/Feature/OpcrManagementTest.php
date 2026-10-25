@@ -134,4 +134,27 @@ class OpcrManagementTest extends TestCase
 
         $response->assertSessionHasErrors('office_id');
     }
+
+    public function test_office_heads_only_see_targets_assigned_to_their_office(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $head = User::factory()->create(['office_id' => $office->id]);
+        $head->assignRole('Office Head');
+        $assigned = Opcr::factoryLike()->create(['office' => $office, 'title' => 'Assigned Office OPCR']);
+        $notAssigned = Opcr::factoryLike()->create([
+            'office' => $otherOffice,
+            'evaluation_cycle' => $assigned->evaluationCycle,
+            'title' => 'Hidden Office OPCR',
+        ]);
+
+        $this->actingAs($head)->get(route('opcrs.index'))
+            ->assertOk()
+            ->assertSee($assigned->title)
+            ->assertDontSee($notAssigned->title);
+
+        $this->actingAs($head)->get(route('opcrs.show', $notAssigned))->assertForbidden();
+    }
 }

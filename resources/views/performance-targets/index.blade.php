@@ -4,17 +4,15 @@
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Performance Targets') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">
-                    @hasanyrole('Administrator|HR|Campus Director|Office Head|Supervisor')
+                    @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor')
                         Manage targets, success indicators, weights, and deadlines across SPMS forms.
                     @else
                         View targets, success indicators, weights, and deadlines across SPMS forms.
                     @endhasanyrole
                 </p>
             </div>
-            @hasanyrole('Administrator|HR|Campus Director|Office Head|Supervisor')
-                <a href="{{ route('performance-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
-                    Add Target
-                </a>
+            @hasanyrole('Administrator|Campus Director')
+                <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276]">Upload Main Campus Document</a>
             @endhasanyrole
         </div>
     </x-slot>
@@ -27,6 +25,24 @@
                 </div>
             @endif
 
+            <section class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-spms-ink">Assigned Office Targets</h3>
+                <p class="mt-1 text-sm text-gray-500">Open a target to view its details, submit MOV, or check progress.</p>
+                <div class="mt-4 divide-y divide-gray-200">
+                    @forelse($officeTargets as $officeTarget)
+                        <div class="py-4">
+                            <a href="{{ route('office-targets.show', $officeTarget) }}" class="font-semibold text-spms-navy underline">{{ $officeTarget->title }}</a>
+                            <p class="mt-1 text-xs text-gray-500">Created by {{ $officeTarget->createdBy?->name }} · Deadline: {{ $officeTarget->deadline?->format('M d, Y') }} · Weight: {{ $officeTarget->weight }}%</p>
+                            <p class="mt-2 text-sm text-gray-600">{{ $officeTarget->success_indicator }}</p>
+                        </div>
+                    @empty
+                        <p class="py-4 text-sm text-gray-500">No office targets assigned yet.</p>
+                    @endforelse
+                </div>
+                {{ $officeTargets->links() }}
+            </section>
+            @if($targets->isNotEmpty())
+            <h3 class="mb-3 text-lg font-bold text-spms-ink">Report Performance Targets</h3>
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -67,6 +83,7 @@
             <div class="mt-5">
                 {{ $targets->links() }}
             </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

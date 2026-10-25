@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasReportWorkflow;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,8 +11,7 @@ use Database\Factories\OpcrFactoryLike;
 
 class Opcr extends Model
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_APPROVED = 'approved';
+    use HasReportWorkflow;
 
     protected $fillable = [
         'evaluation_cycle_id',
@@ -19,6 +20,7 @@ class Opcr extends Model
         'success_indicators',
         'targets',
         'status',
+        'submitted_at', 'returned_at', 'resubmission_count',
         'prepared_by',
         'approved_by',
         'approved_at',
@@ -28,6 +30,7 @@ class Opcr extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'submitted_at' => 'datetime', 'returned_at' => 'datetime',
         ];
     }
 
@@ -61,10 +64,6 @@ class Opcr extends Model
         return $this->morphMany(PerformanceTarget::class, 'targetable');
     }
 
-    public function isApproved(): bool
-    {
-        return $this->status === self::STATUS_APPROVED;
-    }
 
     public static function factoryLike(): OpcrFactoryLike
     {

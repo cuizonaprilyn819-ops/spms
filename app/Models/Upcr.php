@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasReportWorkflow;
+
 use Database\Factories\UpcrFactoryLike;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Upcr extends Model
 {
+    use HasReportWorkflow;
     protected $fillable = [
         'dpcr_id',
         'employee_id',
@@ -16,7 +19,13 @@ class Upcr extends Model
         'success_indicators',
         'targets',
         'prepared_by',
+        'status', 'submitted_at', 'returned_at', 'resubmission_count', 'approved_by', 'approved_at',
     ];
+
+    protected function casts(): array
+    {
+        return ['submitted_at' => 'datetime', 'returned_at' => 'datetime', 'approved_at' => 'datetime'];
+    }
 
     public function dpcr(): BelongsTo
     {
@@ -32,6 +41,8 @@ class Upcr extends Model
     {
         return $this->belongsTo(User::class, 'prepared_by');
     }
+
+    public function approvedBy(): BelongsTo { return $this->belongsTo(User::class, 'approved_by'); }
 
     public function ipcrs(): HasMany
     {

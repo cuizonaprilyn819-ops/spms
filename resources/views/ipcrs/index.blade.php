@@ -5,9 +5,9 @@
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('IPCR Management') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">Create, assign, view, and approve individual performance commitments.</p>
             </div>
-            <a href="{{ route('ipcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
-                Create IPCR
-            </a>
+            @if(Auth::user()->office_id)<a href="{{ route('ipcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+                Prepare My IPCR
+            </a>@endif
         </div>
     </x-slot>
 
@@ -25,7 +25,7 @@
                         <thead class="bg-spms-surface">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">IPCR</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Linked UPCR</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Source</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Employee</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold uppercase text-gray-500">Actions</th>
@@ -39,15 +39,15 @@
                                         <p class="mt-1 text-xs text-gray-500">Prepared by {{ $ipcr->preparedBy?->name }}</p>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <p class="text-sm font-semibold text-spms-ink">{{ $ipcr->upcr->title }}</p>
-                                        <p class="mt-1 text-xs text-gray-500">{{ $ipcr->upcr->dpcr->title }}</p>
+                                        <p class="text-sm font-semibold text-spms-ink">{{ $ipcr->upcr?->title ?? $ipcr->officeTarget?->title }}</p>
+                                        <p class="mt-1 text-xs text-gray-500">{{ $ipcr->upcr?->dpcr?->title ?? 'Completed office target' }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $ipcr->employee->name }}</td>
                                     <td class="px-6 py-4">
                                         @if ($ipcr->isApproved())
                                             <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
                                         @else
-                                            <span class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
+                                            <span class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold capitalize text-amber-700">{{ str_replace('_', ' ', $ipcr->status) }}</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right">

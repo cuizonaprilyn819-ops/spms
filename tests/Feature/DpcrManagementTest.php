@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Dpcr;
 use App\Models\Opcr;
+use App\Models\Office;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -123,5 +124,51 @@ class DpcrManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('employee_id');
+    }
+
+    public function test_office_heads_only_see_approved_targets_and_employees_from_their_office(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $head = User::factory()->create(['office_id' => $office->id]);
+        $head->assignRole('Office Head');
+        $employee = User::factory()->create(['office_id' => $office->id]);
+        $otherEmployee = User::factory()->create(['office_id' => $otherOffice->id]);
+        $approvedOpcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED, 'title' => 'Assigned Office Target']);
+        $otherOpcr = Opcr::factoryLike()->create([
+            'office' => $otherOffice,
+            'evaluation_cycle' => $approvedOpcr->evaluationCycle,
+            'status' => Opcr::STATUS_APPROVED,
+            'title' => 'Other Office Target',
+        ]);
+
+        $this->actingAs($head)->get(route('dpcrs.create'))
+            ->assertOk()
+            ->assertSee($approvedOpcr->title)
+            ->assertSee($employee->name)
+            ->assertDontSee($otherOpcr->title)
+            ->assertDontSee($otherEmployee->name);
+    }
+
+    public function test_office_heads_cannot_assign_another_offices_target_or_employee(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $head = User::factory()->create(['office_id' => $office->id]);
+        $head->assignRole('Office Head');
+        $otherEmployee = User::factory()->create(['office_id' => $otherOffice->id]);
+        $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
+
+        $this->actingAs($head)->post(route('dpcrs.store'), [
+            'opcr_id' => $opcr->id,
+            'employee_id' => $otherEmployee->id,
+            'title' => 'Invalid cross-office assignment',
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('dpcrs', 0);
     }
 }

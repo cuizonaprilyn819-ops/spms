@@ -10,6 +10,22 @@ class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_administrator_cannot_delete_their_profile(): void
+    {
+        $this->seed(\Database\Seeders\RoleSeeder::class);
+        $user = User::factory()->create();
+        $user->assignRole('Administrator');
+
+        $this->actingAs($user)->get('/profile')
+            ->assertOk()
+            ->assertDontSee('Delete Account');
+
+        $this->delete('/profile', ['password' => 'password'])->assertForbidden();
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh());
+    }
+
     public function test_profile_page_is_displayed(): void
     {
         $user = User::factory()->create();

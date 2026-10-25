@@ -2,22 +2,26 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasReportWorkflow;
+
 use Database\Factories\IpcrFactoryLike;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Ipcr extends Model
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_APPROVED = 'approved';
+    use HasReportWorkflow;
 
     protected $fillable = [
         'upcr_id',
+        'office_target_id',
+        'quality_rating', 'efficiency_rating', 'timeliness_rating', 'average_rating', 'rating_remarks',
         'employee_id',
         'title',
         'success_indicators',
         'targets',
         'status',
+        'submitted_at', 'returned_at', 'resubmission_count',
         'prepared_by',
         'approved_by',
         'approved_at',
@@ -27,6 +31,7 @@ class Ipcr extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'submitted_at' => 'datetime', 'returned_at' => 'datetime',
         ];
     }
 
@@ -34,6 +39,8 @@ class Ipcr extends Model
     {
         return $this->belongsTo(Upcr::class);
     }
+
+    public function officeTarget(): BelongsTo { return $this->belongsTo(OfficeTarget::class); }
 
     public function employee(): BelongsTo
     {
@@ -50,10 +57,6 @@ class Ipcr extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function isApproved(): bool
-    {
-        return $this->status === self::STATUS_APPROVED;
-    }
 
     public function performanceTargets(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {

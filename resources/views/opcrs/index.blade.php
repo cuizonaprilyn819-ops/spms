@@ -5,9 +5,9 @@
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('OPCR Management') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">Create, view, and approve Office Performance Commitment and Review records.</p>
             </div>
-            <a href="{{ route('opcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+            @role('Campus Director')<a href="{{ route('opcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create OPCR
-            </a>
+            </a>@endrole
         </div>
     </x-slot>
 
@@ -26,7 +26,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">OPCR</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Office</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Cycle</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Period</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold uppercase text-gray-500">Actions</th>
                             </tr>

@@ -25,7 +25,7 @@ class NotificationController extends Controller
 
         $notification->markAsRead();
 
-        return redirect($notification->data['url'] ?? route('notifications.index'));
+        return redirect(\App\Support\NotificationUrl::resolve($notification->data['url'] ?? null));
     }
 
     public function markAllRead(Request $request): RedirectResponse

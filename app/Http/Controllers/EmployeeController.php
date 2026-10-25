@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Office;
+use App\Models\PositionTitle;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,13 +14,28 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    public function index(): View
-    {
-        $employees = User::with(['office', 'roles'])
-            ->latest()
-            ->paginate(10);
+    private const ASSIGNABLE_ROLES = ['Supervisor', 'Employee'];
 
-        return view('employees.index', compact('employees'));
+    public function index(Request $request): View
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:200'],
+            'office_id' => ['nullable', 'integer', 'exists:offices,id'],
+        ]);
+        $employees = User::with(['office', 'positionTitle', 'roles'])
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->whereLike('name', '%'.$search.'%')
+                        ->orWhereLike('email', '%'.$search.'%');
+                });
+            })
+            ->when($filters['office_id'] ?? null, fn ($query, $office) => $query->where('office_id', $office))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+        $offices = Office::orderBy('name')->get();
+
+        return view('employees.index', compact('employees', 'offices'));
     }
 
     public function create(): View
@@ -30,6 +46,7 @@ class EmployeeController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validatedData($request);
+        $this->validatePositionRole($request, $data);
         $role = $data['role'];
         unset($data['role']);
 
@@ -44,20 +61,19 @@ class EmployeeController extends Controller
     public function edit(User $employee): View
     {
         return view('employees.edit', [
-            ...$this->formData(),
+            ...$this->formData($employee),
             'employee' => $employee->load(['office', 'roles']),
         ]);
     }
 
     public function update(Request $request, User $employee): RedirectResponse
     {
+        abort_if($request->filled('password') || $request->filled('password_confirmation'), 403);
+
         $data = $this->validatedData($request, $employee);
+        $this->validatePositionRole($request, $data);
         $role = $data['role'];
         unset($data['role']);
-
-        if (blank($data['password'] ?? null)) {
-            unset($data['password']);
-        }
 
         $employee->update($data);
         $employee->syncRoles([$role]);
@@ -69,6 +85,12 @@ class EmployeeController extends Controller
 
     public function destroy(User $employee): RedirectResponse
     {
+        if ($employee->hasRole('Administrator')) {
+            return redirect()
+                ->route('employees.index')
+                ->with('status', 'Administrator accounts cannot be deleted.');
+        }
+
         if ($employee->is(auth()->user())) {
             return redirect()
                 ->route('employees.index')
@@ -83,31 +105,33 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return array{offices: \Illuminate\Database\Eloquent\Collection<int, Office>, roles: \Illuminate\Database\Eloquent\Collection<int, Role>}
+     * @return array{offices: \Illuminate\Database\Eloquent\Collection<int, Office>, positionTitles: \Illuminate\Database\Eloquent\Collection<int, PositionTitle>, roles: \Illuminate\Database\Eloquent\Collection<int, Role>}
      */
-    private function formData(): array
+    private function formData(?User $employee = null): array
     {
-        $roles = Role::orderBy('name');
-
-        if (! auth()->user()?->hasAnyRole(['Administrator', 'HR'])) {
-            $roles->where('name', 'Employee');
-        }
+        $assignableRoles = $this->assignableRoles($employee);
 
         return [
-            'offices' => Office::orderBy('name')->get(),
-            'roles' => $roles->get(),
+            'offices' => Office::query()
+                ->where(function ($query) use ($employee) {
+                    $query->where(fn ($active) => $active->where('is_active', true)->where('campus', config('hinunangan.campus_id')));
+                    if ($employee?->office_id) {
+                        $query->orWhere('id', $employee->office_id);
+                    }
+                })->orderBy('name')->get(),
+            'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
+            'roles' => Role::query()
+                ->whereIn('name', $assignableRoles)
+                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Supervisor' THEN 2 ELSE 3 END")
+                ->get(),
         ];
     }
 
     /**
-     * @return array{name: string, email: string, office_id?: int|null, role: string, password?: string|null}
+     * @return array{name: string, email: string, office_id?: int|null, position_title_id?: int|null, role: string, password?: string|null}
      */
     private function validatedData(Request $request, ?User $employee = null): array
     {
-        $allowedRoles = auth()->user()?->hasAnyRole(['Administrator', 'HR'])
-            ? Role::query()->pluck('name')->all()
-            : ['Employee'];
-
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -118,13 +142,52 @@ class EmployeeController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($employee),
             ],
-            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')],
-            'role' => ['required', 'string', Rule::in($allowedRoles)],
-            'password' => [
-                $employee ? 'nullable' : 'required',
-                'confirmed',
-                Password::defaults(),
+            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where(function ($query) use ($employee) {
+                $query->where(fn ($active) => $active->where('is_active', true)->where('campus', config('hinunangan.campus_id')));
+                if ($employee?->office_id) {
+                    $query->orWhere('id', $employee->office_id);
+                }
+            })],
+            'position_title_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('position_titles', 'id')->where('is_active', true),
             ],
+            'role' => ['required', 'string', Rule::in($this->assignableRoles($employee))],
+            ...($employee ? [] : ['password' => ['required', 'confirmed', Password::defaults()]]),
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function assignableRoles(?User $employee = null): array
+    {
+        $roles = self::ASSIGNABLE_ROLES;
+
+        if (auth()->user()?->hasRole('Administrator')) {
+            $anotherCampusDirectorExists = User::role('Campus Director')
+                ->when($employee, fn ($query) => $query->where('users.id', '!=', $employee->id))
+                ->exists();
+
+            if (! $anotherCampusDirectorExists) {
+                array_unshift($roles, 'Campus Director');
+            }
+
+            $anotherHrHeadExists = User::role('HR Head')
+                ->when($employee, fn ($query) => $query->where('users.id', '!=', $employee->id))
+                ->exists();
+            if (! $anotherHrHeadExists) array_unshift($roles, 'HR Head');
+        }
+
+        return $roles;
+    }
+
+    private function validatePositionRole(Request $request, array $data): void
+    {
+        $position = isset($data['position_title_id']) ? PositionTitle::find($data['position_title_id']) : null;
+        if ($position && in_array(strtolower($position->title), ['office head', 'department head'], true) && $data['role'] !== 'Supervisor') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
+        }
     }
 }

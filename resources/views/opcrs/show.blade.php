@@ -17,7 +17,9 @@
                 </div>
             @endif
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <x-report-workflow :report="$opcr" type="opcr" />
+            <x-report-attachments :report="$opcr" type="opcr" />
+            <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <p class="text-sm font-semibold uppercase text-spms-sky">Office Performance Commitment and Review</p>
@@ -29,20 +31,13 @@
                             <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
                         @else
                             <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
-                            @hasanyrole('Administrator|Campus Director')
-                                <form method="POST" action="{{ route('opcrs.approve', $opcr) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="rounded-lg bg-spms-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600">Approve OPCR</button>
-                                </form>
-                            @endhasanyrole
                         @endif
                     </div>
                 </div>
 
                 <div class="mt-6 grid gap-4 sm:grid-cols-3">
                     <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-xs font-bold uppercase text-gray-500">Cycle</p>
+                        <p class="text-xs font-bold uppercase text-gray-500">Period</p>
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $opcr->evaluationCycle->label }}</p>
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">

@@ -40,14 +40,21 @@ class EvaluationCycleController extends Controller
             ],
         ]);
 
-        EvaluationCycle::create([
-            ...$data,
-            'status' => EvaluationCycle::STATUS_CLOSED,
-        ]);
+        DB::transaction(function () use ($data): void {
+            EvaluationCycle::query()
+                ->where('status', EvaluationCycle::STATUS_OPEN)
+                ->update(['status' => EvaluationCycle::STATUS_CLOSED, 'closed_at' => now()]);
+
+            EvaluationCycle::create([
+                ...$data,
+                'status' => EvaluationCycle::STATUS_OPEN,
+                'opened_at' => now(),
+            ]);
+        });
 
         return redirect()
             ->route('evaluation-cycles.index')
-            ->with('status', 'Evaluation cycle created successfully.');
+            ->with('status', 'Evaluation period created and opened successfully.');
     }
 
     public function open(EvaluationCycle $evaluationCycle): RedirectResponse

@@ -11,9 +11,9 @@
 
                     <div class="grid gap-6 sm:grid-cols-2">
                         <div>
-                            <x-input-label for="evaluation_cycle_id" :value="__('Open Cycle')" />
+                            <x-input-label for="evaluation_cycle_id" :value="__('Open Period')" />
                             <select id="evaluation_cycle_id" name="evaluation_cycle_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
-                                <option value="">Select open cycle</option>
+                                <option value="">Select open period</option>
                                 @foreach ($cycles as $cycle)
                                     <option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id') == $cycle->id)>{{ $cycle->label }}</option>
                                 @endforeach

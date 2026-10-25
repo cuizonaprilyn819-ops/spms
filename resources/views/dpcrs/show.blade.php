@@ -17,7 +17,9 @@
                 </div>
             @endif
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <x-report-workflow :report="$dpcr" type="dpcr" />
+            <x-report-attachments :report="$dpcr" type="dpcr" />
+            <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <p class="text-sm font-semibold uppercase text-spms-sky">Division Performance Commitment and Review</p>
@@ -29,13 +31,6 @@
                             <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
                         @else
                             <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
-                            @hasanyrole('Administrator|Campus Director|Office Head')
-                                <form method="POST" action="{{ route('dpcrs.approve', $dpcr) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="rounded-lg bg-spms-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600">Approve DPCR</button>
-                                </form>
-                            @endhasanyrole
                         @endif
                     </div>
                 </div>
@@ -50,7 +45,7 @@
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $dpcr->employee->name }}</p>
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-xs font-bold uppercase text-gray-500">Office / Cycle</p>
+                        <p class="text-xs font-bold uppercase text-gray-500">Office / Period</p>
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $dpcr->opcr->office->name }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $dpcr->opcr->evaluationCycle->label }}</p>
                     </div>

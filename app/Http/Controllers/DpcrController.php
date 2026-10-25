@@ -15,7 +15,13 @@ class DpcrController extends Controller
 {
     public function index(): View
     {
-        $dpcrs = Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee', 'preparedBy', 'approvedBy'])
+        $query = Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee', 'preparedBy', 'approvedBy']);
+
+        if ($this->isOfficeScoped(request())) {
+            $query->whereHas('opcr', fn ($opcr) => $opcr->where('office_id', request()->user()->office_id));
+        }
+
+        $dpcrs = $query
             ->latest()
             ->paginate(10);
 
@@ -24,18 +30,22 @@ class DpcrController extends Controller
 
     public function create(): View
     {
+        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR Head']) && request()->user()->office_id, 403);
+        $opcrs = Opcr::with(['evaluationCycle', 'office'])->orderByDesc('created_at');
+        $officeId = request()->user()->office_id;
+        $opcrs->where('office_id', $officeId)->where('status', Opcr::STATUS_APPROVED);
+
         return view('dpcrs.create', [
-            'opcrs' => Opcr::with(['evaluationCycle', 'office'])
-                ->orderByDesc('created_at')
-                ->get(),
-            'employees' => User::with(['office', 'roles'])
-                ->orderBy('name')
-                ->get(),
+            'opcrs' => $opcrs->get(),
+            'employees' => User::where('office_id', $officeId)
+                ->whereKeyNot(request()->user()->id)
+                ->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR Head']) && $request->user()->office_id, 403);
         $data = $request->validate([
             'opcr_id' => ['required', 'integer', Rule::exists('opcrs', 'id')],
             'employee_id' => ['required', 'integer', Rule::exists('users', 'id')],
@@ -43,6 +53,12 @@ class DpcrController extends Controller
             'success_indicators' => ['nullable', 'string', 'max:5000'],
             'targets' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $opcr = Opcr::findOrFail($data['opcr_id']);
+        $employee = User::findOrFail($data['employee_id']);
+
+        $officeId = (int) $request->user()->office_id;
+        abort_unless((int) $opcr->office_id === $officeId && (int) $employee->office_id === $officeId && $opcr->isApproved(), 403);
 
         $request->validate([
             'employee_id' => [
@@ -64,14 +80,18 @@ class DpcrController extends Controller
 
     public function show(Dpcr $dpcr): View
     {
+        $this->authorizeOfficeAccess(request(), $dpcr);
+
         return view('dpcrs.show', [
-            'dpcr' => $dpcr->load(['opcr.evaluationCycle', 'opcr.office', 'employee.office', 'preparedBy', 'approvedBy']),
+            'dpcr' => $dpcr->load(['opcr.evaluationCycle', 'opcr.office', 'employee.office', 'preparedBy', 'approvedBy', 'statusHistories.actor']),
         ]);
     }
 
     public function approve(Request $request, Dpcr $dpcr): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Office Head']), 403);
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor']), 403);
+
+        $this->authorizeOfficeAccess($request, $dpcr);
 
         if ($dpcr->isApproved()) {
             return redirect()
@@ -90,5 +110,19 @@ class DpcrController extends Controller
         return redirect()
             ->route('dpcrs.show', $dpcr)
             ->with('status', 'DPCR approved successfully.');
+    }
+
+    private function isOfficeScoped(Request $request): bool
+    {
+        return $request->user()->hasRole('Supervisor')
+            && ! $request->user()->hasAnyRole(['Administrator', 'HR', 'HR Head', 'Campus Director'])
+            && $request->user()->office_id !== null;
+    }
+
+    private function authorizeOfficeAccess(Request $request, Dpcr $dpcr): void
+    {
+        if ($this->isOfficeScoped($request)) {
+            abort_unless((int) $dpcr->opcr()->value('office_id') === (int) $request->user()->office_id, 403);
+        }
     }
 }

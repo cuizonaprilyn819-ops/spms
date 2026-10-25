@@ -58,7 +58,8 @@ class HrmOfficeAccessTest extends TestCase
             ->get(route('employees.create'))
             ->assertOk()
             ->assertSee('Employee')
-            ->assertDontSee('Administrator');
+            ->assertDontSee('<option value="Administrator"', false)
+            ->assertSee('Office Head');
 
         $this
             ->actingAs($hrm)

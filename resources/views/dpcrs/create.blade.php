@@ -1,18 +1,21 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Create DPCR') }}</h2>
+        <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Assign Office Target') }}</h2>
     </x-slot>
 
     <div class="py-8">
         <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    Select an approved target assigned to your office, then delegate it to an employee from the same office.
+                </div>
                 <form method="POST" action="{{ route('dpcrs.store') }}" class="space-y-6">
                     @csrf
 
                     <div>
-                        <x-input-label for="opcr_id" :value="__('Linked OPCR')" />
+                        <x-input-label for="opcr_id" :value="__('Office Target From Above')" />
                         <select id="opcr_id" name="opcr_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
-                            <option value="">Select OPCR</option>
+                            <option value="">Select an approved office target</option>
                             @foreach ($opcrs as $opcr)
                                 <option value="{{ $opcr->id }}" @selected(old('opcr_id') == $opcr->id)>
                                     {{ $opcr->title }} - {{ $opcr->office->name }} ({{ $opcr->evaluationCycle->label }})
@@ -23,7 +26,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="employee_id" :value="__('Responsible Employee')" />
+                        <x-input-label for="employee_id" :value="__('Assign To Employee')" />
                         <select id="employee_id" name="employee_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
                             <option value="">Select employee</option>
                             @foreach ($employees as $employee)
@@ -55,7 +58,7 @@
 
                     <div class="flex items-center justify-end gap-3">
                         <a href="{{ route('dpcrs.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Cancel</a>
-                        <x-primary-button>Create DPCR</x-primary-button>
+                        <x-primary-button>Assign Target</x-primary-button>
                     </div>
                 </form>
             </div>

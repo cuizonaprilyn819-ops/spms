@@ -14,6 +14,24 @@ class NotificationSystemTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_old_notification_links_use_the_current_app_address(): void
+    {
+        $user = User::factory()->create();
+        $notice = $user->notifications()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'type' => \App\Notifications\TargetAssignedNotification::class,
+            'data' => ['title' => 'Assigned target', 'url' => 'http://localhost/office-targets/3'],
+        ]);
+
+        $this->actingAs($user)->withServerVariables(['HTTP_HOST' => '127.0.0.1:8000', 'SERVER_PORT' => 8000])
+            ->patch('http://127.0.0.1:8000/notifications/'.$notice->id.'/read')
+            ->assertRedirect('http://127.0.0.1:8000/office-targets/3');
+        $this->assertNotNull($notice->fresh()->read_at);
+        $this->get('http://127.0.0.1:8000/notifications')
+            ->assertOk()->assertSee('href="/office-targets/3"', false)
+            ->assertDontSee('href="http://localhost/office-targets/3"', false);
+    }
+
     public function test_deadline_reminder_notifications_are_sent_for_targets_due_soon(): void
     {
         $this->seed(RoleSeeder::class);

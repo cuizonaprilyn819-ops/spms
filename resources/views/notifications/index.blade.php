@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Notifications') }}</h2>
-                <p class="mt-1 text-sm text-gray-500">Deadline reminders, approval updates, and evaluation notices.</p>
+                <p class="mt-1 text-sm text-gray-500">Requests, approval updates, reminders, and evaluation notices.</p>
             </div>
             <form method="POST" action="{{ route('notifications.read-all') }}">
                 @csrf
@@ -48,7 +48,7 @@
                                         </button>
                                     </form>
                                 @else
-                                    <a href="{{ $notification->data['url'] ?? route('notifications.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">
+                                    <a href="{{ \App\Support\NotificationUrl::resolve($notification->data['url'] ?? null) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">
                                         Open
                                     </a>
                                 @endif

@@ -17,7 +17,9 @@
                 </div>
             @endif
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <x-report-workflow :report="$upcr" type="upcr" />
+            <x-report-attachments :report="$upcr" type="upcr" />
+            <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="border-b border-gray-200 pb-6">
                     <p class="text-sm font-semibold uppercase text-spms-sky">Unit Performance Commitment and Review</p>
                     <h1 class="mt-2 text-2xl font-bold text-spms-ink">{{ $upcr->title }}</h1>
@@ -34,7 +36,7 @@
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $upcr->employee->name }}</p>
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-xs font-bold uppercase text-gray-500">Office / Cycle</p>
+                        <p class="text-xs font-bold uppercase text-gray-500">Office / Period</p>
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $upcr->dpcr->opcr->office->name }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $upcr->dpcr->opcr->evaluationCycle->label }}</p>
                     </div>

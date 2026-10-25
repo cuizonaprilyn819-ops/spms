@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasReportWorkflow;
+
 use Database\Factories\DpcrFactoryLike;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,8 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Dpcr extends Model
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_APPROVED = 'approved';
+    use HasReportWorkflow;
 
     protected $fillable = [
         'opcr_id',
@@ -19,6 +20,7 @@ class Dpcr extends Model
         'success_indicators',
         'targets',
         'status',
+        'submitted_at', 'returned_at', 'resubmission_count',
         'prepared_by',
         'approved_by',
         'approved_at',
@@ -28,6 +30,7 @@ class Dpcr extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'submitted_at' => 'datetime', 'returned_at' => 'datetime',
         ];
     }
 
@@ -61,10 +64,6 @@ class Dpcr extends Model
         return $this->morphMany(PerformanceTarget::class, 'targetable');
     }
 
-    public function isApproved(): bool
-    {
-        return $this->status === self::STATUS_APPROVED;
-    }
 
     public static function factoryLike(): DpcrFactoryLike
     {

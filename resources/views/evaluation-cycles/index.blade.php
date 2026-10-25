@@ -3,10 +3,10 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Evaluation Period Management') }}</h2>
-                <p class="mt-1 text-sm text-gray-500">Create SPMS cycles and control which semester is open for evaluation.</p>
+                <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which semester is open for evaluation.</p>
             </div>
             <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
-                Create Cycle
+                Create Period
             </a>
         </div>
     </x-slot>
@@ -24,7 +24,7 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-spms-surface">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Cycle</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Period</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Year</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Semester</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
@@ -36,7 +36,7 @@
                                 <tr>
                                     <td class="px-6 py-4 font-semibold text-spms-ink">{{ $cycle->label }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $cycle->year }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $cycle->semester }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">{{ App\Models\EvaluationCycle::semesterLabel($cycle->semester) }}</td>
                                     <td class="px-6 py-4">
                                         @if ($cycle->isOpen())
                                             <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Open</span>
@@ -50,13 +50,13 @@
                                                 <form method="POST" action="{{ route('evaluation-cycles.close', $cycle) }}">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" class="rounded-lg border border-spms-red px-3 py-2 text-sm font-semibold text-spms-red transition hover:bg-spms-red hover:text-white">Close Cycle</button>
+                                                    <button type="submit" class="rounded-lg border border-spms-red px-3 py-2 text-sm font-semibold text-spms-red transition hover:bg-spms-red hover:text-white">Close Period</button>
                                                 </form>
                                             @else
                                                 <form method="POST" action="{{ route('evaluation-cycles.open', $cycle) }}">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" class="rounded-lg border border-spms-green px-3 py-2 text-sm font-semibold text-spms-green transition hover:bg-spms-green hover:text-white">Open Cycle</button>
+                                                    <button type="submit" class="rounded-lg border border-spms-green px-3 py-2 text-sm font-semibold text-spms-green transition hover:bg-spms-green hover:text-white">Open Period</button>
                                                 </form>
                                             @endif
                                         </div>
@@ -64,7 +64,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">No evaluation cycles yet.</td>
+                                    <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">No evaluation periods yet.</td>
                                 </tr>
                             @endforelse
                         </tbody>

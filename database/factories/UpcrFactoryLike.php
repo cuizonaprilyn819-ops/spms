@@ -20,6 +20,7 @@ class UpcrFactoryLike
             'title' => $attributes['title'] ?? 'Unit Performance Commitment and Review',
             'success_indicators' => $attributes['success_indicators'] ?? 'UPCR success indicators',
             'targets' => $attributes['targets'] ?? 'UPCR targets',
+            'status' => $attributes['status'] ?? Upcr::STATUS_DRAFT,
             'prepared_by' => $preparedBy->id,
         ]);
     }

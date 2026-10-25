@@ -34,7 +34,7 @@ class MovUploadTest extends TestCase
         $mov = \App\Models\Mov::firstOrFail();
 
         $response->assertRedirect(route('movs.show', $mov));
-        Storage::disk('public')->assertExists($mov->file_path);
+        $this->assertTrue(Storage::disk('public')->exists($mov->file_path));
 
         $this->assertDatabaseHas('movs', [
             'title' => 'Quarterly MOV',

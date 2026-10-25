@@ -31,7 +31,7 @@ class EvaluationCycleManagementTest extends TestCase
         $this->assertDatabaseHas('evaluation_cycles', [
             'year' => 2025,
             'semester' => EvaluationCycle::FIRST_SEMESTER,
-            'status' => EvaluationCycle::STATUS_CLOSED,
+            'status' => EvaluationCycle::STATUS_OPEN,
         ]);
     }
 

@@ -20,7 +20,7 @@ class ReportGenerationTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $user = User::factory()->create();
-        $user->assignRole('Employee');
+        $user->assignRole('Administrator');
         $forms = $this->sampleReportData();
 
         foreach (['opcr', 'dpcr', 'upcr', 'ipcr'] as $type) {
@@ -39,7 +39,7 @@ class ReportGenerationTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $user = User::factory()->create();
-        $user->assignRole('Employee');
+        $user->assignRole('Administrator');
         $this->sampleReportData();
 
         $response = $this
@@ -56,7 +56,7 @@ class ReportGenerationTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $user = User::factory()->create();
-        $user->assignRole('Employee');
+        $user->assignRole('Administrator');
         $forms = $this->sampleReportData();
 
         $response = $this

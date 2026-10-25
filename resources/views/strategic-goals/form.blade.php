@@ -1,0 +1,8 @@
+<x-app-layout>
+<x-slot name="header"><div><h2 class="text-xl font-bold text-spms-ink">{{ $goal ? 'Edit Strategic Goal' : 'Add Strategic Goal' }}</h2><p class="mt-1 text-sm text-gray-500">Create the high-level direction first. Objectives and targets are added afterward.</p></div></x-slot>
+<div class="py-8"><div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8"><form method="POST" action="{{ $goal ? route('strategic-goals.update', $goal) : route('strategic-goals.store') }}" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+@csrf @if($goal) @method('PUT') @endif
+<div class="p-6 sm:p-8"><div class="mb-6 flex items-start gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-spms-navy">1</span><div><h3 class="font-bold text-spms-ink">Goal Details</h3><p class="mt-0.5 text-sm text-gray-500">Enter the complete breakthrough goal statement as it should appear in the report.</p></div></div><div class="space-y-5 sm:pl-12"><div><x-input-label for="title" value="Breakthrough Goal"/><x-text-input id="title" name="title" class="mt-1.5 block w-full" :value="old('title', $goal?->title)" placeholder="e.g. Strengthen institutional excellence" required autofocus/><x-input-error :messages="$errors->get('title')" class="mt-2"/></div></div></div>
+<div class="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5 sm:flex-row sm:justify-end sm:px-8"><a href="{{ route('strategic-goals.index') }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold">Cancel</a><x-primary-button>{{ $goal ? 'Save Changes' : 'Save & Add Objective' }}</x-primary-button></div>
+</form></div></div></div>
+</x-app-layout>

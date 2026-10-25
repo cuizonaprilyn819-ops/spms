@@ -1,5 +1,8 @@
 # Aiven MySQL and MySQL Workbench Setup
 
+Legacy reference for the existing source database. New installations should follow
+[PostgreSQL setup and cutover](postgresql-setup.md).
+
 ## 1. Create the Aiven MySQL database
 
 1. Sign in to Aiven.
