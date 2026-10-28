@@ -7,6 +7,10 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Codex slash commands
+
+The [command guide](docs/CODEX_COMMANDS.md) carries over the user's Doc-Ease slash commands for SPMS. Use `/help` to see the catalog. Repository instructions default `/serve_update` to `ON` for reviewed GitHub publishing; live deployment requires a separately verified SPMS release path.
+
 ## Commitment planning
 
 The optional [commitment planning workflow](docs/commitment-planning.md) adds reviewed OPCR → DPCR → UPCR → IPCR target cascading, office/role relevance, workload-based quantity suggestions, upward proposals, evidence and separate final performance review. Apply its additive migration and configure a new evaluation period before activation; existing periods retain their workflow.
