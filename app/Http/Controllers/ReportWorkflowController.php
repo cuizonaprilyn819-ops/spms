@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Dpcr, Ipcr, Opcr, Upcr, User};
+use App\Models\Dpcr;
+use App\Models\Ipcr;
+use App\Models\Opcr;
+use App\Models\Upcr;
+use App\Models\User;
 use App\Notifications\ReportWorkflowNotification;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\{RedirectResponse, Request};
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ReportWorkflowController extends Controller
@@ -18,24 +24,31 @@ class ReportWorkflowController extends Controller
     {
         $form = $this->report($type, $report);
         abort_unless($form->isEditableBy($request->user()->id), 403);
+
         return view('reports.edit', compact('form', 'type'));
     }
 
     public function update(Request $request, string $type, int $report): RedirectResponse
     {
         $form = $this->report($type, $report);
+        abort_if($form->commitmentPlan, 422, 'Edit commitments through Commitment Planning; approved revisions are preserved.');
         abort_unless($form->isEditableBy($request->user()->id), 403);
         $form->update($request->validate([
             'title' => ['required', 'string', 'max:255'],
             'success_indicators' => ['nullable', 'string', 'max:5000'],
             'targets' => ['nullable', 'string', 'max:5000'],
         ]));
+
         return back()->with('status', strtoupper($type).' changes saved.');
     }
 
     public function submit(Request $request, string $type, int $report): RedirectResponse
     {
         $form = $this->report($type, $report);
+        if ($plan = $form->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canPrepare($request->user(), $plan), 403);
+            abort_unless($plan->state === 'approved' && ! $plan->targets()->where('needs_reconciliation', true)->exists(), 422, 'Approve and reconcile commitments before submitting the performance report.');
+        }
         abort_unless($form->isEditableBy($request->user()->id), 403);
         $from = $form->status;
         $to = $from === $form::STATUS_RETURNED ? $form::STATUS_RESUBMITTED : $form::STATUS_SUBMITTED;
@@ -44,6 +57,7 @@ class ReportWorkflowController extends Controller
             'resubmission_count' => $from === $form::STATUS_RETURNED ? $form->resubmission_count + 1 : $form->resubmission_count,
         ]);
         $this->reviewers($form)->each->notify(new ReportWorkflowNotification(strtoupper($type), $form, $to));
+
         return back()->with('status', strtoupper($type).' submitted for review.');
     }
 
@@ -55,6 +69,7 @@ class ReportWorkflowController extends Controller
         $data = $request->validate(['remarks' => ['required', 'string', 'max:5000']]);
         $this->transition($form, $form::STATUS_RETURNED, $request->user()->id, $data['remarks'], ['returned_at' => now()]);
         $form->preparedBy?->notify(new ReportWorkflowNotification(strtoupper($type), $form, 'returned for correction', $data['remarks']));
+
         return back()->with('status', strtoupper($type).' returned to the employee for correction.');
     }
 
@@ -62,6 +77,12 @@ class ReportWorkflowController extends Controller
     {
         $form = $this->report($type, $report);
         $this->authorizeReviewer($request, $form);
+        if ($plan = $form->commitmentPlan) {
+            foreach ($plan->targets as $target) {
+                $summary = app(CommitmentPlanning::class)->summary($target);
+                abort_if($summary['outputs']->whereNull('validated_at')->isNotEmpty() || ! $target->evaluations()->exists(), 422, 'Validate supporting outputs and record reviewer ratings before final approval.');
+            }
+        }
         abort_unless(in_array($form->status, [$form::STATUS_SUBMITTED, $form::STATUS_RESUBMITTED], true), 422);
         $ratings = [];
         if ($form instanceof Ipcr && $form->office_target_id) {
@@ -79,12 +100,14 @@ class ReportWorkflowController extends Controller
         if ($form instanceof Ipcr && (int) $form->employee_id !== (int) $form->prepared_by) {
             $form->employee?->notify(new ReportWorkflowNotification('IPCR', $form, 'approved'));
         }
+
         return back()->with('status', strtoupper($type).' approved successfully.');
     }
 
     private function report(string $type, int $id): Model
     {
         abort_unless(isset(self::MODELS[$type]), 404);
+
         return self::MODELS[$type]::with(['preparedBy', 'statusHistories.actor'])->findOrFail($id);
     }
 
@@ -100,8 +123,16 @@ class ReportWorkflowController extends Controller
     private function authorizeReviewer(Request $request, Model $form): void
     {
         $user = $request->user();
+        if ($plan = $form->commitmentPlan) {
+            abort_unless($plan->reviewer_id === $user->id && $plan->prepared_by !== $user->id && $plan->employee_id !== $user->id, 403);
+            abort_unless($plan->state === 'approved' && ! $plan->targets()->where('needs_reconciliation', true)->exists(), 422, 'Commitments need approval or reconciliation.');
+
+            return;
+        }
         abort_unless($user->hasAnyRole(['Administrator', 'HR Head', 'Campus Director', 'Supervisor']), 403);
-        if ($user->hasRole('Supervisor')) abort_unless($user->office_id && (int) $user->office_id === (int) $this->officeId($form), 403);
+        if ($user->hasRole('Supervisor')) {
+            abort_unless($user->office_id && (int) $user->office_id === (int) $this->officeId($form), 403);
+        }
         if ($user->hasRole('Campus Director') && $user->office?->campus) {
             abort_unless($form->preparedBy?->office?->campus === $user->office->campus, 403);
         }
@@ -111,9 +142,12 @@ class ReportWorkflowController extends Controller
     {
         $officeId = $this->officeId($form);
         $campus = $form->preparedBy?->office?->campus;
+
         return User::role(['Supervisor', 'Campus Director', 'HR Head'])->where(function ($query) use ($officeId, $campus): void {
             $query->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Supervisor'))->where('office_id', $officeId));
-            if ($campus) $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))->whereHas('office', fn ($o) => $o->where('campus', $campus)));
+            if ($campus) {
+                $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))->whereHas('office', fn ($o) => $o->where('campus', $campus)));
+            }
             $query->orWhereHas('roles', fn ($r) => $r->where('name', 'HR Head'));
         })->get();
     }

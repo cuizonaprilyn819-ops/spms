@@ -52,7 +52,12 @@ function formHarness(t, response) {
         createElement() { return { dataset: {}, setAttribute() {}, focus() {} }; },
     };
     const destinations = [];
-    globalThis.window = { location: { assign(url) { destinations.push(url); } }, addEventListener() {} };
+    const windowListeners = {};
+    let reloads = 0;
+    globalThis.window = {
+        location: { pathname: '/movs', search: '', assign(url) { destinations.push(url); }, reload() { reloads++; } },
+        addEventListener(name, handler) { windowListeners[name] = handler; },
+    };
     globalThis.fetch = async (url, options) => { calls.push({ url: String(url), options }); return response; };
     installBrowserApi({});
     const event = {
@@ -60,7 +65,7 @@ function formHarness(t, response) {
         submitter: { formAction: 'https://spms.test/movs/create', hasAttribute() { return false; } },
         preventDefault() { this.defaultPrevented = true; },
     };
-    return { submit: () => listeners.submit(event), calls, destinations, form, button, event };
+    return { submit: () => listeners.submit(event), popstate: () => windowListeners.popstate(), reloads: () => reloads, calls, destinations, form, button, event };
 }
 
 test('submits to the form action with session cookies and CSRF protection', async t => {
@@ -84,4 +89,14 @@ test('shows validation errors without replacing the form or retrying the write',
     assert.equal(harness.calls.length, 1);
     assert.equal(harness.button.disabled, false);
     assert.deepEqual(harness.destinations, []);
+});
+
+test('section history keeps the page open while browser back to another page reloads it', t => {
+    const harness = formHarness(t, {});
+    window.location.hash = '#new-plan';
+    harness.popstate();
+    assert.equal(harness.reloads(), 0);
+    window.location.pathname = '/planning';
+    harness.popstate();
+    assert.equal(harness.reloads(), 1);
 });

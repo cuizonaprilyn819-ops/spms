@@ -6,6 +6,8 @@ use App\Models\Dpcr;
 use App\Models\Opcr;
 use App\Models\User;
 use App\Notifications\ApprovalNotification;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,7 +17,7 @@ class DpcrController extends Controller
 {
     public function index(): View
     {
-        $query = Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee', 'preparedBy', 'approvedBy']);
+        $query = Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee', 'preparedBy', 'approvedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
 
         if ($this->isOfficeScoped(request())) {
             $query->whereHas('opcr', fn ($opcr) => $opcr->where('office_id', request()->user()->office_id));
@@ -55,6 +57,7 @@ class DpcrController extends Controller
         ]);
 
         $opcr = Opcr::findOrFail($data['opcr_id']);
+        CommitmentPlanning::legacyOnly($opcr->evaluationCycle);
         $employee = User::findOrFail($data['employee_id']);
 
         $officeId = (int) $request->user()->office_id;
@@ -78,8 +81,13 @@ class DpcrController extends Controller
             ->with('status', 'DPCR created successfully.');
     }
 
-    public function show(Dpcr $dpcr): View
+    public function show(Dpcr $dpcr): View|RedirectResponse
     {
+        if ($dpcr->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canView(request()->user(), $dpcr->commitmentPlan), 403);
+
+            return redirect()->route('planning.show', $dpcr->commitmentPlan);
+        }
         $this->authorizeOfficeAccess(request(), $dpcr);
 
         return view('dpcrs.show', [

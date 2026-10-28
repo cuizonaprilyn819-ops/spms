@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Dpcr;
 use App\Models\Upcr;
-use App\Models\User;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,11 +15,17 @@ class UpcrController extends Controller
 {
     public function index(): View
     {
-        $query = Upcr::with(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'dpcr.employee', 'employee', 'preparedBy']);
+        $query = Upcr::with(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'dpcr.employee', 'employee', 'preparedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
         $user = request()->user();
-        if ($user->hasRole('Supervisor')) $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
-        if ($user->hasRole('Campus Director') && $user->office?->campus) $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
-        if ($user->hasRole('Employee')) $query->where('employee_id', $user->id);
+        if ($user->hasRole('Supervisor')) {
+            $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
+        }
+        if ($user->hasRole('Campus Director') && $user->office?->campus) {
+            $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
+        }
+        if ($user->hasRole('Employee')) {
+            $query->where('employee_id', $user->id);
+        }
         $upcrs = $query
             ->latest()
             ->paginate(10);
@@ -29,6 +36,7 @@ class UpcrController extends Controller
     public function create(): View
     {
         abort_unless(request()->user()->hasRole('Supervisor') && request()->user()->office_id, 403);
+
         return view('upcrs.create', [
             'dpcrs' => Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee'])
                 ->whereHas('opcr', fn ($query) => $query->where('office_id', request()->user()->office_id))
@@ -50,6 +58,7 @@ class UpcrController extends Controller
         ]);
 
         $dpcr = Dpcr::with('opcr')->findOrFail($data['dpcr_id']);
+        CommitmentPlanning::legacyOnly($dpcr->opcr->evaluationCycle);
         abort_unless($request->user()->reportAssignees()->whereKey($data['employee_id'])->exists(), 403);
         abort_unless((int) $dpcr->opcr->office_id === (int) $request->user()->office_id, 403);
 
@@ -70,8 +79,14 @@ class UpcrController extends Controller
             ->with('status', 'UPCR created successfully.');
     }
 
-    public function show(Upcr $upcr): View
+    public function show(Upcr $upcr): View|RedirectResponse
     {
+        if ($upcr->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canView(request()->user(), $upcr->commitmentPlan), 403);
+
+            return redirect()->route('planning.show', $upcr->commitmentPlan);
+        }
+
         return view('upcrs.show', [
             'upcr' => $upcr->load(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'dpcr.employee', 'employee.office', 'preparedBy', 'approvedBy', 'statusHistories.actor']),
         ]);

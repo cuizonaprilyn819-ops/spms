@@ -1,5 +1,6 @@
 <x-app-layout>
     <p data-dashboard-refresh role="status" class="px-6 pt-4 text-xs text-gray-500">Updates every 15 seconds while visible. Last loaded: {{ now()->format('H:i:s') }}</p>
+    @include('planning.dashboard')
     @php
         $user = Auth::user()->loadMissing(['office', 'roles']);
         $officeRoleLabel = ($user->office?->name ?? 'No Office Assigned').' - '.($user->roles->pluck('name')->join(', ') ?: 'No Role Assigned');
@@ -25,31 +26,25 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @role('Administrator')
                 @php
-                    $palette = ['#16325c', '#159a8c', '#f5a623', '#d9534f', '#4f78c4', '#7c5cbf', '#35a853', '#e8793e', '#64748b'];
-                    $grandTotal = array_sum($counts);
+                    $palette = ['#244c71', '#22736d', '#a16207', '#b42318', '#526475', '#687b8e'];
                 @endphp
 
                 <div class="px-4 sm:px-0">
-                    <div class="rounded-2xl bg-[#173967] p-6 text-white shadow-[0_16px_36px_-25px_rgba(18,45,86,0.7)] sm:flex sm:items-center sm:justify-between sm:p-8">
+                    <div class="spms-dashboard-intro">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#a9dcf5]">System administrator overview</p>
-                            <h1 class="mt-2 text-2xl font-bold">All SPMS records at a glance</h1>
-                            <p class="mt-1 text-sm text-white/70">Live totals and distributions across the entire system.</p>
-                        </div>
-                        <div class="mt-5 rounded-xl border border-white/15 bg-white/10 px-6 py-4 text-center sm:mt-0">
-                            <p class="text-3xl font-bold">{{ number_format($grandTotal) }}</p>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-white/70">Total records</p>
+                            <p class="text-xs font-medium text-slate-500">System administrator overview</p>
+                            <h1 class="mt-1 text-xl font-semibold">All SPMS records at a glance</h1>
+                            <p class="mt-1 text-sm text-slate-500">Review personnel, reports, and supporting work across the university.</p>
                         </div>
                     </div>
 
                     <section class="mt-8" aria-labelledby="system-totals">
                         <h2 id="system-totals" class="text-lg font-bold text-[#172f54]">System totals</h2>
-                        <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                        <div class="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 sm:grid-cols-3 lg:grid-cols-4">
                             @foreach($counts as $label => $count)
-                                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                                    <span class="mb-4 block h-1 w-9 rounded-full bg-[#69bde6]"></span>
-                                    <p class="text-3xl font-bold tracking-tight text-[#173967]">{{ number_format($count) }}</p>
-                                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
+                                <div class="spms-dashboard-count">
+                                    <p>{{ number_format($count) }}</p>
+                                    <p>{{ $label }}</p>
                                 </div>
                             @endforeach
                         </div>
@@ -62,32 +57,11 @@
                             @foreach($charts as $chart)
                                 @php
                                     $chartTotal = array_sum($chart['values']);
-                                    $cursor = 0;
-                                    $segments = [];
-                                    $segmentIndex = 0;
-                                    foreach ($chart['values'] as $value) {
-                                        if ($chartTotal > 0 && $value > 0) {
-                                            $start = ($cursor / $chartTotal) * 100;
-                                            $cursor += $value;
-                                            $end = ($cursor / $chartTotal) * 100;
-                                            $segments[] = $palette[$segmentIndex % count($palette)]." {$start}% {$end}%";
-                                        }
-                                        $segmentIndex++;
-                                    }
-                                    $pie = count($segments) ? 'conic-gradient('.implode(', ', $segments).')' : 'conic-gradient(#e5e7eb 0 100%)';
                                 @endphp
-                                <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <article class="rounded-lg border border-slate-200 bg-white p-5">
                                     <div class="flex items-start justify-between gap-4">
                                         <h3 class="font-bold text-[#172f54]">{{ $chart['title'] }}</h3>
                                         <span class="rounded-full bg-[#edf3fa] px-3 py-1 text-xs font-bold text-[#24477e]">{{ number_format($chartTotal) }} total</span>
-                                    </div>
-                                    <div class="mt-5 flex justify-center">
-                                        <div class="relative h-32 w-32 rounded-full" style="background: {{ $pie }}" role="img" aria-label="{{ $chart['title'] }}: {{ number_format($chartTotal) }} total records">
-                                            <div class="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                                                <span class="text-xl font-bold text-[#173967]">{{ number_format($chartTotal) }}</span>
-                                                <span class="text-[10px] font-medium uppercase tracking-wide text-slate-400">records</span>
-                                            </div>
-                                        </div>
                                     </div>
                                     <div class="mt-5 space-y-3 text-xs">
                                         @forelse($chart['values'] as $label => $value)
@@ -115,28 +89,14 @@
             @else
             @php
                 $personalTotal = array_sum($personalDashboard['progress']);
-                $personalPalette = ['#159a8c', '#f5a623', '#d1d5db'];
-                $personalCursor = 0;
-                $personalSegments = [];
-                foreach (array_values($personalDashboard['progress']) as $index => $value) {
-                    if ($personalTotal > 0 && $value > 0) {
-                        $start = ($personalCursor / $personalTotal) * 100;
-                        $personalCursor += $value;
-                        $end = ($personalCursor / $personalTotal) * 100;
-                        $personalSegments[] = $personalPalette[$index]." {$start}% {$end}%";
-                    }
-                }
-                $personalPie = count($personalSegments)
-                    ? 'conic-gradient('.implode(', ', $personalSegments).')'
-                    : 'conic-gradient(#e5e7eb 0 100%)';
+                $personalPalette = ['#22736d', '#a16207', '#64748b'];
             @endphp
             <div class="mb-6 px-4 sm:px-0">
-                <div class="rounded-2xl bg-[#173967] p-6 text-white shadow-[0_16px_36px_-25px_rgba(18,45,86,0.7)] sm:p-8">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#a9dcf5]">{{ $primaryRole }} workspace</p>
-                    <h1 class="mt-2 text-2xl font-bold sm:text-3xl">Welcome, {{ Auth::user()->name }}.</h1>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-white/75">{{ $roleDescriptions[$primaryRole] ?? 'See your assignments and progress in one place.' }}</p>
-                    <p class="mt-4 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/85">{{ $user->office?->name ?? 'No office assigned' }}</p>
-                    <div class="mt-5 flex flex-wrap gap-2">
+                <div class="spms-dashboard-intro">
+                    <p class="text-xs font-medium text-slate-500">{{ $primaryRole }} workspace</p>
+                    <h1 class="mt-1 text-xl font-semibold">Welcome, {{ Auth::user()->name }}.</h1>
+                    <p class="mt-1 max-w-2xl text-sm text-slate-500">{{ $roleDescriptions[$primaryRole] ?? 'See your assignments and progress in one place.' }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
                         @hasanyrole('Campus Director|Supervisor')
                             <a href="{{ route('office-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#173967] transition hover:bg-[#eaf2fc] focus:outline-none focus:ring-2 focus:ring-spms-sky">View office targets</a>
                         @endhasanyrole
@@ -150,35 +110,26 @@
                 </div>
             </div>
             <div class="mb-6 px-4 sm:px-0">
-                <div class="grid gap-4 sm:grid-cols-3">
-                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <span class="mb-4 block h-1 w-9 rounded-full bg-[#69bde6]"></span>
-                        <p class="text-3xl font-bold tracking-tight text-[#173967]">{{ number_format($personalDashboard['assignedTargets']) }}</p>
-                        <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Assigned Targets</p>
+                <div class="grid overflow-hidden rounded-lg border border-slate-200 sm:grid-cols-3">
+                    <div class="spms-dashboard-count">
+                        <p>{{ number_format($personalDashboard['assignedTargets']) }}</p>
+                        <p>Total Assigned Targets</p>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <span class="mb-4 block h-1 w-9 rounded-full bg-[#f5a623]"></span>
-                        <p class="text-3xl font-bold tracking-tight text-[#173967]">{{ number_format($personalDashboard['submittedAccomplishments']) }}</p>
-                        <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Accomplishments</p>
+                    <div class="spms-dashboard-count">
+                        <p>{{ number_format($personalDashboard['submittedAccomplishments']) }}</p>
+                        <p>Total Accomplishments</p>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <span class="mb-4 block h-1 w-9 rounded-full bg-[#159a8c]"></span>
-                        <p class="text-3xl font-bold tracking-tight text-[#173967]">{{ number_format($personalDashboard['accomplishedTargets']) }}</p>
-                        <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Accomplished Targets</p>
+                    <div class="spms-dashboard-count">
+                        <p>{{ number_format($personalDashboard['accomplishedTargets']) }}</p>
+                        <p>Accomplished Targets</p>
                     </div>
                 </div>
 
-                <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-bold text-[#172f54]">Target Accomplishment Status</h2>
+                <div class="mt-5 rounded-lg border border-slate-200 bg-white p-5">
+                    <h2 class="text-base font-semibold text-[#172f54]">Target Accomplishment Status</h2>
                     <p class="mt-1 text-sm text-slate-500">How your assigned targets are progressing.</p>
-                    <div class="mt-5 flex flex-col items-center gap-8 sm:flex-row">
-                        <div class="relative h-44 w-44 shrink-0 rounded-full" style="background: {{ $personalPie }}" role="img" aria-label="Target accomplishment status: {{ number_format($personalTotal) }} targets">
-                            <div class="absolute inset-9 flex flex-col items-center justify-center rounded-full bg-white">
-                                <span class="text-2xl font-bold text-[#173967]">{{ number_format($personalTotal) }}</span>
-                                <span class="text-xs text-slate-500">targets</span>
-                            </div>
-                        </div>
-                        <div class="w-full max-w-md space-y-3">
+                    <div class="mt-5">
+                        <div class="w-full space-y-3">
                             @foreach($personalDashboard['progress'] as $label => $value)
                                 @php
                                     $percent = $personalTotal ? $value / $personalTotal * 100 : 0;

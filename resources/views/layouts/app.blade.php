@@ -6,33 +6,30 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <meta name="spms-base-url" content="{{ url('/') }}">
 
-        <title>{{ config('app.name', 'SPMS') }}</title>
+        <title>{{ ucwords(str_replace('-', ' ', explode('.', preg_replace('/^api\./', '', request()->route()->getName() ?? 'dashboard'))[0])) }} · SLSU SPMS</title>
         <link rel="icon" type="image/png" href="{{ asset('images/logoslsu.png') }}">
 
         <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=poppins:400,500,600,700&display=swap" rel="stylesheet" />
+        <x-workspace-font />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
+        <a class="spms-skip-link" href="#main-content">Skip to content</a>
+        <div class="spms-loading-bar" aria-hidden="true"></div>
+        <div class="sr-only" role="status" aria-live="polite" data-navigation-status></div>
         <div class="spms-workspace min-h-screen md:flex">
             @include('layouts.navigation')
 
             <div class="min-w-0 flex-1">
                 <header class="spms-topbar">
-                    <a href="{{ route('dashboard') }}" class="spms-breadcrumb">
-                        <img src="{{ asset('images/logoslsu.png') }}" alt="" class="h-8 w-8 object-contain">
+                    <a href="{{ route('dashboard') }}" class="spms-breadcrumb" aria-label="Back to dashboard">
                         <span>SLSU SPMS</span><span aria-hidden="true">›</span>
-                        <strong>{{ ucwords(str_replace('-', ' ', explode('.', request()->route()->getName() ?? 'dashboard')[0])) }}</strong>
+                        <strong>{{ ucwords(str_replace('-', ' ', explode('.', preg_replace('/^api\./', '', request()->route()->getName() ?? 'dashboard'))[0])) }}</strong>
                     </a>
                     <x-account-menu />
                 </header>
-                <div class="spms-workspace-bar">
-                    <span>Your authorized workspace</span>
-                    <span class="spms-workspace-office">{{ Auth::user()->office?->name ?? 'Southern Leyte State University' }}</span>
-                </div>
                 <!-- Page Heading -->
                 @isset($header)
                     <header class="spms-page-heading">
@@ -43,7 +40,7 @@
                 @endisset
 
                 <!-- Page Content -->
-                <main>
+                <main id="main-content" tabindex="-1">
                     {{ $slot }}
                 </main>
             </div>

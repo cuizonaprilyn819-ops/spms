@@ -7,6 +7,10 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Commitment planning
+
+The optional [commitment planning workflow](docs/commitment-planning.md) adds reviewed OPCR → DPCR → UPCR → IPCR target cascading, office/role relevance, workload-based quantity suggestions, upward proposals, evidence and separate final performance review. Apply its additive migration and configure a new evaluation period before activation; existing periods retain their workflow.
+
 ## SPMS database setup
 
 New installations use PostgreSQL. Follow [PostgreSQL setup and cutover](docs/postgresql-setup.md)

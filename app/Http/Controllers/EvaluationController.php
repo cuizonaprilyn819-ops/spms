@@ -17,8 +17,12 @@ class EvaluationController extends Controller
     {
         $query = Evaluation::with(['employee.office', 'performanceTarget.targetable', 'ratedBy']);
         $user = request()->user();
-        if ($user->hasRole('Supervisor')) $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
-        if ($user->hasRole('Campus Director') && $user->office?->campus) $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
+        if ($user->hasRole('Supervisor')) {
+            $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
+        }
+        if ($user->hasRole('Campus Director') && $user->office?->campus) {
+            $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
+        }
         $evaluations = $query
             ->latest()
             ->paginate(10);
@@ -30,11 +34,17 @@ class EvaluationController extends Controller
     {
         $employees = User::with('office')->role('Employee');
         $user = request()->user();
-        if ($user->hasRole('Supervisor')) $employees->where('office_id', $user->office_id);
-        if ($user->hasRole('Campus Director') && $user->office?->campus) $employees->whereHas('office', fn ($q) => $q->where('campus', $user->office->campus));
+        if ($user->hasRole('Supervisor')) {
+            $employees->where('office_id', $user->office_id);
+        }
+        if ($user->hasRole('Campus Director') && $user->office?->campus) {
+            $employees->whereHas('office', fn ($q) => $q->where('campus', $user->office->campus));
+        }
+
         return view('evaluations.create', [
             'employees' => $employees->orderBy('name')->get(),
             'targets' => PerformanceTarget::with('targetable')
+                ->whereNull('commitment_plan_id')
                 ->latest()
                 ->get(),
         ]);
@@ -58,8 +68,11 @@ class EvaluationController extends Controller
         ]);
 
         $target = PerformanceTarget::findOrFail($data['performance_target_id']);
+        abort_if($target->commitment_plan_id, 422, 'Record commitment reviewer ratings in Commitment Planning.');
         $employee = User::with('office')->findOrFail($data['employee_id']);
-        if ($request->user()->hasRole('Supervisor')) abort_unless((int) $employee->office_id === (int) $request->user()->office_id, 403);
+        if ($request->user()->hasRole('Supervisor')) {
+            abort_unless((int) $employee->office_id === (int) $request->user()->office_id, 403);
+        }
         if ($request->user()->hasRole('Campus Director') && $request->user()->office?->campus) {
             abort_unless($employee->office?->campus === $request->user()->office->campus, 403);
         }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -17,7 +18,7 @@ class User extends Authenticatable
         return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor']);
     }
 
-    public function reportAssignees(): \Illuminate\Database\Eloquent\Builder
+    public function reportAssignees(): Builder
     {
         return self::query()->where(function ($query) {
             $query->whereKey($this->id);
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'office_id',
         'position_title_id',
         'password',
+        'planning_duties',
     ];
 
     /**

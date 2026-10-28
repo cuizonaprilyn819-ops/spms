@@ -1,4 +1,7 @@
 @props(['report', 'type'])
+@if($report->commitmentPlan)
+    <div class="rounded border border-blue-200 bg-blue-50 p-4"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
+@endif
 @php($reviewable = in_array($report->status, [$report::STATUS_SUBMITTED, $report::STATUS_RESUBMITTED], true))
 <section class="mt-6 rounded-lg border border-gray-200 bg-white p-5" x-data="{ returning: false }">
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -9,7 +12,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
             @if($report->isEditableBy(Auth::id()))
-                <a href="{{ route('report-workflow.edit', [$type, $report]) }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">Edit report</a>
+                @unless($report->commitmentPlan)<a href="{{ route('report-workflow.edit', [$type, $report]) }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">Edit report</a>@endunless
                 <form method="POST" action="{{ route('report-workflow.submit', [$type, $report]) }}">@csrf @method('PATCH')
                     <button class="rounded-md bg-spms-navy px-4 py-2 text-sm font-semibold text-white">{{ $report->status === $report::STATUS_RETURNED ? 'Resubmit' : 'Submit for review' }}</button>
                 </form>

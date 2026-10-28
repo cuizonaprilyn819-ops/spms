@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Dpcr;
 use App\Models\Ipcr;
 use App\Models\Opcr;
+use App\Models\TargetMov;
 use App\Models\Upcr;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -102,6 +106,7 @@ class ReportController extends Controller
     public function finishedPdf(string $type, int $report): Response
     {
         $data = $this->reportData($type, true, $report);
+
         return Pdf::loadView('reports.exports.pdf', $data)->setPaper('a4', 'landscape')
             ->download($this->filename($type, 'pdf', $report));
     }
@@ -109,6 +114,7 @@ class ReportController extends Controller
     public function finishedExcel(string $type, int $report): StreamedResponse
     {
         $data = $this->reportData($type, true, $report);
+
         return response()->streamDownload(function () use ($data): void {
             echo view('reports.exports.excel', $data)->render();
         }, $this->filename($type, 'xls', $report), [
@@ -143,7 +149,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array{type: string, title: string, generatedAt: \Illuminate\Support\Carbon, headers: array<int, string>, rows: array<int, array<int, string>>, forms: array<int, array<string, mixed>>, formHeaders: array<int, string>}
+     * @return array{type: string, title: string, generatedAt: Carbon, headers: array<int, string>, rows: array<int, array<int, string>>, forms: array<int, array<string, mixed>>, formHeaders: array<int, string>}
      */
     private function reportData(string $type, bool $export = false, ?int $finishedId = null): array
     {
@@ -156,6 +162,7 @@ class ReportController extends Controller
             $query->whereKey($finishedId)->where('status', $model::STATUS_APPROVED);
         }
         $records = $query->get();
+        $records = $records->filter(fn ($record) => ! $record->commitmentPlan || app(PlanningOrganization::class)->canView(request()->user(), $record->commitmentPlan));
         abort_if($finishedId !== null && $records->isEmpty(), 404);
         if ($export && request()->user()->usesMyReports()) {
             $records = $records->filter(fn ($record) => $record->isApproved());
@@ -193,7 +200,9 @@ class ReportController extends Controller
     private function finishedQuery(string $type): Builder
     {
         $model = self::MODELS[$type];
+
         return $model::query()
+            ->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))))
             ->where('status', $model::STATUS_APPROVED)
             ->when($type === 'ipcr' && request()->user()->usesMyReports(),
                 fn ($query) => $query->where('employee_id', request()->user()->id));
@@ -242,9 +251,13 @@ class ReportController extends Controller
      */
     private function row(string $type, object $record): array
     {
-        $targets = $record->performanceTargets;
+        $targets = $record->commitmentPlan ? $record->commitmentPlan->targets()->get() : $record->performanceTargets;
         $accomplishments = $targets->flatMap->accomplishments;
         $evaluations = $targets->flatMap->evaluations;
+        $outputCount = null;
+        if ($record->commitmentPlan) {
+            $outputCount = $targets->flatMap(fn ($t) => app(CommitmentPlanning::class)->summary($t)['outputs'])->unique('id')->count();
+        }
 
         return [
             strtoupper($type),
@@ -256,14 +269,17 @@ class ReportController extends Controller
             (string) ($record->preparedBy?->name ?? 'Not recorded'),
             (string) ($record->approvedBy?->name ?? 'Not approved'),
             (string) $targets->count(),
-            (string) $accomplishments->count(),
-            $accomplishments->count() > 0 ? number_format((float) $accomplishments->avg('completion_percentage'), 2).'%' : '0.00%',
-            $evaluations->count() > 0 ? number_format((float) $evaluations->avg('computed_rating'), 2) : '0.00',
+            (string) ($outputCount ?? $accomplishments->count()),
+            $record->commitmentPlan ? 'See individual measures' : ($accomplishments->count() > 0 ? number_format((float) $accomplishments->avg('completion_percentage'), 2).'%' : '0.00%'),
+            $evaluations->count() > 0 ? number_format((float) $evaluations->avg('computed_rating'), 2) : ($record->commitmentPlan ? 'Not rated' : '0.00'),
         ];
     }
 
     private function cycleLabel(string $type, object $record): string
     {
+        if ($record->commitmentPlan) {
+            return $record->commitmentPlan->cycle->label;
+        }
         $cycle = match ($type) {
             'opcr' => $record->evaluationCycle,
             'dpcr' => $record->opcr?->evaluationCycle,
@@ -276,6 +292,9 @@ class ReportController extends Controller
 
     private function officeLabel(string $type, object $record): string
     {
+        if ($record->commitmentPlan) {
+            return $record->commitmentPlan->office->name;
+        }
         $office = match ($type) {
             'opcr' => $record->office,
             'dpcr' => $record->opcr?->office,
@@ -304,13 +323,15 @@ class ReportController extends Controller
      */
     private function form(string $type, object $record): array
     {
-        $rows = $record->performanceTargets->map(fn ($target): array => $this->formRow($type, $record, $target))->values()->all();
+        $targetLines = $record->commitmentPlan ? $record->commitmentPlan->targets()->get() : $record->performanceTargets;
+        $rows = $targetLines->map(fn ($target): array => $this->formRow($type, $record, $target))->values()->all();
         if ($type === 'ipcr' && $record->office_target_id) {
-            $details = \App\Models\TargetMov::where('office_target_id', $record->office_target_id)->where('user_id', $record->employee_id)
+            $details = TargetMov::where('office_target_id', $record->office_target_id)->where('user_id', $record->employee_id)
                 ->orderBy('created_at')->pluck('accomplishment')->unique()->implode("\n\n");
             $rating = fn ($value) => $value === null ? '' : number_format((float) $value, 2);
             $rows = [[$record->success_indicators, '', $details, $rating($record->quality_rating), $rating($record->efficiency_rating), $rating($record->timeliness_rating), $rating($record->average_rating), $record->rating_remarks ?? '']];
         }
+
         return [
             'heading' => $this->formHeading($type),
             'commitment' => $this->commitmentStatement($type, $record),
@@ -350,12 +371,18 @@ class ReportController extends Controller
         $average = $latestEvaluation ? number_format((float) $latestEvaluation->rating, 2) : '';
         $computed = $latestEvaluation ? number_format((float) $latestEvaluation->computed_rating, 2) : '';
         $remarks = trim(($latestEvaluation?->remarks ?? '').' '.($latestEvaluation?->adjectival_rating ? '['.$latestEvaluation->adjectival_rating.']' : ''));
+        $planningAccomplishment = null;
+        if ($target->commitment_plan_id) {
+            $summary = app(CommitmentPlanning::class)->summary($target);
+            $planningAccomplishment = 'Committed: '.$target->quantity.' '.$target->unit.'; Reported: '.($summary['reported'] ?? 'Unavailable').'; Validated: '.($summary['validated'] ?? 'Unavailable').'; Unallocated: '.($summary['unallocated'] ?? 'Not applicable');
+            $remarks = trim($remarks.' Root OPCR target #'.$target->root_target_id.'; source #'.$target->parent_target_id.'; revision '.$target->plan_revision.($target->needs_reconciliation ? '; reconciliation required' : ''));
+        }
 
         if ($type === 'ipcr') {
             return [
                 (string) $target->success_indicator,
                 '',
-                (string) ($latestAccomplishment?->details ?? ''),
+                (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
                 $quality,
                 $efficiency,
                 $timeliness,
@@ -369,7 +396,7 @@ class ReportController extends Controller
             (string) $target->success_indicator,
             '',
             $this->employeeLabel($type, $record),
-            (string) ($latestAccomplishment?->details ?? ''),
+            (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
             $quality,
             $efficiency,
             $timeliness,
@@ -387,7 +414,7 @@ class ReportController extends Controller
             (string) $target->success_indicator,
             '',
             $this->employeeLabel($type, $record),
-            (string) ($latestAccomplishment?->details ?? ''),
+            (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
             $quality,
             $efficiency,
             $timeliness,
@@ -416,6 +443,9 @@ class ReportController extends Controller
 
     private function periodLabel(string $type, object $record): string
     {
+        if ($record->commitmentPlan) {
+            return $record->commitmentPlan->cycle->label;
+        }
         $cycle = match ($type) {
             'opcr' => $record->evaluationCycle,
             'dpcr' => $record->opcr?->evaluationCycle,
