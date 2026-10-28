@@ -105,6 +105,78 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
 .spms-dashboard-count p:first-child { color: var(--workspace-primary); font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 600; }
 .spms-dashboard-count p:last-child { font-size: 13px; color: #526475; }
 .spms-dashboard-intro a { display: inline-flex; align-items: center; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 6px; }
+.spms-action {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    inline-size: 44px;
+    min-inline-size: 44px;
+    block-size: 44px;
+    padding: 0 !important;
+    margin-inline: 0;
+    border: 1px solid var(--workspace-primary-line);
+    border-radius: 9px;
+    background: #f2f6fd;
+    color: var(--workspace-primary);
+    text-transform: none;
+    letter-spacing: normal;
+    text-decoration: none !important;
+    vertical-align: middle;
+    transition: background-color .16s, border-color .16s, box-shadow .16s;
+}
+.spms-action:hover { background: #e4edfb; border-color: #9fb9e0; }
+.spms-action.spms-action-primary { background: var(--workspace-primary); border-color: var(--workspace-primary); color: white; }
+.spms-action.spms-action-primary:hover { background: var(--workspace-primary-hover); border-color: var(--workspace-primary-hover); }
+.spms-action.spms-action-success { background: #eef8f3; border-color: #cce7d6; color: #166534; }
+.spms-action.spms-action-success:hover { background: #dff1e6; border-color: #9dceb0; }
+.spms-action.spms-action-warning { background: #fff8eb; border-color: #efdab1; color: #92400e; }
+.spms-action.spms-action-warning:hover { background: #fdefd2; border-color: #d5ad65; }
+.spms-action.spms-action-danger { background: #fff3f2; border-color: #f0ceca; color: #b42318; }
+.spms-action.spms-action-danger:hover { background: #fee4e2; border-color: #e7a49c; }
+.spms-action:focus-visible { outline: 3px solid var(--workspace-focus); outline-offset: 3px; box-shadow: none; }
+.spms-action:disabled { cursor: not-allowed; opacity: .5; }
+[data-submitting] .spms-action:disabled { cursor: wait; }
+.spms-action-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; pointer-events: none; }
+.spms-action-icon svg { display: block; width: 20px; height: 20px; }
+.spms-action-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.spms-action:is(:hover, :focus-visible):not(:disabled) .spms-action-icon { animation: spms-icon-nudge .3s ease-out; }
+.spms-action[data-action-icon=add]:is(:hover, :focus-visible) .spms-action-icon { animation-name: spms-icon-turn; }
+.spms-action[data-action-icon=delete]:is(:hover, :focus-visible) .spms-action-icon { animation-name: spms-icon-tilt; }
+.spms-action[data-action-icon=upload]:is(:hover, :focus-visible) .spms-action-icon,
+.spms-action[data-action-icon=download]:is(:hover, :focus-visible) .spms-action-icon { animation-name: spms-icon-lift; }
+.spms-action-tooltip {
+    position: fixed;
+    z-index: 9999;
+    max-width: min(320px, calc(100vw - 24px));
+    padding: 8px 11px;
+    border: 1px solid #ffffff20;
+    border-radius: 6px;
+    background: #101342;
+    color: white;
+    box-shadow: 0 4px 12px #10134224;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity .14s ease-out, transform .14s ease-out, visibility .14s;
+}
+.spms-action-tooltip[data-visible] { visibility: visible; opacity: 1; transform: translateY(0); }
+.spms-action-tooltip[data-placement=below] { transform: translateY(-3px); }
+.spms-action-tooltip[data-placement=below][data-visible] { transform: translateY(0); }
+@keyframes spms-icon-nudge { 50% { transform: translateX(2px); } }
+@keyframes spms-icon-turn { 50% { transform: rotate(90deg); } }
+@keyframes spms-icon-tilt { 30% { transform: rotate(-9deg); } 65% { transform: rotate(7deg); } }
+@keyframes spms-icon-lift { 50% { transform: translateY(-3px); } }
+@media (max-width: 767px), (hover: none), (pointer: coarse) {
+    .spms-action { inline-size: auto; max-inline-size: 100%; block-size: auto; min-block-size: 44px; gap: 8px; padding: 10px 12px !important; font-size: 13px; line-height: 1.4; }
+    .spms-action-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; overflow-wrap: anywhere; }
+    .spms-action-tooltip { display: none; }
+}
 [x-cloak] { display: none !important; }
 @keyframes spms-reveal { from { opacity: .6; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @media (min-width: 768px) { .spms-sidebar { width: 252px; } }
@@ -124,6 +196,8 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
     .planning-plan-list td[colspan] { grid-column: 1 / -1; }
 }
 @media (max-width: 767px) {
+    .spms-action-scroll::before { content: 'Scroll sideways for all columns and actions'; position: sticky; left: 0; display: block; width: fit-content; max-width: 100%; padding: 10px 16px; color: #526475; font-size: 11px; }
+    .spms-workspace main table:has(.spms-action) { min-width: 640px; }
     .spms-topbar { padding: 8px 16px; gap: 8px; min-height: 60px; }
     .spms-breadcrumb { gap: 7px; font-size: 11px; }
     .spms-breadcrumb > span:first-child { display: none; }
@@ -141,6 +215,6 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 @media print {
-    .spms-sidebar, .spms-topbar, .spms-loading-bar, .spms-section-nav { display: none; }
+    .spms-sidebar, .spms-topbar, .spms-loading-bar, .spms-section-nav, .spms-action, .spms-action-tooltip { display: none !important; }
     .spms-workspace { background: white; }
 }
