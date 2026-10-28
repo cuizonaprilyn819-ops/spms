@@ -15,7 +15,7 @@
             <div class="mb-6 flex flex-col items-center gap-2 border-b border-slate-100 pb-5 text-center">
                 <img src="{{ asset('images/logoslsu.png') }}" alt="Southern Leyte State University seal" class="h-16 w-16 rounded-full object-contain">
                 <div>
-                    <p class="text-sm font-semibold text-[#142b4d]">SLSU SPMS</p>
+                    <p class="text-sm font-semibold text-spms-ink">SLSU SPMS</p>
                     <p class="text-xs text-slate-500">Southern Leyte State University</p>
                 </div>
             </div>

@@ -12,7 +12,7 @@
                 </p>
             </div>
             @hasanyrole('Administrator|Campus Director')
-                <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276]">Upload Main Campus Document</a>
+                <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover">Upload Main Campus Document</a>
             @endhasanyrole
         </div>
     </x-slot>

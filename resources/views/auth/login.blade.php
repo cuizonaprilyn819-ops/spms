@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <h2 class="mb-5 text-center text-3xl font-semibold tracking-tight text-[#142b4d]">Sign in</h2>
+    <h2 class="mb-5 text-center text-3xl font-semibold tracking-tight text-spms-ink">Sign in</h2>
 
     <x-auth-session-status class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3" :status="session('status')" />
 
@@ -7,14 +7,14 @@
         @csrf
 
         <div>
-            <label for="email" class="mb-2 block text-sm font-semibold text-[#243a5a]">Email address</label>
+            <label for="email" class="mb-2 block text-sm font-semibold text-spms-ink">Email address</label>
             <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="name@slsu.edu.ph" class="block w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm text-spms-ink placeholder:text-slate-400 focus:border-spms-navy focus:ring-spms-navy">
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div x-data="{ showPassword: false }">
             <div class="mb-2 flex items-center justify-between gap-3">
-                <label for="password" class="text-sm font-semibold text-[#243a5a]">Password</label>
+                <label for="password" class="text-sm font-semibold text-spms-ink">Password</label>
                 @if (Route::has('password.request'))
                     <a href="{{ route('password.request') }}" class="rounded text-xs font-semibold text-spms-navy hover:underline focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">Forgot password?</a>
                 @endif
@@ -34,7 +34,7 @@
             <span>Remember me</span>
         </label>
 
-        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#24477e] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#183a70] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-spms-navy px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
             Sign in
             <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" /></svg>
         </button>

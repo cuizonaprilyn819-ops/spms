@@ -65,7 +65,7 @@
 @if($t->needs_reconciliation)<p class="mt-3 rounded bg-amber-50 p-3 text-amber-900">The parent changed. Open an amendment and reconcile this line against the new source before approval or reporting.</p>
 @endif
 <div class="spms-plan-metrics my-4 grid gap-px sm:grid-cols-4">
-@foreach(['Committed'=>$t->quantity.' '.$t->unit,'Reported'=>$s['reported'] ?? 'Unavailable','Validated'=>$s['validated'] ?? 'Unavailable','Unallocated'=>$s['unallocated'] ?? 'Not applicable'] as $label=>$value)<div class="rounded bg-gray-50 p-3"><p class="text-sm text-gray-600">{{ $label }}</p><p class="text-xl font-semibold">{{ $value }}</p></div>
+@foreach(['Committed'=>$t->quantity.' '.$t->unit,'Reported'=>$s['reported'] ?? 'Unavailable','Validated'=>$s['validated'] ?? 'Unavailable','Unallocated'=>$s['unallocated'] ?? 'Not applicable'] as $label=>$value)<div data-metric="{{ strtolower($label) }}" class="rounded bg-gray-50 p-3"><p class="text-sm text-gray-600">{{ $label }}</p><p class="text-xl font-semibold">{{ $value }}</p></div>
 @endforeach</div><p>Quality / timeliness: {{ $t->standards }} · Deadline {{ $t->deadline->format('M d, Y') }} · Rating weight {{ $t->weight }}%</p><p>Source: {{ $t->source_evidence }}</p>
 @if($s['extra']>0)<p class="mt-2 text-amber-800">Additional output: {{ $s['extra'] }}. Original commitment unchanged; validate the supporting work separately.</p>
 @endif

@@ -43,7 +43,7 @@
                                     <form method="POST" action="{{ route('notifications.read', $notification) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b4276]">
+                                        <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-spms-navy-hover">
                                             Open
                                         </button>
                                     </form>

@@ -27,3 +27,7 @@
 - Put reusable operational scripts in `scripts/`, temporary diagnostics in `tools/`, operator instructions in `docs/ops/`, and retained notes in `docs/notes/`.
 - Put temporary runtime output in ignored `tmp/` or `output/playwright/`. Never place one-off debug endpoints or conversation dumps in the root.
 - Before finishing, remove temporary helpers created for the task unless they are deliberately retained in the appropriate folder. Preserve existing user files.
+
+## Visual consistency
+
+- Preserve the original deep blue sidebar unless the user requests a different color. Use [docs/ui-palette.md](docs/ui-palette.md) for coordinated page colors, readable status, and restrained accents.

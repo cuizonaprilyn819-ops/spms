@@ -7,7 +7,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 @if($canExport)
-                <a href="{{ $archiveId ? route('reports.finished.pdf', [$type, $archiveId]) : route('reports.pdf', $type) }}" class="rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2b4276]">Export PDF</a>
+                <a href="{{ $archiveId ? route('reports.finished.pdf', [$type, $archiveId]) : route('reports.pdf', $type) }}" class="rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-spms-navy-hover">Export PDF</a>
                 <a href="{{ $archiveId ? route('reports.finished.excel', [$type, $archiveId]) : route('reports.excel', $type) }}" class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Export Excel</a>
                 @else
                     <p class="text-sm text-gray-500">PDF and Excel export will be available after IPCR approval.</p>

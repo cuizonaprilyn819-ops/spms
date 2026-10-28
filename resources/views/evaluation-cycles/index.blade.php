@@ -5,7 +5,7 @@
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Evaluation Period Management') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which semester is open for evaluation.</p>
             </div>
-            <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+            <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create Period
             </a>
         </div>

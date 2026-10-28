@@ -26,7 +26,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @role('Administrator')
                 @php
-                    $palette = ['#244c71', '#22736d', '#a16207', '#b42318', '#526475', '#687b8e'];
+                    $palette = ['#34508e', '#22736d', '#a16207', '#b42318', '#526475', '#687b8e'];
                 @endphp
 
                 <div class="px-4 sm:px-0">
@@ -39,7 +39,7 @@
                     </div>
 
                     <section class="mt-8" aria-labelledby="system-totals">
-                        <h2 id="system-totals" class="text-lg font-bold text-[#172f54]">System totals</h2>
+                        <h2 id="system-totals" class="text-lg font-bold text-spms-ink">System totals</h2>
                         <div class="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 sm:grid-cols-3 lg:grid-cols-4">
                             @foreach($counts as $label => $count)
                                 <div class="spms-dashboard-count">
@@ -51,7 +51,7 @@
                     </section>
 
                     <section class="mt-10" aria-labelledby="system-charts">
-                        <h2 id="system-charts" class="text-lg font-bold text-[#172f54]">System distributions</h2>
+                        <h2 id="system-charts" class="text-lg font-bold text-spms-ink">System distributions</h2>
                         <p class="mt-1 text-sm text-slate-500">Counts and shares for each category.</p>
                         <div class="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                             @foreach($charts as $chart)
@@ -60,8 +60,8 @@
                                 @endphp
                                 <article class="rounded-lg border border-slate-200 bg-white p-5">
                                     <div class="flex items-start justify-between gap-4">
-                                        <h3 class="font-bold text-[#172f54]">{{ $chart['title'] }}</h3>
-                                        <span class="rounded-full bg-[#edf3fa] px-3 py-1 text-xs font-bold text-[#24477e]">{{ number_format($chartTotal) }} total</span>
+                                        <h3 class="font-bold text-spms-ink">{{ $chart['title'] }}</h3>
+                                        <span class="rounded-full bg-spms-tint px-3 py-1 text-xs font-bold text-spms-navy">{{ number_format($chartTotal) }} total</span>
                                     </div>
                                     <div class="mt-5 space-y-3 text-xs">
                                         @forelse($chart['values'] as $label => $value)
@@ -71,7 +71,7 @@
                                             <div>
                                                 <div class="mb-1.5 flex items-center justify-between gap-3">
                                                     <span class="min-w-0 truncate font-medium text-slate-600" title="{{ $label }}">{{ ucfirst($label) }}</span>
-                                                    <span class="shrink-0 font-semibold text-[#172f54]">{{ number_format($value) }} <span class="font-normal text-slate-400">({{ number_format($percent, 1) }}%)</span></span>
+                                                    <span class="shrink-0 font-semibold text-spms-ink">{{ number_format($value) }} <span class="font-normal text-slate-400">({{ number_format($percent, 1) }}%)</span></span>
                                                 </div>
                                                 <div class="h-2 overflow-hidden rounded-full bg-slate-100" role="meter" aria-label="{{ $label }} share" aria-valuenow="{{ round($percent, 1) }}" aria-valuemin="0" aria-valuemax="100">
                                                     <div class="h-full rounded-full" style="width: {{ $percent }}%; background-color: {{ $palette[$loop->index % count($palette)] }}"></div>
@@ -98,13 +98,13 @@
                     <p class="mt-1 max-w-2xl text-sm text-slate-500">{{ $roleDescriptions[$primaryRole] ?? 'See your assignments and progress in one place.' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         @hasanyrole('Campus Director|Supervisor')
-                            <a href="{{ route('office-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#173967] transition hover:bg-[#eaf2fc] focus:outline-none focus:ring-2 focus:ring-spms-sky">View office targets</a>
+                            <a href="{{ route('office-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-spms-navy transition hover:bg-spms-tint focus:outline-none focus:ring-2 focus:ring-spms-sky">View office targets</a>
                         @endhasanyrole
                         @role('Employee')
-                            <a href="{{ route('performance-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#173967] transition hover:bg-[#eaf2fc] focus:outline-none focus:ring-2 focus:ring-spms-sky">View my targets</a>
+                            <a href="{{ route('performance-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-spms-navy transition hover:bg-spms-tint focus:outline-none focus:ring-2 focus:ring-spms-sky">View my targets</a>
                         @endrole
                         @hasanyrole('HR|HR Head|HRM Office II')
-                            <a href="{{ route('reports.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#173967] transition hover:bg-[#eaf2fc] focus:outline-none focus:ring-2 focus:ring-spms-sky">Review reports</a>
+                            <a href="{{ route('reports.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-spms-navy transition hover:bg-spms-tint focus:outline-none focus:ring-2 focus:ring-spms-sky">Review reports</a>
                         @endhasanyrole
                     </div>
                 </div>
@@ -126,7 +126,7 @@
                 </div>
 
                 <div class="mt-5 rounded-lg border border-slate-200 bg-white p-5">
-                    <h2 class="text-base font-semibold text-[#172f54]">Target Accomplishment Status</h2>
+                    <h2 class="text-base font-semibold text-spms-ink">Target Accomplishment Status</h2>
                     <p class="mt-1 text-sm text-slate-500">How your assigned targets are progressing.</p>
                     <div class="mt-5">
                         <div class="w-full space-y-3">
@@ -137,7 +137,7 @@
                                 <div>
                                     <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
                                         <span class="font-medium text-slate-600">{{ $label }}</span>
-                                        <span class="font-bold text-[#172f54]">{{ number_format($value) }} <span class="font-normal text-slate-400">({{ number_format($percent, 1) }}%)</span></span>
+                                        <span class="font-bold text-spms-ink">{{ number_format($value) }} <span class="font-normal text-slate-400">({{ number_format($percent, 1) }}%)</span></span>
                                     </div>
                                     <div class="h-2.5 overflow-hidden rounded-full bg-slate-100" role="meter" aria-label="{{ $label }} target share" aria-valuenow="{{ round($percent, 1) }}" aria-valuemin="0" aria-valuemax="100">
                                         <div class="h-full rounded-full" style="width: {{ $percent }}%; background-color: {{ $personalPalette[$loop->index] }}"></div>
@@ -151,12 +151,12 @@
                 @if($personalDashboard['employeeProgress']->isNotEmpty() || Auth::user()->hasAnyRole(['Campus Director', 'Supervisor', 'HR Head']))
                     <section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="employee-progress-heading">
                         <div class="border-b border-slate-100 px-6 py-5">
-                            <h2 id="employee-progress-heading" class="text-lg font-bold text-[#172f54]">Employee Progress</h2>
+                            <h2 id="employee-progress-heading" class="text-lg font-bold text-spms-ink">Employee Progress</h2>
                             <p class="mt-1 text-sm text-slate-500">{{ Auth::user()->hasRole('Supervisor') ? 'Target and MOV progress for employees in your office.' : 'Employee progress in your campus and on targets you assigned to offices.' }} Updates every 15 seconds while this page is visible.</p>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-100">
-                                <thead class="bg-[#f6f9fd]">
+                                <thead class="bg-spms-tint">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Employee</th>
                                         <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Office</th>

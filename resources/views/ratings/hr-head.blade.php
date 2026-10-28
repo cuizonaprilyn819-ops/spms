@@ -8,7 +8,7 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#dce6f4] bg-white px-5 py-4 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-spms-line bg-white px-5 py-4 shadow-sm">
                 <div>
                     <p class="text-xs font-bold uppercase tracking-widest text-spms-navy">University wide</p>
                     <p class="mt-1 text-sm text-gray-600">{{ $evaluations->total() }} {{ \Illuminate\Support\Str::plural('target evaluation', $evaluations->total()) }} · {{ $ratedIpcrCount }} rated {{ \Illuminate\Support\Str::plural('IPCR', $ratedIpcrCount) }} · {{ $unratedIpcrCount }} approved without scores</p>
@@ -22,7 +22,7 @@
                     </select>
                     <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Apply</button>
                 </form>
-                <a href="{{ route('ratings.pdf', $role ? ['role' => $role] : []) }}" class="rounded-lg border border-spms-navy px-4 py-2 text-sm font-semibold text-spms-navy hover:bg-[#eaf2fc]">Export ratings PDF</a>
+                <a href="{{ route('ratings.pdf', $role ? ['role' => $role] : []) }}" class="rounded-lg border border-spms-navy px-4 py-2 text-sm font-semibold text-spms-navy hover:bg-spms-tint">Export ratings PDF</a>
             </div>
 
             <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="evaluation-ratings-heading">
