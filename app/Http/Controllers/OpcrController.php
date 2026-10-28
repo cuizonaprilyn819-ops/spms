@@ -6,6 +6,8 @@ use App\Models\EvaluationCycle;
 use App\Models\Office;
 use App\Models\Opcr;
 use App\Notifications\ApprovalNotification;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,7 +17,7 @@ class OpcrController extends Controller
 {
     public function index(): View
     {
-        $query = Opcr::with(['evaluationCycle', 'office', 'preparedBy', 'approvedBy']);
+        $query = Opcr::with(['evaluationCycle', 'office', 'preparedBy', 'approvedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
 
         if ($this->isOfficeScoped(request())) {
             $query->where('office_id', request()->user()->office_id);
@@ -44,6 +46,7 @@ class OpcrController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        CommitmentPlanning::legacyOnly(EvaluationCycle::find($request->input('evaluation_cycle_id')));
         abort_unless($request->user()->hasRole('Campus Director') && $request->user()->office_id, 403);
         $data = $request->validate([
             'evaluation_cycle_id' => [
@@ -80,8 +83,13 @@ class OpcrController extends Controller
             ->with('status', 'OPCR created successfully.');
     }
 
-    public function show(Opcr $opcr): View
+    public function show(Opcr $opcr): View|RedirectResponse
     {
+        if ($opcr->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canView(request()->user(), $opcr->commitmentPlan), 403);
+
+            return redirect()->route('planning.show', $opcr->commitmentPlan);
+        }
         $this->authorizeOfficeAccess(request(), $opcr);
 
         return view('opcrs.show', [

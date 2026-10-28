@@ -38,6 +38,15 @@ test('skips hidden pages and focused dashboard controls', async t => {
     assert.equal(h.calls(), 0);
 });
 
+test('continues updates when navigation focuses the main region', async t => {
+    const h = harness(t);
+    document.activeElement = h.main;
+    h.main.contains = () => true;
+    await h.tick();
+    assert.equal(h.calls(), 1);
+    assert.equal(h.replacements(), 1);
+});
+
 test('keeps old data with a visible warning on connection failure', async t => {
     const h = harness(t);
     globalThis.fetch = async () => { throw new Error('Offline'); };

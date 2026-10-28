@@ -7,9 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EvaluationCycle extends Model
 {
+    protected $attributes = ['planning_enabled' => false];
+
     public const FIRST_SEMESTER = '1st Semester';
+
     public const SECOND_SEMESTER = '2nd Semester';
+
     public const STATUS_OPEN = 'open';
+
     public const STATUS_CLOSED = 'closed';
 
     protected $fillable = [
@@ -18,12 +23,14 @@ class EvaluationCycle extends Model
         'status',
         'opened_at',
         'closed_at',
+        'planning_enabled', 'planning_readiness',
     ];
 
     protected function casts(): array
     {
         return [
             'year' => 'integer',
+            'planning_enabled' => 'boolean',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
         ];

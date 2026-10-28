@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Dpcr;
 use App\Models\Ipcr;
+use App\Models\OfficeTarget;
 use App\Models\Opcr;
 use App\Models\PerformanceTarget;
 use App\Models\Upcr;
+use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -15,7 +17,7 @@ class PerformanceTargetController extends Controller
     public function index(): View
     {
         $user = request()->user();
-        $officeTargets = \App\Models\OfficeTarget::with('createdBy');
+        $officeTargets = OfficeTarget::with('createdBy');
         if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
             $officeTargets->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
         } elseif ($user->hasRole('Campus Director')) {
@@ -24,6 +26,8 @@ class PerformanceTargetController extends Controller
             $officeTargets->whereHas('assignedEmployees', fn ($q) => $q->whereKey($user->id));
         }
         $targets = PerformanceTarget::with(['targetable', 'createdBy'])
+            ->currentPlanningRevision()
+            ->where(fn ($q) => $q->whereNull('commitment_plan_id')->orWhereIn('commitment_plan_id', app(PlanningOrganization::class)->visiblePlanIds($user)))
             ->latest()
             ->paginate(10);
 

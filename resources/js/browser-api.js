@@ -4,6 +4,7 @@ const resources = new Set([
     'opcrs', 'dpcrs', 'upcrs', 'ipcrs', 'evaluations', 'performance-targets',
     'accomplishments', 'movs', 'notifications', 'reports', 'report-workflow',
     'report-attachments',
+    'planning',
 ]);
 
 export function apiTarget(href, baseHref) {
@@ -22,6 +23,16 @@ export function installBrowserApi(Alpine) {
     const base = document.querySelector('meta[name="spms-base-url"]')?.content;
     if (!base) return;
     let busy = false;
+    let currentPage = window.location.pathname + window.location.search;
+
+    function feedback(active, form = null) {
+        document.documentElement?.toggleAttribute('data-spms-busy', active);
+        document.querySelector('main')?.setAttribute?.('aria-busy', String(active));
+        form?.toggleAttribute?.('data-submitting', active);
+        form?.setAttribute?.('aria-busy', String(active));
+        const status = document.querySelector('[data-navigation-status]');
+        if (status) status.textContent = active ? (form ? 'Saving. Please wait.' : 'Loading page.') : '';
+    }
 
     function showError(message, container = document.querySelector('main') || document.body) {
         container.querySelector('[data-api-error]')?.remove();
@@ -51,7 +62,9 @@ export function installBrowserApi(Alpine) {
                 ? 'Your session expired. Reload this page before trying again.'
                 : response.status === 401
                     ? 'Please sign in again to continue.'
-                    : Object.values(payload.errors || {}).flat().join('\n') || payload.message || 'The request failed.';
+                    : response.status === 403
+                        ? 'You do not have permission to make this change. Check the responsible office and person, or contact your office head.'
+                        : Object.values(payload.errors || {}).flat().join('\n') || payload.message || 'Unable to save. Please try again.';
             throw new Error(message);
         }
         return payload;
@@ -75,10 +88,17 @@ export function installBrowserApi(Alpine) {
             document.title = parsed.title;
             document.querySelector('meta[name="csrf-token"]').content = parsed.querySelector('meta[name="csrf-token"]').content;
             history.pushState({}, '', page);
+            currentPage = page.pathname + page.search;
             Alpine.initTree(document.body);
         });
         window.scrollTo(0, 0);
-        if (page.hash) document.getElementById(decodeURIComponent(page.hash.slice(1)))?.scrollIntoView();
+        const main = document.getElementById('main-content');
+        main?.focus({ preventScroll: true });
+        if (page.hash) {
+            const section = document.getElementById(decodeURIComponent(page.hash.slice(1)));
+            if (section?.tagName === 'DETAILS') section.open = true;
+            section?.scrollIntoView();
+        }
     }
 
     async function navigate(target) {
@@ -99,7 +119,8 @@ export function installBrowserApi(Alpine) {
         event.preventDefault();
         if (busy) return;
         busy = true;
-        try { await navigate(target); } catch (error) { showError(error.message); } finally { busy = false; }
+        feedback(true);
+        try { await navigate(target); } catch (error) { showError(error.message); } finally { busy = false; feedback(false); }
     });
 
     document.addEventListener('submit', async event => {
@@ -113,6 +134,7 @@ export function installBrowserApi(Alpine) {
         const data = new FormData(form, event.submitter);
         const buttons = [...form.querySelectorAll('button, input[type="submit"]')].filter(button => !button.disabled);
         buttons.forEach(button => { button.disabled = true; });
+        feedback(true, form);
         try {
             if (form.method.toLowerCase() === 'get') {
                 target.page.search = new URLSearchParams(data).toString();
@@ -133,8 +155,11 @@ export function installBrowserApi(Alpine) {
         } finally {
             buttons.forEach(button => { button.disabled = false; });
             busy = false;
+            feedback(false, form);
         }
     });
 
-    window.addEventListener('popstate', () => window.location.reload());
+    window.addEventListener('popstate', () => {
+        if (window.location.pathname + window.location.search !== currentPage) window.location.reload();
+    });
 }

@@ -8,7 +8,7 @@
         @endif
     </a>
         <div class="relative" x-data="{ accountOpen: false }" @click.outside="accountOpen = false" @keydown.escape.prevent="accountOpen = false; $refs.accountButton.focus()">
-            <button x-ref="accountButton" type="button" @click="accountOpen = !accountOpen" :aria-expanded="accountOpen" aria-controls="account-menu" class="flex items-center gap-3 rounded-lg px-3 py-2 text-right hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-spms-sky">
+            <button x-ref="accountButton" type="button" aria-label="Account menu for {{ Auth::user()->name }}" @click="accountOpen = !accountOpen" :aria-expanded="accountOpen" aria-controls="account-menu" class="flex items-center gap-3 rounded-lg px-3 py-2 text-right hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-spms-sky">
                 <span class="spms-account-avatar" aria-hidden="true">{{ mb_substr(Auth::user()->name, 0, 1) }}</span>
                 <span>
                     <span class="block text-sm font-semibold text-spms-ink">{{ Auth::user()->name }}</span>

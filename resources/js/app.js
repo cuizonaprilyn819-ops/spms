@@ -4,6 +4,9 @@ import Alpine from 'alpinejs';
 import { installBrowserApi } from './browser-api';
 import { installDashboardRefresh } from './dashboard-refresh';
 import { aiChat } from './ai-chat';
+import { installWorkspaceUi } from './workspace-ui';
+
+installWorkspaceUi();
 
 window.Alpine = Alpine;
 Alpine.data('aiChat', aiChat);

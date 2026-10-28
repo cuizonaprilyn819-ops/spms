@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CommitmentPlan;
 use App\Models\EvaluationCycle;
 use App\Models\Office;
 use App\Models\OfficeTarget;
 use App\Models\TargetDocument;
 use App\Models\TargetDocumentDraft;
+use App\Services\CommitmentPlanning;
+use App\Services\PlanningOrganization;
 use App\Services\TargetDocumentAi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,18 +51,21 @@ class TargetDocumentController extends Controller
             Storage::disk('local')->delete($path);
             throw $exception;
         }
+
         return redirect()->route('target-documents.show', $document);
     }
 
     public function show(Request $request, TargetDocument $document)
     {
         $this->authorizeDocument($request, $document);
+
         return view('target-documents.show', ['document' => $document->load('drafts')]);
     }
 
     public function download(Request $request, TargetDocument $document)
     {
         $this->authorizeDocument($request, $document);
+
         return Storage::disk('local')->download($document->path, $document->original_name);
     }
 
@@ -71,23 +77,32 @@ class TargetDocumentController extends Controller
                 $stale->where('status', 'analyzing')->where('updated_at', '<', now()->subMinutes(5));
             });
         })->update(['status' => 'analyzing', 'error' => null, 'updated_at' => now()]);
-        if (! $claimed) return back()->withErrors(['analysis' => 'This document is already being analyzed or has results ready for review.']);
+        if (! $claimed) {
+            return back()->withErrors(['analysis' => 'This document is already being analyzed or has results ready for review.']);
+        }
         set_time_limit(180);
         try {
             $result = $ai->analyze($document);
             DB::transaction(function () use ($document, $result) {
-                foreach ($result['targets'] as $proposal) $document->drafts()->create(['proposal' => $proposal]);
+                foreach ($result['targets'] as $proposal) {
+                    $document->drafts()->create(['proposal' => $proposal]);
+                }
                 $document->update(['status' => 'review', 'summary' => $result['summary']."\n\n".($result['warnings'] ?? ''), 'error' => null]);
             });
         } catch (\RuntimeException $exception) {
             $document->update(['status' => 'failed', 'error' => $exception->getMessage()]);
         }
+
         return redirect()->route('target-documents.show', $document);
     }
 
     public function review(Request $request, TargetDocumentDraft $draft)
     {
         $this->authorizeDocument($request, $draft->document);
+        if ($draft->document->evaluationCycle?->planning_enabled) {
+            return view('planning.import', ['draft' => $draft, 'plans' => CommitmentPlan::where('evaluation_cycle_id', $draft->document->evaluation_cycle_id)->where('level', 'opcr')->get()->filter(fn ($p) => app(PlanningOrganization::class)->canPrepare($request->user(), $p))]);
+        }
+
         return view('target-documents.review', [
             'draft' => $draft,
             'offices' => Office::where('is_active', true)->where('campus', config('hinunangan.campus_id'))->with('targetHeads')->orderBy('name')->get(),
@@ -97,8 +112,11 @@ class TargetDocumentController extends Controller
     public function assign(Request $request, TargetDocumentDraft $draft, TargetDocumentAi $ai)
     {
         $this->authorizeDocument($request, $draft->document);
+        CommitmentPlanning::legacyOnly($draft->document->evaluationCycle);
         abort_if($draft->proposal['cd_only'], 422, 'CD-only targets cannot be assigned to offices.');
-        if ($draft->office_target_id) return redirect()->route('office-targets.show', $draft->office_target_id);
+        if ($draft->office_target_id) {
+            return redirect()->route('office-targets.show', $draft->office_target_id);
+        }
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'success_indicator' => ['required', 'string', 'max:5000'],
@@ -116,11 +134,15 @@ class TargetDocumentController extends Controller
         ]);
         $allocations = [];
         foreach ($data['office_ids'] as $officeId) {
-            if (empty($data['allocations'][$officeId])) throw ValidationException::withMessages(['allocations' => 'Enter a positive allocation for every selected office.']);
+            if (empty($data['allocations'][$officeId])) {
+                throw ValidationException::withMessages(['allocations' => 'Enter a positive allocation for every selected office.']);
+            }
             $allocations[(int) $officeId] = $data['allocations'][$officeId];
         }
         $allocated = array_sum(array_map(fn ($value) => (int) round($value * 100), $allocations));
-        if ($allocated !== (int) round($data['target_value'] * 100)) throw ValidationException::withMessages(['allocations' => 'Office allocations must equal the total target value.']);
+        if ($allocated !== (int) round($data['target_value'] * 100)) {
+            throw ValidationException::withMessages(['allocations' => 'Office allocations must equal the total target value.']);
+        }
         unset($data['office_ids'], $data['allocations'], $data['confirmed']);
         if (! EvaluationCycle::whereKey($draft->document->evaluation_cycle_id)->where('status', EvaluationCycle::STATUS_OPEN)->exists()) {
             throw ValidationException::withMessages(['period' => 'The evaluation period is closed. Ask the administrator to reopen it before assignment.']);
@@ -133,9 +155,13 @@ class TargetDocumentController extends Controller
         }
         $targetId = DB::transaction(function () use ($request, $draft, $data, $allocations, $briefings) {
             $locked = TargetDocumentDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
-            if ($locked->office_target_id) return $locked->office_target_id;
+            if ($locked->office_target_id) {
+                return $locked->office_target_id;
+            }
             $cycle = EvaluationCycle::whereKey($draft->document->evaluation_cycle_id)->lockForUpdate()->firstOrFail();
-            if ($cycle->status !== EvaluationCycle::STATUS_OPEN) throw ValidationException::withMessages(['period' => 'The evaluation period has closed.']);
+            if ($cycle->status !== EvaluationCycle::STATUS_OPEN) {
+                throw ValidationException::withMessages(['period' => 'The evaluation period has closed.']);
+            }
             $target = OfficeTarget::create([
                 ...$data, 'created_by' => $request->user()->id, 'evaluation_cycle_id' => $cycle->id,
                 'description' => $draft->proposal['source_excerpt'],
@@ -147,8 +173,10 @@ class TargetDocumentController extends Controller
             $target->offices()->sync($pivots);
             $locked->update(['office_target_id' => $target->id]);
             $target->notifyAssignedSupervisors(array_keys($allocations));
+
             return $target->id;
         });
+
         return redirect()->route('office-targets.show', $targetId)->with('status', 'Target assigned. Office heads have been notified with their AI briefing.');
     }
 

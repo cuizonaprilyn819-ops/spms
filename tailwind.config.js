@@ -12,17 +12,17 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Poppins', ...defaultTheme.fontFamily.sans],
+                sans: ['Public Sans', ...defaultTheme.fontFamily.sans],
             },
             colors: {
                 spms: {
-                    sky: '#5ABDEE',
-                    navy: '#34508E',
-                    green: '#28C76F',
-                    red: '#EA5455',
-                    amber: '#FF9F43',
-                    surface: '#F2F4F7',
-                    ink: '#142233',
+                    sky: '#0284C7',
+                    navy: '#244C71',
+                    green: '#15803D',
+                    red: '#B42318',
+                    amber: '#A16207',
+                    surface: '#F5F7F9',
+                    ink: '#172B3D',
                 },
             },
         },

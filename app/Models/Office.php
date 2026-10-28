@@ -21,18 +21,35 @@ class Office extends Model
         'department_head_reference',
         'supervisor_reference',
         'is_active',
+        'parent_office_id', 'planning_level', 'mandate', 'head_id', 'planning_reviewer_id', 'hierarchy_verified_at',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'hierarchy_verified_at' => 'datetime',
         ];
     }
 
     public function employees(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function parentOffice()
+    {
+        return $this->belongsTo(self::class, 'parent_office_id');
+    }
+
+    public function head()
+    {
+        return $this->belongsTo(User::class, 'head_id');
+    }
+
+    public function planningReviewer()
+    {
+        return $this->belongsTo(User::class, 'planning_reviewer_id');
     }
 
     public function targetHeads(): HasMany

@@ -24,6 +24,7 @@ class AccomplishmentController extends Controller
     {
         return view('accomplishments.create', [
             'targets' => PerformanceTarget::with('targetable')
+                ->whereNull('commitment_plan_id')
                 ->latest()
                 ->get(),
         ]);
@@ -74,6 +75,8 @@ class AccomplishmentController extends Controller
      */
     private function validatedData(Request $request): array
     {
+        abort_if(PerformanceTarget::find($request->input('performance_target_id'))?->commitment_plan_id, 422, 'Record commitment outputs with evidence in Commitment Planning.');
+
         return $request->validate([
             'performance_target_id' => ['required', 'integer', Rule::exists('performance_targets', 'id')],
             'details' => ['required', 'string', 'max:5000'],

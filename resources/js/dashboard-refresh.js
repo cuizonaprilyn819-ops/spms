@@ -3,7 +3,9 @@ export function installDashboardRefresh(Alpine) {
     setInterval(async () => {
         const marker = document.querySelector('[data-dashboard-refresh]');
         const main = marker?.closest('main');
-        if (!main || busy || document.hidden || main.contains(document.activeElement)) return;
+        // Route navigation focuses the main region; only a focused control pauses updates.
+        const interacting = () => document.activeElement !== main && main.contains(document.activeElement);
+        if (!main || busy || document.hidden || interacting()) return;
         const url = location.href;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12000);
@@ -14,7 +16,7 @@ export function installDashboardRefresh(Alpine) {
             const page = new DOMParser().parseFromString(await response.text(), 'text/html');
             const fresh = page.querySelector('[data-dashboard-refresh]')?.closest('main');
             if (!fresh) throw new Error('Please sign in again');
-            if (location.href !== url || !marker.isConnected || document.hidden || main.contains(document.activeElement)) return;
+            if (location.href !== url || !marker.isConnected || document.hidden || interacting()) return;
             Alpine.mutateDom(() => {
                 Alpine.destroyTree(main);
                 main.replaceChildren(...fresh.childNodes);

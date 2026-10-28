@@ -11,6 +11,7 @@ $icon = match ($section) {
     'accomplishments', 'evaluations', 'ratings' => 'M9 12l2 2 4-4M9 3H5v18h14V3h-4M9 2h6v4H9z',
     'movs' => 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
     'reports', 'target-documents' => 'M4 3h16v18H4zM8 7h8M8 11h8M8 15h5',
+    'planning' => 'M12 3v6M5 15v-3h14v3M3 15h4v6H3zM10 3h4M10 15h4v6h-4zM17 15h4v6h-4zM12 12v3',
     default => 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
 };
 $classes = ($active ?? false)
@@ -18,7 +19,7 @@ $classes = ($active ?? false)
             : 'spms-nav-link block w-full rounded-xl px-3.5 py-3.5 text-start text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-spms-sky';
 @endphp
 
-<a {{ $attributes->merge(['class' => $classes]) }}>
+<a @if($active ?? false) aria-current="page" @endif {{ $attributes->merge(['class' => $classes]) }}>
     <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $icon }}"/></svg>
     <span class="min-w-0 flex-1">{{ $slot }}</span>
 </a>

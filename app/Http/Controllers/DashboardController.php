@@ -9,13 +9,16 @@ use App\Models\EvaluationCycle;
 use App\Models\Ipcr;
 use App\Models\Mov;
 use App\Models\Office;
+use App\Models\OfficeTarget;
 use App\Models\Opcr;
 use App\Models\PerformanceTarget;
 use App\Models\PositionTitle;
+use App\Models\TargetMov;
 use App\Models\Upcr;
 use App\Models\User;
-use App\Models\OfficeTarget;
-use App\Models\TargetMov;
+use App\Support\OfficeTargetProgress;
+use App\Support\TargetActivityLog;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -23,8 +26,8 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
-        $officeProgress = app(\App\Support\OfficeTargetProgress::class)->forUser(request()->user());
-        $targetActivity = app(\App\Support\TargetActivityLog::class)->forUser(request()->user());
+        $officeProgress = app(OfficeTargetProgress::class)->forUser(request()->user());
+        $targetActivity = app(TargetActivityLog::class)->forUser(request()->user());
         if (! request()->user()->hasRole('Administrator')) {
             return view('dashboard', [
                 'personalDashboard' => $this->personalDashboard(request()->user(), $officeProgress),
@@ -50,7 +53,11 @@ class DashboardController extends Controller
         // Scalar subqueries keep counts live while sharing one database round trip.
         $summary = DB::query();
         foreach (array_values($models) as $index => $model) {
-            $summary->selectSub($model::query()->selectRaw('COUNT(*)'), 'total_'.$index);
+            $countQuery = $model::query();
+            if ($model === PerformanceTarget::class) {
+                $countQuery->currentPlanningRevision();
+            }
+            $summary->selectSub($countQuery->selectRaw('COUNT(*)'), 'total_'.$index);
         }
         $summary->selectSub(Office::where('is_active', true)->selectRaw('COUNT(*)'), 'active_offices')
             ->selectSub(Office::where('is_active', false)->selectRaw('COUNT(*)'), 'inactive_offices')
@@ -79,6 +86,7 @@ class DashboardController extends Controller
                 ->selectRaw('roles.name as label, COUNT(model_has_roles.role_id) as total')
                 ->groupBy('roles.id', 'roles.name')->pluck('total', 'label')->all()),
             $this->chart('Targets by form', PerformanceTarget::query()
+                ->currentPlanningRevision()
                 ->selectRaw('targetable_type as label, COUNT(*) as total')
                 ->groupBy('targetable_type')->pluck('total', 'label')->mapWithKeys(
                     fn ($value, $key) => [class_basename($key) => $value]
@@ -114,6 +122,7 @@ class DashboardController extends Controller
             $label = ucfirst($row->label);
             $totals[$label] = ($totals[$label] ?? 0) + $row->total;
         }
+
         return $totals;
     }
 
@@ -122,7 +131,7 @@ class DashboardController extends Controller
         return ['title' => $title, 'values' => array_map('intval', $values)];
     }
 
-    private function personalDashboard(User $user, \Illuminate\Support\Collection $officeProgress): array
+    private function personalDashboard(User $user, Collection $officeProgress): array
     {
         $targetQuery = PerformanceTarget::query()->where(function ($query) use ($user): void {
             $query->where(function ($formQuery) use ($user): void {
@@ -165,11 +174,15 @@ class DashboardController extends Controller
         }
         $officeTargetIds = $officeTargets->pluck('id');
         $movQuery = TargetMov::whereIn('office_target_id', $officeTargetIds);
-        if ($user->hasAnyRole(['Supervisor', 'HR Head'])) $movQuery->where('office_id', $user->office_id ?? 0);
-        elseif (! $user->hasRole('Campus Director')) $movQuery->where('user_id', $user->id);
+        if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
+            $movQuery->where('office_id', $user->office_id ?? 0);
+        } elseif (! $user->hasRole('Campus Director')) {
+            $movQuery->where('user_id', $user->id);
+        }
         $completed += $officeProgress->filter(fn ($row) => $row['percent'] !== null && $row['percent'] >= 100)->count();
         $inProgress += $officeProgress->filter(fn ($row) => $row['percent'] !== null && $row['percent'] > 0 && $row['percent'] < 100)->count();
         $notStarted += $officeProgress->filter(fn ($row) => $row['percent'] === null || $row['percent'] <= 0)->count();
+
         return [
             'assignedTargets' => $targetIds->count() + $officeTargetIds->count(),
             'submittedAccomplishments' => Accomplishment::where('submitted_by', $user->id)->count()
@@ -186,7 +199,7 @@ class DashboardController extends Controller
         ];
     }
 
-    private function employeeProgress(User $viewer): \Illuminate\Support\Collection
+    private function employeeProgress(User $viewer): Collection
     {
         $employees = User::query()
             ->with(['office', 'positionTitle'])
@@ -195,16 +208,22 @@ class DashboardController extends Controller
         $campus = $viewer->office?->campus;
         if ($viewer->hasRole('Campus Director')) {
             $employees->where(function ($query) use ($viewer, $campus) {
-                if ($campus !== null) $query->whereHas('office', fn ($office) => $office->where('campus', $campus));
+                if ($campus !== null) {
+                    $query->whereHas('office', fn ($office) => $office->where('campus', $campus));
+                }
                 $query->orWhereIn('users.id', DB::table('office_target_employee')
                     ->join('office_targets', 'office_targets.id', '=', 'office_target_employee.office_target_id')
                     ->where('office_targets.created_by', $viewer->id)->select('user_id'));
             });
         }
-        if ($viewer->hasAnyRole(['Supervisor', 'HR Head'])) $employees->where('office_id', $viewer->office_id ?? 0);
+        if ($viewer->hasAnyRole(['Supervisor', 'HR Head'])) {
+            $employees->where('office_id', $viewer->office_id ?? 0);
+        }
 
         $employees = $employees->orderBy('name')->get();
-        if ($employees->isEmpty()) return collect();
+        if ($employees->isEmpty()) {
+            return collect();
+        }
 
         $employeeIds = $employees->modelKeys();
         $assignments = DB::table('office_target_employee')
