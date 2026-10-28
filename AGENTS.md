@@ -30,4 +30,5 @@
 
 ## Visual consistency
 
+- Use locally hosted Figtree for application interface typography.
 - Preserve the original deep blue sidebar unless the user requests a different color. Use [docs/ui-palette.md](docs/ui-palette.md) for coordinated page colors, readable status, and restrained accents.

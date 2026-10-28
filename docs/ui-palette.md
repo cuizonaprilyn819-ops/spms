@@ -2,6 +2,8 @@
 
 Preserve the existing deep blue sidebar: `linear-gradient(165deg, #090C2D, #14194F)`. The user requested that it remain after the UI refresh. Typography, spacing, and responsive navigation remain separate from this color choice.
 
+Use locally hosted Figtree for the application interface, with normal and italic faces and variable weights from 300 to 900. The shared `workspace-font` component and Tailwind sans family apply it to the sign-in page and authenticated pages.
+
 | Use | Color |
 | --- | --- |
 | Primary buttons, links, committed quantities | `#34508E` |
