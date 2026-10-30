@@ -1,0 +1,18 @@
+<x-app-layout>
+<x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Upload historical PCR</h2><p class="mt-1 text-sm text-slate-500">Archive a previous-period form and its evidence.</p></x-slot>
+<div class="mx-auto max-w-4xl px-4 py-8">
+@if($errors->any())<div role="alert" class="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-900">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+<form enctype="multipart/form-data" method="post" action="{{ route('historical-pcrs.store') }}" class="space-y-6 rounded-xl border bg-white p-6">@csrf
+<div class="grid gap-5 sm:grid-cols-2">
+<label class="text-sm font-medium">Owner<select name="owner_id" required class="mt-2 w-full rounded-lg border-slate-300"><option value="">Select personnel</option>@foreach($people as $person)<option value="{{ $person->id }}" @selected(old('owner_id') == $person->id)>{{ $person->name }}</option>@endforeach</select></label>
+<label class="text-sm font-medium">Reporting period<select name="evaluation_cycle_id" required class="mt-2 w-full rounded-lg border-slate-300"><option value="">Select source period</option>@foreach($cycles as $cycle)<option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id') == $cycle->id)>{{ $cycle->label }}</option>@endforeach</select></label>
+<label class="text-sm font-medium">PCR type<select name="type" class="mt-2 w-full rounded-lg border-slate-300">@foreach(\App\Services\HistoricalPcrExport::TITLES as $type=>$label)<option value="{{ $type }}" @selected(old('type') === $type)>{{ strtoupper($type) }} — {{ $label }}</option>@endforeach</select></label>
+<label class="text-sm font-medium">Last main-form page<input required type="number" min="1" max="100" name="form_pages" value="{{ old('form_pages') }}" class="mt-2 w-full rounded-lg border-slate-300"><span class="mt-1 block text-xs text-slate-500">Following pages become evidence annexes.</span></label>
+@foreach(['office'=>'Office as printed','owner_position'=>'Owner’s position as printed'] as $field=>$label)<label class="text-sm font-medium">{{ $label }}<input name="{{ $field }}" value="{{ old($field) }}" maxlength="500" class="mt-2 w-full rounded-lg border-slate-300"></label>@endforeach
+</div>
+<label class="block text-sm font-medium">Original PDF<input type="file" name="source" accept="application/pdf,.pdf" required class="mt-2 block w-full rounded-lg border border-slate-300 p-3"><span class="mt-2 block text-xs text-slate-500">Maximum 25 MiB and 100 pages. Stored privately.</span></label>
+<fieldset><legend class="font-semibold">Named reviewers and approving officials</legend><p class="mt-1 text-sm text-slate-500">Grant access only to people named on the source. Leave unused rows empty.</p>
+@foreach(range(0,5) as $i)<div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="sr-only" for="person-{{ $i }}">Named personnel {{ $i+1 }}</label><select id="person-{{ $i }}" name="participants[{{ $i }}][user_id]" class="rounded-lg border-slate-300 text-sm"><option value="">Select named personnel</option>@foreach($people as $person)<option value="{{ $person->id }}" @selected(old('participants.'.$i.'.user_id') == $person->id)>{{ $person->name }}</option>@endforeach</select><label class="sr-only" for="role-{{ $i }}">Role on source {{ $i+1 }}</label><input id="role-{{ $i }}" name="participants[{{ $i }}][source_role]" value="{{ old('participants.'.$i.'.source_role') }}" maxlength="255" placeholder="Role on the source form" class="rounded-lg border-slate-300 text-sm"></div>@endforeach
+</fieldset>
+<div class="flex gap-3"><x-primary-button>Upload original PDF</x-primary-button><a class="inline-flex rounded-lg border px-4 py-3 text-sm" href="{{ route('historical-pcrs.index') }}">Cancel</a></div>
+</form></div></x-app-layout>

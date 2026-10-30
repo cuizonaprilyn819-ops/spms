@@ -97,6 +97,10 @@ class EmployeeController extends Controller
                 ->with('status', 'You cannot delete your own account while logged in.');
         }
 
+        if ($employee->hasRetainedArchiveRecords()) {
+            return redirect()->route('employees.index')->with('status', 'This account is linked to retained PCR history or a sign-in identity and cannot be deleted.');
+        }
+
         $employee->delete();
 
         return redirect()

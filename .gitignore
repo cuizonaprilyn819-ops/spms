@@ -25,6 +25,7 @@
 /storage/*.key
 /storage/pail
 /tmp
+/docs/*-JAN-JUNE-2025-*.pdf
 /vendor
 Homestead.json
 Homestead.yaml

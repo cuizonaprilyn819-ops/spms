@@ -38,7 +38,7 @@
                         @endif
                     </span>
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('reports.index')" :active="$routeIs('reports.*') || $routeIs('opcrs.*') || $routeIs('dpcrs.*') || $routeIs('upcrs.*') || $routeIs('ipcrs.*')">
+                <x-responsive-nav-link :href="route('reports.index')" :active="$routeIs('reports.*') || $routeIs('historical-pcrs.*') || $routeIs('opcrs.*') || $routeIs('dpcrs.*') || $routeIs('upcrs.*') || $routeIs('ipcrs.*')">
                     {{ __('My Reports') }}
                 </x-responsive-nav-link>
 

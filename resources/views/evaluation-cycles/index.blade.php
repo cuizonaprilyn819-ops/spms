@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Evaluation Period Management') }}</h2>
-                <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which semester is open for evaluation.</p>
+                <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which quarter is open for evaluation.</p>
             </div>
             <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create Period
@@ -26,7 +26,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Period</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Year</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Semester</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Quarter</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold uppercase text-gray-500">Actions</th>
                             </tr>

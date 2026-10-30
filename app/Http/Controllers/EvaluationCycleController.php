@@ -38,7 +38,7 @@ class EvaluationCycleController extends Controller
                 Rule::unique('evaluation_cycles', 'semester')
                     ->where('year', $request->integer('year')),
             ],
-        ]);
+        ], [], ['semester' => 'quarter']);
 
         DB::transaction(function () use ($data): void {
             EvaluationCycle::query()

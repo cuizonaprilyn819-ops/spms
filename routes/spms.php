@@ -32,6 +32,17 @@ Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('historical-pcrs', [\App\Http\Controllers\HistoricalPcrController::class, 'index'])->name('historical-pcrs.index');
+    Route::get('historical-pcrs/create', [\App\Http\Controllers\HistoricalPcrController::class, 'create'])->name('historical-pcrs.create');
+    Route::post('historical-pcrs', [\App\Http\Controllers\HistoricalPcrController::class, 'store'])->middleware('throttle:5,1')->name('historical-pcrs.store');
+    Route::get('historical-pcrs/{historicalPcr}', [\App\Http\Controllers\HistoricalPcrController::class, 'show'])->name('historical-pcrs.show');
+    Route::get('historical-pcrs/{historicalPcr}/edit', [\App\Http\Controllers\HistoricalPcrController::class, 'edit'])->name('historical-pcrs.edit');
+    Route::put('historical-pcrs/{historicalPcr}', [\App\Http\Controllers\HistoricalPcrController::class, 'update'])->name('historical-pcrs.update');
+    Route::post('historical-pcrs/{historicalPcr}/verify', [\App\Http\Controllers\HistoricalPcrController::class, 'verify'])->name('historical-pcrs.verify');
+    Route::post('historical-pcrs/{historicalPcr}/corrections', [\App\Http\Controllers\HistoricalPcrController::class, 'correction'])->name('historical-pcrs.correction');
+    Route::get('historical-pcrs/{historicalPcr}/original', [\App\Http\Controllers\HistoricalPcrController::class, 'original'])->name('historical-pcrs.original');
+    Route::get('historical-pcrs/{historicalPcr}/pages/{page}', [\App\Http\Controllers\HistoricalPcrController::class, 'page'])->whereNumber('page')->name('historical-pcrs.page');
+    Route::get('historical-pcrs/{historicalPcr}/export/{format}', [\App\Http\Controllers\HistoricalPcrController::class, 'export'])->where('format', 'docx|xlsx|pdf')->name('historical-pcrs.export');
     Route::get('planning', [CommitmentPlanningController::class, 'index'])->name('planning.index');
     Route::post('planning', [CommitmentPlanningController::class, 'store'])->name('planning.store');
     Route::post('planning/organization/{office}', [CommitmentPlanningController::class, 'organization'])->name('planning.organization');

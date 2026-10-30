@@ -77,6 +77,7 @@ class ReportController extends Controller
             'finishedReports' => $finishedReports,
             'selectedType' => $selectedType,
             'canExport' => $this->canExport(),
+            'historicalPcrs' => \App\Models\HistoricalPcr::visibleTo(request()->user())->with(['cycle', 'revision'])->latest()->get(),
         ]);
     }
 
@@ -287,7 +288,7 @@ class ReportController extends Controller
             'ipcr' => $record->officeTarget?->evaluationCycle ?? $record->upcr?->dpcr?->opcr?->evaluationCycle,
         };
 
-        return $cycle ? $cycle->year.' - '.$cycle->semester : 'No cycle';
+        return $cycle?->label ?? 'No cycle';
     }
 
     private function officeLabel(string $type, object $record): string

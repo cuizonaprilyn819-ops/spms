@@ -8,6 +8,10 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <section class="mb-10" aria-labelledby="historical-pcr-heading">
+                <div class="flex flex-wrap items-end justify-between gap-3"><div><h3 id="historical-pcr-heading" class="text-lg font-bold text-spms-ink">Historical PCRs</h3><p class="mt-1 text-sm text-slate-500">Your original forms and the PCRs on which you are a named reviewer.</p></div><a class="inline-flex rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-spms-navy" href="{{ route('historical-pcrs.index') }}">View historical PCRs</a></div>
+                @include('historical-pcrs.cards', ['items' => $historicalPcrs->take(4)])
+            </section>
             <section class="mb-10" aria-labelledby="my-report-forms-heading">
                 <h3 id="my-report-forms-heading" class="text-lg font-bold text-spms-ink">My report forms</h3>
                 <p class="mt-1 text-sm text-slate-500">Forms you prepare depend on your role. Your assigned IPCR also appears here.</p>

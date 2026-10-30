@@ -11,7 +11,7 @@
                 <div><label for="document-cycle" class="block text-sm font-semibold">Evaluation period</label>
                     <select id="document-cycle" name="evaluation_cycle_id" required class="mt-1 w-full rounded-lg border-gray-300">
                         <option value="">Select an open period</option>
-                        @foreach($cycles as $cycle)<option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id') == $cycle->id)>{{ $cycle->label }}</option>@endforeach
+                        @foreach($cycles as $cycle)<option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id', $cycles->first()?->id) == $cycle->id)>{{ $cycle->label }}</option>@endforeach
                     </select>
                 </div>
                 @if($cycles->isEmpty())<p class="text-sm text-amber-800">Ask the administrator to open an evaluation period before uploading.</p>@endif

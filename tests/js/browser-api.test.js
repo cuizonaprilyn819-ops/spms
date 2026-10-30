@@ -2,6 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { apiTarget, installBrowserApi } from '../../resources/js/browser-api.js';
 
+test('historical archive pages use the API while protected files remain browser downloads', () => {
+    assert.equal(apiTarget('https://spms.test/historical-pcrs/1', 'https://spms.test').api.pathname, '/api/historical-pcrs/1');
+    for (const suffix of ['original', 'pages/1', 'export/docx', 'export/xlsx', 'export/pdf']) {
+        assert.equal(apiTarget('https://spms.test/historical-pcrs/1/' + suffix, 'https://spms.test'), null);
+    }
+});
+
 test('maps navigation, filters and API pagination to canonical page URLs', () => {
     const result = apiTarget('https://spms.test/api/ipcrs?page=2', 'https://spms.test');
     assert.equal(result.api.href, 'https://spms.test/api/ipcrs?page=2');

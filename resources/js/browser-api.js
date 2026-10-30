@@ -4,7 +4,7 @@ const resources = new Set([
     'opcrs', 'dpcrs', 'upcrs', 'ipcrs', 'evaluations', 'performance-targets',
     'accomplishments', 'movs', 'notifications', 'reports', 'report-workflow',
     'report-attachments',
-    'planning',
+    'planning', 'historical-pcrs',
 ]);
 
 export function apiTarget(href, baseHref) {
@@ -13,7 +13,7 @@ export function apiTarget(href, baseHref) {
     const prefix = base.pathname.replace(/\/$/, '');
     if (url.origin !== base.origin || !url.pathname.startsWith(`${prefix}/`)) return null;
     const path = url.pathname.slice(prefix.length).replace(/^\/api\//, '/');
-    if (!resources.has(path.split('/')[1]) || /\/(download|preview|pdf|excel)\/?$/.test(path)) return null;
+    if (!resources.has(path.split('/')[1]) || /\/(download|preview|pdf|excel|original)\/?$/.test(path) || /\/historical-pcrs\/\d+\/(pages|export)\//.test(path)) return null;
     const page = new URL(`${prefix}${path}${url.search}${url.hash}`, base);
     const api = new URL(`${prefix}/api${path}${url.search}`, base);
     return { page, api };

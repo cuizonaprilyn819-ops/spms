@@ -55,8 +55,8 @@ class EvaluationCycle extends Model
     public static function semesterLabel(string $semester): string
     {
         return match ($semester) {
-            self::FIRST_SEMESTER => '1st Semester (January–June)',
-            self::SECOND_SEMESTER => '2nd Semester (July–December)',
+            self::FIRST_SEMESTER => '1st Quarter (January–June)',
+            self::SECOND_SEMESTER => '2nd Quarter (July–December)',
             default => $semester,
         };
     }

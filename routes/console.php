@@ -5,10 +5,24 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Models\PerformanceTarget;
 use App\Notifications\DeadlineReminderNotification;
+use App\Models\EvaluationCycle;
+use Database\Seeders\EvaluationCycleSeeder;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('spms:prepare-periods {--set-current : Make July-December 2026 the current open period}', function (): int {
+    (new EvaluationCycleSeeder)->run((bool) $this->option('set-current'));
+
+    $this->info('Evaluation periods for 2025-2028 are ready.');
+    $this->table(['Period', 'Status'], EvaluationCycle::whereBetween('year', [2025, 2028])
+        ->orderBy('year')->orderBy('semester')->get()
+        ->map(fn (EvaluationCycle $cycle) => [$cycle->label, $cycle->isOpen() ? 'Current / Open' : 'Closed'])
+        ->all());
+
+    return self::SUCCESS;
+})->purpose('Add the eight half-year periods without replacing existing records.');
 
 Artisan::command('spms:send-deadline-reminders {--days=7}', function (): int {
     $days = (int) $this->option('days');
