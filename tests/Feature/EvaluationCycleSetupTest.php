@@ -105,10 +105,12 @@ class EvaluationCycleSetupTest extends TestCase
         $this->seed([RoleSeeder::class, EvaluationCycleSeeder::class]);
         $director = User::factory()->create(['office_id' => Office::factory()->create()->id]);
         $director->assignRole('Campus Director');
+        $planner = User::factory()->create(['office_id' => $director->office_id]);
+        $planner->assignRole('Planning Officer');
         $cycle = EvaluationCycle::where('status', EvaluationCycle::STATUS_OPEN)->firstOrFail();
 
-        foreach (['opcrs.create', 'target-documents.index'] as $route) {
-            $response = $this->actingAs($director)->get(route($route))->assertOk();
+        foreach ([['opcrs.create', $director], ['target-documents.index', $planner]] as [$route, $actor]) {
+            $response = $this->actingAs($actor)->get(route($route))->assertOk();
             $document = new \DOMDocument;
             @$document->loadHTML($response->getContent());
             $selected = (new \DOMXPath($document))->query('//select[@name="evaluation_cycle_id"]/option[@selected]');
@@ -117,7 +119,7 @@ class EvaluationCycleSetupTest extends TestCase
         }
 
         // An explicitly cleared field returned by validation must not be silently reselected.
-        $response = $this->withSession(['_old_input' => ['evaluation_cycle_id' => '']])
+        $response = $this->actingAs($director)->withSession(['_old_input' => ['evaluation_cycle_id' => '']])
             ->get(route('opcrs.create'))->assertOk();
         $document = new \DOMDocument;
         @$document->loadHTML($response->getContent());

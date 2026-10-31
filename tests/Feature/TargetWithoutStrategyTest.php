@@ -18,7 +18,7 @@ class TargetWithoutStrategyTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $director = User::factory()->create();
-        $director->assignRole('Campus Director');
+        $director->assignRole('Planning Officer');
         $office = Office::factory()->create();
         $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
         $this->actingAs($director)->get(route('office-targets.create'))->assertRedirect(route('target-documents.index'));

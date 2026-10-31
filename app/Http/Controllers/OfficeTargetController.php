@@ -25,7 +25,7 @@ class OfficeTargetController extends Controller
     public function index(Request $request): View
     {
         $query = OfficeTarget::with(['evaluationCycle', 'offices', 'createdBy'])->latest();
-        if (! $request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'HR Head'])) {
+        if (! $request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer', 'Supervisor', 'HR Head'])) {
             $query->whereHas('assignedEmployees', fn ($employee) => $employee->whereKey($request->user()->id));
         }
         if ($request->user()->hasAnyRole(['Supervisor', 'HR Head'])) {
@@ -37,7 +37,7 @@ class OfficeTargetController extends Controller
 
     public function create(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director']), 403);
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer']), 403);
 
         return redirect()->route('target-documents.index');
     }
@@ -45,7 +45,7 @@ class OfficeTargetController extends Controller
     public function store(Request $request): RedirectResponse
     {
         CommitmentPlanning::legacyOnly(EvaluationCycle::find($request->input('evaluation_cycle_id')));
-        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director']), 403);
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer']), 403);
         $data = $request->validate([
             'evaluation_cycle_id' => [
                 'required',
@@ -163,7 +163,7 @@ class OfficeTargetController extends Controller
         if ($request->user()->hasAnyRole(['Supervisor', 'HR Head'])) {
             abort_unless($target->offices()->whereKey($request->user()->office_id)->exists(), 403);
         }
-        if (! $request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'HR Head'])) {
+        if (! $request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer', 'Supervisor', 'HR Head'])) {
             abort_unless($target->assignedEmployees()->whereKey($request->user()->id)->exists(), 403);
         }
     }

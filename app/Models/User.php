@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     public function usesMyReports(): bool
     {
-        return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor']);
+        return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Planning Officer', 'Supervisor']);
     }
 
     public function reportAssignees(): Builder

@@ -424,10 +424,12 @@ class CommitmentPlanningTest extends TestCase
     public function test_document_drafts_enter_opcr_instead_of_assigning_directly(): void
     {
         $office = $this->office('office');
+        $planner = User::factory()->create(['office_id' => $office->id]);
+        $planner->assignRole('Planning Officer');
         $plan = $this->plan($office, 'opcr');
-        $doc = TargetDocument::create(['created_by' => $office->head_id, 'evaluation_cycle_id' => $this->cycle->id, 'original_name' => 'policy.pdf', 'path' => 'policy.pdf', 'mime_type' => 'application/pdf', 'status' => 'review']);
+        $doc = TargetDocument::create(['created_by' => $planner->id, 'evaluation_cycle_id' => $this->cycle->id, 'original_name' => 'policy.pdf', 'path' => 'policy.pdf', 'mime_type' => 'application/pdf', 'status' => 'review']);
         $draft = $doc->drafts()->create(['proposal' => ['title' => 'Source target', 'source_excerpt' => 'Approved output 1', 'cd_only' => false, 'classification_reason' => 'Office duty', 'suggested_offices' => []]]);
-        $this->actingAs($office->head)->get(route('target-drafts.review', $draft))->assertOk()->assertSee('Review extracted OPCR target');
+        $this->actingAs($planner)->get(route('target-drafts.review', $draft))->assertOk()->assertSee('Review extracted OPCR target');
         $this->post(route('planning.import', [$plan, $draft]), $this->data())->assertRedirect()->assertSessionHasNoErrors();
         $this->post(route('planning.import', [$plan, $draft]), $this->data())->assertStatus(422);
         $this->assertDatabaseCount('performance_targets', 1);

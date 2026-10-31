@@ -29,7 +29,7 @@ class TargetMovController extends Controller
             abort_unless(TargetMov::where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->exists(), 422, 'Submit MOV before marking this target complete.');
             DB::table('office_target_employee')->where('id', $assignment->id)->update(['completed_at' => now(), 'completed_value' => $assignment->allocated_target_value, 'updated_at' => now()]);
             $recipients = User::where('office_id', $user->office_id)->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))->get();
-            if ($officeTarget->createdBy?->hasRole('Campus Director')) {
+            if ($officeTarget->createdBy?->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                 $recipients->push($officeTarget->createdBy);
             }
             $recipients->unique('id')->each(fn ($recipient) => $recipient->notify(new TargetCompletedNotification($officeTarget, $user->name)));
@@ -76,7 +76,7 @@ class TargetMovController extends Controller
                 $recipients = User::where('office_id', $user->office_id)
                     ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))
                     ->get();
-                if ($officeTarget->createdBy?->hasRole('Campus Director')) {
+                if ($officeTarget->createdBy?->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                     $recipients->push($officeTarget->createdBy);
                 }
                 $recipients->unique('id')->each(fn ($recipient) => $recipient->notify(new TargetMovSubmittedNotification($mov)));
@@ -115,7 +115,7 @@ class TargetMovController extends Controller
         $canReview = $user->hasAnyRole(['Supervisor', 'HR Head']) && $user->office_id
             && (int) $user->office_id === (int) $targetMov->office_id
             && $targetMov->target->offices()->whereKey($user->office_id)->exists();
-        $isAssigningDirector = $user->hasRole('Campus Director') && (int) $targetMov->target->created_by === (int) $user->id;
+        $isAssigningDirector = $user->hasAnyRole(['Campus Director', 'Planning Officer']) && (int) $targetMov->target->created_by === (int) $user->id;
         abort_unless((int) $targetMov->user_id === (int) $user->id || $canReview || $isAssigningDirector, 403);
         abort_unless(Storage::disk('local')->exists($targetMov->path), 404);
     }

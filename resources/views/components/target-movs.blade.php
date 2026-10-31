@@ -3,7 +3,7 @@
     $user = Auth::user();
     $canSubmit = $user->hasAnyRole(['Employee', 'Supervisor', 'HR Head']) && $target->assignedEmployees()->whereKey($user->id)->exists() && $target->offices()->whereKey($user->office_id)->exists();
     $canReview = $user->hasAnyRole(['Supervisor', 'HR Head']) && $target->offices()->whereKey($user->office_id)->exists();
-    $isDirector = $user->hasRole('Campus Director') && (int) $target->created_by === (int) $user->id;
+    $isDirector = $user->hasAnyRole(['Campus Director', 'Planning Officer']) && (int) $target->created_by === (int) $user->id;
 @endphp
 @if($canSubmit || $canReview || $isDirector)
 <section id="target-movs" class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

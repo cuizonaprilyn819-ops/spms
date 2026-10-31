@@ -57,16 +57,13 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|Campus Director')
-                    <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
+
+                @hasanyrole('Administrator|Planning Officer')
                     <x-responsive-nav-link :href="route('target-documents.index')" :active="$routeIs('target-documents.*') || $routeIs('target-drafts.*')">
                         {{ __('Target Planning Documents') }}
                     </x-responsive-nav-link>
                 @endhasanyrole
-
-                @unless(Auth::user()->hasAnyRole(['Administrator', 'Campus Director']))
-                    <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
-                @endunless
 
                 @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor')
                     <x-responsive-nav-link :href="route('evaluations.index')" :active="$routeIs('evaluations.*')">
@@ -80,8 +77,8 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor|Employee')
-                    @if(Auth::user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor']))
+                @hasanyrole('Administrator|HR|HR Head|Campus Director|Planning Officer|Supervisor|Employee')
+                    @if(Auth::user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer', 'Supervisor']))
                         <x-responsive-nav-link :href="route('office-targets.index')" :active="$routeIs('office-targets.*')">
                             {{ __('Targets') }}
                         </x-responsive-nav-link>

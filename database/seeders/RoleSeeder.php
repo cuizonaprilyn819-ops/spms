@@ -21,6 +21,7 @@ class RoleSeeder extends Seeder
             'HR Head',
             'HRM Office II',
             'Campus Director',
+            'Planning Officer',
             'Supervisor',
             'Employee',
         ];

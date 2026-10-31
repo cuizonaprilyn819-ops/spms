@@ -465,7 +465,7 @@ class CommitmentPlanningController extends Controller
     public function import(Request $r, CommitmentPlan $plan, TargetDocumentDraft $draft)
     {
         $this->manage($r, $plan);
-        abort_unless($plan->level === 'opcr' && $draft->document->created_by === $r->user()->id && $draft->document->evaluation_cycle_id === $plan->evaluation_cycle_id, 403);
+        abort_unless($plan->level === 'opcr' && ($r->user()->hasRole('Administrator') || $draft->document->created_by === $r->user()->id || $plan->office->head_id === $r->user()->id) && $draft->document->evaluation_cycle_id === $plan->evaluation_cycle_id, 403);
         $data = $this->targetData($r);
         $data['source_evidence'] = 'Document #'.$draft->document->id.' / draft #'.$draft->id.': '.$draft->proposal['source_excerpt'];
         DB::transaction(function () use ($r, $plan, $draft, $data) {

@@ -167,7 +167,7 @@ class DashboardController extends Controller
         $officeTargets = OfficeTarget::query();
         if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
             $officeTargets->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
-        } elseif ($user->hasRole('Campus Director')) {
+        } elseif ($user->hasAnyRole(['Campus Director', 'Planning Officer'])) {
             $officeTargets->where('created_by', $user->id);
         } else {
             $officeTargets->whereHas('assignedEmployees', fn ($q) => $q->whereKey($user->id));
@@ -176,7 +176,7 @@ class DashboardController extends Controller
         $movQuery = TargetMov::whereIn('office_target_id', $officeTargetIds);
         if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
             $movQuery->where('office_id', $user->office_id ?? 0);
-        } elseif (! $user->hasRole('Campus Director')) {
+        } elseif (! $user->hasAnyRole(['Campus Director', 'Planning Officer'])) {
             $movQuery->where('user_id', $user->id);
         }
         $completed += $officeProgress->filter(fn ($row) => $row['percent'] !== null && $row['percent'] >= 100)->count();

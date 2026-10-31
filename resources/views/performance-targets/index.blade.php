@@ -11,7 +11,7 @@
                     @endhasanyrole
                 </p>
             </div>
-            @hasanyrole('Administrator|Campus Director')
+            @hasanyrole('Administrator|Planning Officer')
                 <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover">Upload Main Campus Document</a>
             @endhasanyrole
         </div>

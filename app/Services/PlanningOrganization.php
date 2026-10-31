@@ -49,7 +49,7 @@ class PlanningOrganization
 
     public function canView(User $user, CommitmentPlan $plan): bool
     {
-        if ($user->hasRole('Administrator') || in_array($user->id, [$plan->prepared_by, $plan->reviewer_id, $plan->employee_id], true)) {
+        if ($user->hasRole('Administrator') || in_array($user->id, [$plan->prepared_by, $plan->reviewer_id, $plan->employee_id], true) || ($plan->level === 'opcr' && $user->hasRole('Planning Officer'))) {
             return true;
         }
 
@@ -58,7 +58,10 @@ class PlanningOrganization
 
     public function canPrepare(User $user, CommitmentPlan $plan): bool
     {
-        return $user->hasRole('Administrator') || $plan->prepared_by === $user->id || $plan->office->head_id === $user->id;
+        return $user->hasRole('Administrator')
+            || $plan->prepared_by === $user->id
+            || $plan->office->head_id === $user->id
+            || ($plan->level === 'opcr' && $user->hasRole('Planning Officer'));
     }
 
     public function isOwner(User $user, Office $office): bool

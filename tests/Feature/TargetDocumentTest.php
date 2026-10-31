@@ -18,13 +18,13 @@ class TargetDocumentTest extends TestCase
         $this->seed(RoleSeeder::class);
         Storage::fake('local');
         config(['spms.ai.enabled' => true, 'spms.ai.api_key' => 'test-key', 'spms.ai.model' => 'test-model']);
-        $director = User::factory()->create();
-        $director->assignRole('Campus Director');
+        $planner = User::factory()->create();
+        $planner->assignRole('Planning Officer');
         $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
         Storage::disk('local')->put('example.pdf', 'synthetic');
-        $document = TargetDocument::create(['created_by' => $director->id, 'evaluation_cycle_id' => $cycle->id, 'original_name' => 'example.pdf', 'path' => 'example.pdf', 'mime_type' => 'application/pdf']);
+        $document = TargetDocument::create(['created_by' => $planner->id, 'evaluation_cycle_id' => $cycle->id, 'original_name' => 'example.pdf', 'path' => 'example.pdf', 'mime_type' => 'application/pdf']);
         Http::fakeSequence()->push(['error' => 'provider failure'], 503)->push(['status' => 'completed', 'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode(['summary' => 'No targets', 'warnings' => 'No measurable targets found.', 'targets' => []])]]]]]);
-        $this->actingAs($director)->post(route('target-documents.analyze', $document))->assertRedirect();
+        $this->actingAs($planner)->post(route('target-documents.analyze', $document))->assertRedirect();
         $this->assertSame('failed', $document->fresh()->status);
         $this->assertSame(0, OfficeTarget::count());
         $this->post(route('target-documents.analyze', $document))->assertRedirect();
@@ -39,8 +39,8 @@ class TargetDocumentTest extends TestCase
         $this->seed(RoleSeeder::class);
         Storage::fake('local');
         config(['spms.ai.enabled' => true, 'spms.ai.api_key' => 'test-key', 'spms.ai.model' => 'test-model']);
-        $director = User::factory()->create();
-        $director->assignRole('Campus Director');
+        $planner = User::factory()->create();
+        $planner->assignRole('Planning Officer');
         $office = Office::factory()->create(['is_active' => true, 'campus' => config('hinunangan.campus_id')]);
         $inactiveOffice = Office::factory()->create(['is_active' => false, 'campus' => config('hinunangan.campus_id')]);
         $otherCampusOffice = Office::factory()->create(['is_active' => true, 'campus' => 2]);
@@ -51,7 +51,7 @@ class TargetDocumentTest extends TestCase
         $response = fn ($data) => ['status' => 'completed', 'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($data)]]]]];
         Http::fakeSequence()->push($response(['summary' => 'Reporting targets', 'warnings' => '', 'targets' => [$proposal, [...$proposal, 'cd_only' => true]]]))
             ->push($response(['briefings' => [['office_id' => $office->id, 'wording' => 'Prepare four office reports.', 'summary' => 'Office reporting', 'recommendation' => 'delegate', 'reason' => 'Delegate if staff capacity permits.']]]));
-        $this->actingAs($director)->post(route('target-documents.store'), ['evaluation_cycle_id' => $cycle->id, 'file' => UploadedFile::fake()->create('main-campus.pdf', 10, 'application/pdf')])->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($planner)->post(route('target-documents.store'), ['evaluation_cycle_id' => $cycle->id, 'file' => UploadedFile::fake()->create('main-campus.pdf', 10, 'application/pdf')])->assertSessionHasNoErrors()->assertRedirect();
         $document = TargetDocument::sole();
         Storage::disk('local')->assertExists($document->path);
         $this->post(route('target-documents.analyze', $document))->assertRedirect();
@@ -79,9 +79,12 @@ class TargetDocumentTest extends TestCase
         Http::assertSentCount(2);
         Http::assertSent(fn ($request) => $request['store'] === false && str_contains(json_encode($request['input']), 'JSON'));
         $other = User::factory()->create();
-        $other->assignRole('Campus Director');
+        $other->assignRole('Planning Officer');
         $this->actingAs($other)->get(route('target-documents.download', $document))->assertForbidden();
         $this->post(route('target-drafts.assign', $draft), $data)->assertForbidden();
+        $director = User::factory()->create();
+        $director->assignRole('Campus Director');
+        $this->actingAs($director)->get(route('target-documents.index'))->assertForbidden();
         $this->actingAs($supervisor)->get(route('target-documents.index'))->assertForbidden();
     }
 }

@@ -7,6 +7,7 @@
         $primaryRole = $user->roles->first()?->name ?? 'Team member';
         $roleDescriptions = [
             'Campus Director' => 'Review campus commitments and follow progress across your teams.',
+            'Planning Officer' => 'Upload target planning documents from top management and prepare extracted target drafts.',
             'Supervisor' => 'Keep office targets, submissions, and employee progress in view.',
             'HR Head' => 'Monitor personnel progress and performance records.',
             'HR' => 'Review your targets and keep your performance records on track.',
@@ -97,7 +98,7 @@
                     <h1 class="mt-1 text-xl font-semibold">Welcome, {{ Auth::user()->name }}.</h1>
                     <p class="mt-1 max-w-2xl text-sm text-slate-500">{{ $roleDescriptions[$primaryRole] ?? 'See your assignments and progress in one place.' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        @hasanyrole('Campus Director|Supervisor')
+                        @hasanyrole('Campus Director|Planning Officer|Supervisor')
                             <a href="{{ route('office-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-spms-navy transition hover:bg-spms-tint focus:outline-none focus:ring-2 focus:ring-spms-sky">View office targets</a>
                         @endhasanyrole
                         @role('Employee')

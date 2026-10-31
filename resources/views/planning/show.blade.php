@@ -54,7 +54,7 @@
 @endif
 @if($canManage && $plan->state==='draft' && $plan->level==='opcr')<details class="planning-card"><summary>Add an OPCR target</summary><form class="planning-form" method="post" action="{{ route('planning.target',$plan) }}">
 @csrf
-@include('planning.target-fields')<button>Save target draft</button></form><p class="mt-4"><a class="text-blue-700 underline" href="{{ route('target-documents.index') }}">Or extract drafts from a planning document</a></p></details>
+@include('planning.target-fields')<button>Save target draft</button></form>@hasanyrole('Administrator|Planning Officer')<p class="mt-4"><a class="text-blue-700 underline" href="{{ route('target-documents.index') }}">Or extract drafts from a planning document</a></p>@endhasanyrole</details>
 @endif
 <div id="plan-targets" class="pt-1"><h2 class="text-lg font-semibold">Targets and supporting work</h2><p class="mt-1 text-sm text-slate-500">Review each commitment, its allocation, and the evidence recorded against it.</p></div>
 @forelse($lines as $lineRow)

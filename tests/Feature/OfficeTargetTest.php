@@ -110,14 +110,14 @@ class OfficeTargetTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $director = User::factory()->create();
-        $director->assignRole('Campus Director');
+        $director->assignRole('Planning Officer');
 
         $this->actingAs($director)->get(route('performance-targets.create'))
             ->assertRedirect(route('office-targets.create'));
 
         $this->actingAs($director)->get(route('office-targets.create'))
             ->assertRedirect(route('target-documents.index'));
-        $this->get(route('target-documents.index'))->assertOk()->assertSee('Upload the Main Campus document');
+        $this->get(route('target-documents.index'))->assertOk()->assertSee('Upload a target planning document');
     }
 
     public function test_administrator_add_target_action_also_opens_office_assignment_form(): void

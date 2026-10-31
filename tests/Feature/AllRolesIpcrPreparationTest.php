@@ -19,7 +19,7 @@ class AllRolesIpcrPreparationTest extends TestCase
         $dpcr = Dpcr::factoryLike()->create(['opcr' => $opcr, 'status' => Dpcr::STATUS_APPROVED]);
         $upcr = Upcr::factoryLike()->create(['dpcr' => $dpcr, 'status' => Upcr::STATUS_APPROVED]);
 
-        foreach (['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor', 'Employee'] as $role) {
+        foreach (['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Planning Officer', 'Supervisor', 'Employee'] as $role) {
             $user = User::factory()->create(['office_id' => $office->id]);
             $user->assignRole($role);
 

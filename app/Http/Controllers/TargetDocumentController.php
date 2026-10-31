@@ -21,8 +21,12 @@ class TargetDocumentController extends Controller
 {
     public function index(Request $request)
     {
+        $documents = $request->user()->hasRole('Administrator')
+            ? TargetDocument::latest()->paginate(10)
+            : TargetDocument::where('created_by', $request->user()->id)->latest()->paginate(10);
+
         return view('target-documents.index', [
-            'documents' => TargetDocument::where('created_by', $request->user()->id)->latest()->paginate(10),
+            'documents' => $documents,
             'cycles' => EvaluationCycle::where('status', EvaluationCycle::STATUS_OPEN)->orderByDesc('year')->get(),
         ]);
     }
@@ -182,6 +186,6 @@ class TargetDocumentController extends Controller
 
     private function authorizeDocument(Request $request, TargetDocument $document): void
     {
-        abort_unless($document->created_by === $request->user()->id, 403);
+        abort_unless($request->user()->hasRole('Administrator') || $document->created_by === $request->user()->id, 403);
     }
 }

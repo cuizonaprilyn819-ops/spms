@@ -11,7 +11,7 @@ class OfficeTargetProgress
     public function forUser(User $user): Collection
     {
         $head = $user->hasAnyRole(['Supervisor', 'HR Head']);
-        $director = $user->hasRole('Campus Director');
+        $director = $user->hasAnyRole(['Campus Director', 'Planning Officer']);
         $query = OfficeTarget::whereNull('performance_target_id');
         if ($head) {
             $query->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));

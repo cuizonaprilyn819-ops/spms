@@ -14,7 +14,7 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    private const ASSIGNABLE_ROLES = ['Supervisor', 'Employee'];
+    private const ASSIGNABLE_ROLES = ['Planning Officer', 'Supervisor', 'Employee'];
 
     public function index(Request $request): View
     {
@@ -126,7 +126,7 @@ class EmployeeController extends Controller
             'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
             'roles' => Role::query()
                 ->whereIn('name', $assignableRoles)
-                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Supervisor' THEN 2 ELSE 3 END")
+                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Planning Officer' THEN 2 WHEN 'Supervisor' THEN 3 ELSE 4 END")
                 ->get(),
         ];
     }

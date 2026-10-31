@@ -9,7 +9,7 @@ class TargetActivityLog
 {
     public function forUser(User $viewer): ?\Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
-        if (!$viewer->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'HR Head'])) return null;
+        if (!$viewer->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer', 'Supervisor', 'HR Head'])) return null;
 
         $uploads = DB::table('target_movs as events')
             ->join('office_targets as targets', 'targets.id', '=', 'events.office_target_id')
@@ -25,7 +25,7 @@ class TargetActivityLog
 
         foreach ([$uploads, $completions] as $query) {
             if ($viewer->hasRole('Administrator')) continue;
-            if ($viewer->hasRole('Campus Director')) {
+            if ($viewer->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                 $query->where('targets.created_by', $viewer->id);
             } else {
                 $query->where('offices.id', $viewer->office_id ?? 0)
