@@ -64,6 +64,7 @@ class CommitmentPlanning
             if (! $cycle->planning_enabled || ! $cycle->isOpen()) {
                 $this->fail('Choose an open period with commitment planning enabled.');
             }
+            $cycle->ensurePcrCreationOpen();
             $this->organization->verify($office);
             if ($level !== 'ipcr' && $employee) {
                 $this->fail('Choose a person only for an IPCR; organizational plans belong to their office.');
@@ -175,6 +176,7 @@ class CommitmentPlanning
             if ($data['measurement'] === 'shared' && ! $parent) {
                 $data['quantity'] = 1;
             }
+            $plan->cycle->validateSchedule($data);
             $target = $plan->report->performanceTargets()->create([...$data, 'commitment_plan_id' => $plan->id, 'plan_revision' => $plan->revision, 'created_by' => $actor->id, 'weight' => $data['weight'] ?? 0]);
             if (! $parent) {
                 $target->update(['root_target_id' => $target->id]);
@@ -259,6 +261,7 @@ class CommitmentPlanning
                 $this->fail('Add and reconcile the plan’s target lines before submitting.');
             }
             $plan->update(['state' => 'submitted']);
+            app(PcrCompliance::class)->recordSubmission($plan->report, 'commitment');
             $this->event($plan, $actor, 'Commitments submitted');
             $plan->reviewer->notify(new PlanningNotification($plan, 'Commitments are ready for your review.'));
         });

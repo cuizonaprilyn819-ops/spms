@@ -14,7 +14,7 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    private const ASSIGNABLE_ROLES = ['Planning Officer', 'Supervisor', 'Employee'];
+    private const ASSIGNABLE_ROLES = ['Supervisor', 'Employee'];
 
     public function index(Request $request): View
     {
@@ -33,7 +33,7 @@ class EmployeeController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
-        $offices = Office::orderBy('name')->get();
+        $offices = Office::forCampus()->orderBy('name')->get();
 
         return view('employees.index', compact('employees', 'offices'));
     }
@@ -116,13 +116,10 @@ class EmployeeController extends Controller
         $assignableRoles = $this->assignableRoles($employee);
 
         return [
-            'offices' => Office::query()
-                ->where(function ($query) use ($employee) {
-                    $query->where(fn ($active) => $active->where('is_active', true)->where('campus', config('hinunangan.campus_id')));
-                    if ($employee?->office_id) {
-                        $query->orWhere('id', $employee->office_id);
-                    }
-                })->orderBy('name')->get(),
+            'offices' => Office::query()->where(function ($query) use ($employee) {
+                $query->where(fn ($active) => $active->forCampus());
+                if ($employee?->office_id) $query->orWhereKey($employee->office_id);
+            })->orderBy('name')->get(),
             'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
             'roles' => Role::query()
                 ->whereIn('name', $assignableRoles)
@@ -148,9 +145,7 @@ class EmployeeController extends Controller
             ],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where(function ($query) use ($employee) {
                 $query->where(fn ($active) => $active->where('is_active', true)->where('campus', config('hinunangan.campus_id')));
-                if ($employee?->office_id) {
-                    $query->orWhere('id', $employee->office_id);
-                }
+                if ($employee?->office_id) $query->orWhere('id', $employee->office_id);
             })],
             'position_title_id' => [
                 'nullable',
@@ -168,6 +163,7 @@ class EmployeeController extends Controller
     private function assignableRoles(?User $employee = null): array
     {
         $roles = self::ASSIGNABLE_ROLES;
+        if (auth()->user()?->hasRole('Administrator')) $roles[] = 'Planning Officer';
 
         if (auth()->user()?->hasRole('Administrator')) {
             $anotherCampusDirectorExists = User::role('Campus Director')

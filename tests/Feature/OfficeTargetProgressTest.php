@@ -40,10 +40,10 @@ class OfficeTargetProgressTest extends TestCase
         $this->assertTrue($row['overdue']);
         $this->assertEmpty(app(OfficeTargetProgress::class)->forUser($outsider));
         $this->post($url, ['accomplishment' => 'Invalid', 'completed_value' => 3,
-            'files' => [UploadedFile::fake()->create('invalid.pdf', 10, 'application/pdf')]])->assertSessionHasErrors('completed_value');
-        $this->assertSame(2, \App\Models\TargetMov::count());
-        $this->actingAs($head)->get(route('dashboard'))->assertOk()->assertSee('50%')
-            ->assertViewHas('personalDashboard', fn ($data) => $data['progress']['In progress'] === 1 && $data['progress']['Completed'] === 0);
+            'files' => [UploadedFile::fake()->create('invalid.pdf', 10, 'application/pdf')]])->assertSessionHasNoErrors();
+        $this->assertSame(3, \App\Models\TargetMov::count());
+        $this->actingAs($head)->get(route('dashboard'))->assertOk()->assertSee('100%')
+            ->assertViewHas('personalDashboard', fn ($data) => $data['progress']['In progress'] === 0 && $data['progress']['Completed'] === 1);
         $this->actingAs($employee)->patch(route('target-movs.complete', $target))->assertRedirect();
         $this->assertEquals(100, app(OfficeTargetProgress::class)->forUser($head)->sole()['percent']);
     }

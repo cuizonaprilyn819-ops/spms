@@ -20,38 +20,38 @@ class OfficeTargetTest extends TestCase
         $this->seed(RoleSeeder::class);
         $director = User::factory()->create();
         $director->assignRole('Campus Director');
-        $office = Office::factory()->create(['name' => 'Human Resource Management Office', 'campus' => 1, 'code' => 'HR-ONE']);
+        $office = Office::factory()->create(['name' => 'Human Resource Management Office', 'campus' => 6, 'code' => 'HR-ONE']);
         $otherOffice = Office::factory()->create(['name' => 'Human Resource Management Office #349', 'campus' => 2, 'code' => 'HR-TWO']);
         $head = User::factory()->create(['name' => 'Assigned HR Supervisor', 'office_id' => $office->id]);
         $head->assignRole(['HR Head', 'Supervisor']);
         $otherHead = User::factory()->create(['name' => 'Other HR Head', 'office_id' => $otherOffice->id]);
         $otherHead->assignRole('HR Head');
-        Office::factory()->create(['name' => 'Office without a head']);
+        Office::factory()->create(['name' => 'Office without a head', 'campus' => 6]);
         $target = OfficeTarget::create(['title' => 'Review target', 'success_indicator' => 'Measured', 'target_value' => 1, 'unit_of_measure' => 'report', 'weight' => 10, 'deadline' => '2026-12-31', 'created_by' => $director->id]);
         $this->actingAs($director)->get(route('office-targets.edit', $target))->assertOk()
-            ->assertSee('Campus 1')->assertSee('Campus 2')->assertSee('HR-ONE')->assertSee('HR-TWO')
+            ->assertSee('Campus 6')->assertDontSee('Campus 2')->assertSee('HR-ONE')->assertDontSee('HR-TWO')
             ->assertSee('Will notify: Assigned HR Supervisor')
-            ->assertSee('Other HR Head')->assertSee('Will notify: Other HR Head')
+            ->assertDontSee('Other HR Head')
             ->assertSee('No notification recipient configured')
-            ->assertViewHas('offices', function ($offices) use ($office, $otherOffice, $head, $otherHead) {
+            ->assertViewHas('offices', function ($offices) use ($office, $otherOffice, $head) {
                 return $offices->find($office->id)->targetHeads->sole()->is($head)
-                    && $offices->find($otherOffice->id)->targetHeads->sole()->is($otherHead);
+                    && ! $offices->contains('id', $otherOffice->id);
             });
     }
 
     public function test_campus_director_can_encode_a_quantifiable_target_for_an_office(): void
     {
         $this->seed(RoleSeeder::class);
-        $directorOffice = Office::factory()->create(['campus' => 1]);
-        $receivingOffice = Office::factory()->create(['campus' => 1]);
-        $secondReceivingOffice = Office::factory()->create(['campus' => 2, 'is_active' => false]);
+        $directorOffice = Office::factory()->create(['campus' => 6]);
+        $receivingOffice = Office::factory()->create(['campus' => 6]);
+        $secondReceivingOffice = Office::factory()->create(['campus' => 6, 'is_active' => true]);
         $director = User::factory()->create(['office_id' => $directorOffice->id]);
         $director->assignRole('Campus Director');
         $supervisor = User::factory()->create(['office_id' => $receivingOffice->id]);
         $supervisor->assignRole('Supervisor');
         $outsideSupervisor = User::factory()->create(['office_id' => $directorOffice->id]);
         $outsideSupervisor->assignRole('Supervisor');
-        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
+        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::SECOND_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
         $goal = StrategicGoal::create(['title' => 'Institutional Excellence', 'description' => 'Strengthen transparent and accountable campus operations.', 'created_by' => $director->id]);
         $objective = $goal->objectives()->create(['title' => 'Improve the timeliness of office reporting.']);
 
@@ -136,12 +136,12 @@ class OfficeTargetTest extends TestCase
     public function test_creator_can_edit_target_and_change_assigned_offices(): void
     {
         $this->seed(RoleSeeder::class);
-        $directorOffice = Office::factory()->create(['campus' => 1]);
-        $firstOffice = Office::factory()->create(['campus' => 1]);
-        $secondOffice = Office::factory()->create(['campus' => 1]);
+        $directorOffice = Office::factory()->create(['campus' => 6]);
+        $firstOffice = Office::factory()->create(['campus' => 6]);
+        $secondOffice = Office::factory()->create(['campus' => 6]);
         $director = User::factory()->create(['office_id' => $directorOffice->id]);
         $director->assignRole('Campus Director');
-        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
+        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::SECOND_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
         $goal = StrategicGoal::create(['title' => 'Responsive Governance', 'description' => 'Provide responsive and evidence-based campus services.', 'created_by' => $director->id]);
         $objective = $goal->objectives()->create(['title' => 'Standardize periodic office reports.']);
         $target = OfficeTarget::create([

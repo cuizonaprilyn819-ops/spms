@@ -15,7 +15,7 @@ class ReportAttachmentTest extends TestCase
 
     public function test_supervisor_can_attach_and_download_files_for_each_report_type(): void
     {
-        Storage::fake('local');
+        $storage = Storage::fake('local');
         $this->seed(RoleSeeder::class);
         $office = Office::factory()->create();
         $user = User::factory()->create(['office_id' => $office->id]);
@@ -32,7 +32,7 @@ class ReportAttachmentTest extends TestCase
             ])->assertRedirect(route($type.'s.show', $report));
             $attachment = ReportAttachment::where('report_type', $type)->sole();
             $this->assertEquals($report->id, $attachment->report_id);
-            Storage::disk('local')->assertExists($attachment->path);
+            $storage->assertExists($attachment->path);
             $this->get(route('report-attachments.download', $attachment))->assertDownload('target.pdf');
         }
 

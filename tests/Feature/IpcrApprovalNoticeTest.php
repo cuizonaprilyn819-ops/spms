@@ -19,7 +19,10 @@ class IpcrApprovalNoticeTest extends TestCase
         $ipcr = Ipcr::factoryLike()->create(['employee' => $employee, 'prepared_by_user' => $supervisor]);
         $ipcr->update(['status' => Ipcr::STATUS_SUBMITTED]);
         $url = route('report-workflow.approve', ['ipcr', $ipcr]);
-        $this->actingAs($supervisor)->patch($url)->assertRedirect();
+        $this->actingAs($supervisor)->patch($url)->assertForbidden();
+        $reviewer = User::factory()->create(['office_id' => $office->id]);
+        $reviewer->assignRole('Supervisor');
+        $this->actingAs($reviewer)->patch($url)->assertRedirect();
         $notice = $employee->notifications()->sole();
         $this->assertStringContainsString('PDF or Excel', $notice->data['message']);
         $this->assertSame(route('reports.index', [], false), $notice->data['url']);

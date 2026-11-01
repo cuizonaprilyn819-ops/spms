@@ -49,6 +49,11 @@ class Upcr extends Model
         return $this->hasMany(Ipcr::class);
     }
 
+    public function officeTargets()
+    {
+        return $this->belongsToMany(OfficeTarget::class, 'office_target_office', 'upcr_id', 'office_target_id')->withPivot(['office_id', 'allocated_target_value']);
+    }
+
     public function performanceTargets(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(PerformanceTarget::class, 'targetable');

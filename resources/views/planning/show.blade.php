@@ -2,6 +2,7 @@
 <x-slot name="header"><div class="flex flex-wrap items-center justify-between gap-3"><div><h1 class="text-2xl font-bold">{{ strtoupper($plan->level) }} · {{ $plan->office->name }}</h1><p class="text-sm text-gray-600">@if($plan->employee){{ $plan->employee->name }} · @endif{{ $plan->cycle->label }} · Revision {{ $plan->revision }}</p></div><a class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="{{ route('planning.index') }}">All plans</a></div></x-slot>
 <div class="planning-page mx-auto max-w-7xl space-y-6 p-6">
 @include('planning.messages')
+@if($plan->state !== 'approved')<x-pcr-compliance :report="$plan->report" :type="$plan->level" />@endif
 <div class="flex flex-wrap items-center justify-between gap-3"><nav class="spms-plan-path" aria-label="Target reporting levels">@foreach(['opcr','dpcr','upcr','ipcr'] as $level)<span @if($plan->level===$level) aria-current="step" @endif>{{ strtoupper($level) }}</span>@unless($loop->last)<span aria-hidden="true">→</span>@endunless @endforeach</nav><x-planning-status :state="$plan->state" /></div>
 <nav class="spms-section-nav" aria-label="Plan sections"><a href="#responsibility" aria-current="location">Commitments</a><a href="#plan-targets">Targets</a>@if($plan->state==='approved')<a href="#performance-review">Final review</a>@endif<a href="#planning-history">History</a></nav>
 <section id="responsibility" class="planning-card"><div class="flex flex-wrap justify-between gap-3"><div><h2>Commitments and responsibility</h2><p class="text-sm text-slate-600">Reviewer: {{ $plan->reviewer->name }}. Planning approval is separate from final performance review.</p>
@@ -102,6 +103,7 @@
 @disabled($s['outputs']->isEmpty())>Record contribution</button></form></details>
 @endif
 @foreach($s['outputs'] as $out)<div class="mt-3 border-t pt-3"><p><strong>{{ $out->reference }}</strong> · {{ $out->validated_at ? 'Validated' : 'Reported, pending validation' }} · {{ $out->details }}</p><a class="text-blue-700 underline" href="{{ route('planning.output-download',$out) }}">Supporting evidence</a>
+<x-evidence-analysis :evidence="$out" />
 @foreach($out->evidence['attachments'] ?? [] as $index=>$file)
 <a class="ml-3 text-blue-700 underline" href="{{ route('planning.output-download',$out) }}?attachment={{ $index }}">{{ $file['name'] }}</a>
 @endforeach
@@ -115,7 +117,7 @@
 @endforeach
 @if(auth()->id()===$plan->reviewer_id && $plan->state==='approved')<details class="mt-4"><summary>Record reviewer ratings</summary><form class="planning-form" method="post" action="{{ route('planning.rate',$t) }}">
 @csrf<div class="grid gap-3 sm:grid-cols-3">
-@foreach(['quality_rating'=>'Quality','efficiency_rating'=>'Efficiency','timeliness_rating'=>'Timeliness'] as $field=>$label)<label>{{ $label }} (1–5)<input name="{{ $field }}" type="number" min="1" max="5" step="0.01" required></label>
+@foreach(['quality_rating'=>'Quality','efficiency_rating'=>'Efficiency','timeliness_rating'=>'Timeliness'] as $field=>$label)<label>{{ $label }} (0–5)<input name="{{ $field }}" type="number" min="0" max="5" step="0.01" required></label>
 @endforeach</div><label>Rating remarks<textarea name="remarks"></textarea></label><button>Save reviewer ratings</button></form></details>
 @endif
 </section>

@@ -58,3 +58,13 @@ Artisan::command('spms:send-deadline-reminders {--days=7}', function (): int {
 })->purpose('Send deadline reminder notifications for performance targets due soon.');
 
 Schedule::command('spms:send-deadline-reminders')->dailyAt('08:00');
+
+Artisan::command('spms:send-pcr-reminders {--dry-run : Count pending reminders without delivering notifications}', function (): int {
+    $service = app(\App\Services\PcrReminders::class);
+    $counts = $service->send((bool) $this->option('dry-run'));
+    $this->info('Pending tasks: '.$counts['pending'].'; in-app reminders: '.$counts['database'].'; emails: '.$counts['mail'].'; failed deliveries: '.$counts['failed'].'.');
+    if (! $service->emailAvailable()) $this->warn('Real email delivery is disabled or the mailer is log/array. Configure SMTP and SPMS_PCR_EMAIL_REMINDERS for outgoing email.');
+    return $counts['failed'] ? self::FAILURE : self::SUCCESS;
+})->purpose('Remind responsible heads and personnel about missing PCRs and pending submissions, once per day per channel.');
+
+Schedule::command('spms:send-pcr-reminders')->dailyAt(config('spms.pcr.reminder_time', '08:00'))->withoutOverlapping(30);

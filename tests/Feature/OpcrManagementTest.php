@@ -72,11 +72,12 @@ class OpcrManagementTest extends TestCase
 
         $approver = User::factory()->create();
         $approver->assignRole('Campus Director');
-        $opcr = Opcr::factoryLike()->create();
+        $opcr = Opcr::factoryLike()->create(['status' => Opcr::STATUS_SUBMITTED]);
 
         $response = $this
             ->actingAs($approver)
-            ->patch(route('opcrs.approve', $opcr));
+            ->from(route('opcrs.show', $opcr))
+            ->patch(route('report-workflow.approve', ['type' => 'opcr', 'report' => $opcr->id]));
 
         $response->assertRedirect(route('opcrs.show', $opcr));
 
@@ -87,17 +88,17 @@ class OpcrManagementTest extends TestCase
         $this->assertNotNull($opcr->approved_at);
     }
 
-    public function test_office_heads_cannot_approve_opcrs(): void
+    public function test_employees_cannot_approve_opcrs(): void
     {
         $this->seed(RoleSeeder::class);
 
         $user = User::factory()->create();
-        $user->assignRole('Office Head');
+        $user->assignRole('Employee');
         $opcr = Opcr::factoryLike()->create();
 
         $response = $this
             ->actingAs($user)
-            ->patch(route('opcrs.approve', $opcr));
+            ->patch(route('report-workflow.approve', ['type' => 'opcr', 'report' => $opcr->id]));
 
         $response->assertForbidden();
         $this->assertSame(Opcr::STATUS_DRAFT, $opcr->fresh()->status);

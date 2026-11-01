@@ -51,7 +51,7 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|HR|HR Head')
+                @hasanyrole('Administrator|HR|HR Head|Planning Officer')
                     <x-responsive-nav-link :href="route('evaluation-cycles.index')" :active="$routeIs('evaluation-cycles.*')">
                         {{ __('Evaluation Periods') }}
                     </x-responsive-nav-link>
@@ -77,8 +77,8 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|HR|HR Head|Campus Director|Planning Officer|Supervisor|Employee')
-                    @if(Auth::user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer', 'Supervisor']))
+                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee')
+                    @if(Auth::user()->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor']))
                         <x-responsive-nav-link :href="route('office-targets.index')" :active="$routeIs('office-targets.*')">
                             {{ __('Targets') }}
                         </x-responsive-nav-link>

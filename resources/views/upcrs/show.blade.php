@@ -17,6 +17,14 @@
                 </div>
             @endif
 
+            <section class="mb-6 rounded-lg border bg-white p-5"><h2 class="font-bold">Office targets and individual assignments</h2>
+                @forelse($upcr->officeTargets()->with('assignedEmployees')->get() as $assignedTarget)
+                    <article class="mt-3 border-t pt-3"><a class="font-semibold underline" href="{{ route('office-targets.show', $assignedTarget) }}">{{ $assignedTarget->title }}</a>
+                        <p class="text-sm">{{ $assignedTarget->pivot->allocated_target_value }} {{ $assignedTarget->unit_of_measure }}</p>
+                        @forelse($assignedTarget->assignedEmployees->where('office_id', $assignedTarget->pivot->office_id) as $person)<p class="mt-1 text-sm">→ {{ $person->name }} · {{ $person->pivot->allocated_target_value }} {{ $assignedTarget->unit_of_measure }}</p>@empty<p class="text-sm">Office assignment — awaiting delegation by its head.</p>@endforelse
+                    </article>
+                @empty<p class="mt-2 text-sm">No office targets linked to this UPCR yet.</p>@endforelse
+            </section>
             <x-report-workflow :report="$upcr" type="upcr" />
             <x-report-attachments :report="$upcr" type="upcr" />
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -37,7 +45,7 @@
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
                         <p class="text-xs font-bold uppercase text-gray-500">Office / Period</p>
-                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $upcr->dpcr->opcr->office->name }}</p>
+                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $upcr->employee->office?->name ?? $upcr->dpcr->opcr->office->name }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $upcr->dpcr->opcr->evaluationCycle->label }}</p>
                     </div>
                 </div>

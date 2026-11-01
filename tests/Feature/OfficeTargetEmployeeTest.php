@@ -21,22 +21,23 @@ class OfficeTargetEmployeeTest extends TestCase
         $director = User::factory()->create();
         $director->assignRole('Campus Director');
         $target = OfficeTarget::create(['title' => 'Shared work', 'success_indicator' => 'One output', 'target_value' => 1, 'unit_of_measure' => 'report', 'weight' => 20, 'deadline' => '2026-12-31', 'priority' => 'medium', 'created_by' => $director->id]);
-        $target->offices()->attach($office->id);
+        $target->offices()->attach($office->id, ['allocated_target_value' => 1]);
         $url = route('office-targets.assign-employees', $target);
-        $this->actingAs($director)->post($url, ['employee_ids' => [$employee->id]])->assertForbidden();
-        $this->actingAs($supervisor)->post($url, ['employee_ids' => [$outsider->id]])->assertForbidden();
-        $this->get(route('office-targets.show', $target))->assertOk()->assertSee('Assign to Employees')->assertSee($employee->name)->assertDontSee($outsider->name);
-        $this->post($url, ['employee_ids' => [(string) $employee->id]])->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($director)->post($url, ['employee_ids' => [$employee->id], 'allocations' => [$employee->id => 1]])->assertForbidden();
+        $this->actingAs($supervisor)->post($url, ['employee_ids' => [$outsider->id], 'allocations' => [$outsider->id => 1]])->assertForbidden();
+        $this->get(route('office-targets.show', $target))->assertOk()->assertSee('Assign to Myself or Employees')->assertSee($employee->name)->assertDontSee($outsider->name);
+        $this->post($url, ['employee_ids' => [(string) $employee->id], 'allocations' => [$employee->id => 1]])->assertSessionHasNoErrors()->assertRedirect();
         $this->assertTrue($target->assignedEmployees()->whereKey($employee->id)->exists());
         $this->actingAs($employee)->get(route('performance-targets.index'))->assertOk()->assertSee($target->title)->assertSee(route('office-targets.show', $target));
         $this->actingAs($outsider)->get(route('performance-targets.index'))->assertOk()->assertDontSee($target->title);
         $this->actingAs($supervisor);
         $this->assertSame(1, $employee->notifications()->count());
-        $this->post($url, ['employee_ids' => [$employee->id]])->assertRedirect();
+        $this->post($url, ['employee_ids' => [$employee->id], 'allocations' => [$employee->id => 1]])->assertRedirect();
         $this->assertSame(1, $employee->notifications()->count());
-        $this->actingAs($employee)->get(route('office-targets.show', $target))->assertOk()->assertDontSee('Assign to Employees');
+        $this->actingAs($employee)->get(route('office-targets.show', $target))->assertOk()->assertDontSee('Assign to Myself or Employees');
+        $this->patch(route('office-targets.accept', $target))->assertRedirect();
         $this->patch(route('target-movs.complete', $target))->assertStatus(422);
-        \Illuminate\Support\Facades\Storage::fake('local');
+        $storage = \Illuminate\Support\Facades\Storage::fake('local');
         $upload = route('target-movs.store', $target);
         $this->post($upload, ['accomplishment' => 'Completed the assigned work.',
             'files' => [\Illuminate\Http\UploadedFile::fake()->create('evidence.pdf', 20, 'application/pdf')]])
@@ -46,11 +47,11 @@ class OfficeTargetEmployeeTest extends TestCase
         foreach ([$employee, $supervisor, $director] as $viewer) {
             $this->actingAs($viewer)->get(route('movs.index'))->assertOk()
                 ->assertSee('evidence.pdf')->assertSee($target->title)
-                ->assertDontSee('Upload MOV');
+                ->assertSee('Assigned Office Target Evidence');
         }
         $this->actingAs($outsider)->get(route('movs.index'))->assertOk()->assertDontSee('evidence.pdf');
         $this->actingAs($employee);
-        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($mov->path);
+        $storage->assertExists($mov->path);
         $this->assertSame(1, $supervisor->notifications()->where('type', \App\Notifications\TargetMovSubmittedNotification::class)->count());
         $this->get(route('target-movs.download', $mov))->assertDownload('evidence.pdf');
         \Illuminate\Support\Facades\Storage::disk('local')->put($mov->path, "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
@@ -80,8 +81,8 @@ class OfficeTargetEmployeeTest extends TestCase
         $this->get(route('ipcrs.show', $ipcr))->assertOk();
         $this->get(route('reports.show', 'ipcr'))->assertOk()->assertSee('Completed the assigned work.');
         $this->get(route('ipcrs.show', $ipcr))->assertSee('View Target MOV')->assertDontSee('IPCR Files');
-        $this->get(route('reports.pdf', 'ipcr'))->assertForbidden();
-        $this->get(route('reports.excel', 'ipcr'))->assertForbidden();
+        $this->get(route('reports.pdf', 'ipcr'))->assertOk();
+        $this->get(route('reports.excel', 'ipcr'))->assertOk();
         $ipcr->update(['status' => \App\Models\Ipcr::STATUS_SUBMITTED]);
         $approvalUrl = route('report-workflow.approve', ['ipcr', $ipcr]);
         $this->actingAs($supervisor)->patch($approvalUrl)->assertSessionHasErrors(['quality_rating', 'efficiency_rating', 'timeliness_rating']);
@@ -123,9 +124,9 @@ class OfficeTargetEmployeeTest extends TestCase
                 });
         }
         $this->actingAs($employee);
-        $this->post($url, ['employee_ids' => [$outsider->id]])->assertForbidden();
+        $this->post($url, ['employee_ids' => [$outsider->id], 'allocations' => [$outsider->id => 1]])->assertForbidden();
         $this->actingAs($outsider)->get(route('office-targets.show', $target))->assertForbidden();
         $outsider->syncRoles('Supervisor');
-        $this->post($url, ['employee_ids' => [$employee->id]])->assertForbidden();
+        $this->post($url, ['employee_ids' => [$employee->id], 'allocations' => [$employee->id => 1]])->assertForbidden();
     }
 }

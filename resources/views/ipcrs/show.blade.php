@@ -23,8 +23,8 @@
                     <a href="{{ route('office-targets.show', $ipcr->office_target_id) }}#target-movs" class="font-semibold text-spms-navy underline">View Target MOV</a>
                 </div>
             @endif
-            @if($ipcr->isApproved() && (int) $ipcr->employee_id === (int) Auth::id())
-                <div class="mt-4"><a href="{{ route('reports.index') }}" class="font-semibold text-spms-navy underline">My Reports — Export approved IPCR to PDF or Excel</a></div>
+            @if((int) $ipcr->employee_id === (int) Auth::id())
+                <div class="mt-4"><a href="{{ route('reports.show', 'ipcr') }}" class="font-semibold text-spms-navy underline">Generate IPCR - Preview, PDF or Excel anytime</a></div>
             @endif
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -46,6 +46,7 @@
                     <div class="rounded-lg border border-gray-200 p-4">
                         <p class="text-xs font-bold uppercase text-gray-500">Source</p>
                         <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr?->title ?? $ipcr->officeTarget?->title }}</p>
+                        @if($ipcr->upcr)<p class="mt-1 text-xs text-gray-500">Office UPCR → Individual IPCR</p>@elseif($ipcr->office_target_id)<p class="mt-1 text-xs text-amber-800">Pending office UPCR link</p>@endif
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
                         <p class="text-xs font-bold uppercase text-gray-500">Assigned Employee</p>
@@ -53,7 +54,7 @@
                     </div>
                     <div class="rounded-lg border border-gray-200 p-4">
                         <p class="text-xs font-bold uppercase text-gray-500">Office / Period</p>
-                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->upcr?->dpcr?->opcr?->office?->name ?? $ipcr->employee?->office?->name }}</p>
+                        <p class="mt-2 text-sm font-semibold text-spms-ink">{{ $ipcr->employee?->office?->name ?? $ipcr->upcr?->dpcr?->opcr?->office?->name }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $ipcr->upcr?->dpcr?->opcr?->evaluationCycle?->label ?? $ipcr->officeTarget?->evaluationCycle?->label }}</p>
                     </div>
                 </div>

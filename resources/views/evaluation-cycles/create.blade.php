@@ -26,6 +26,14 @@
                         <x-input-error :messages="$errors->get('semester')" class="mt-2" />
                     </div>
 
+                    <fieldset class="space-y-3 rounded-lg border p-4"><legend class="font-semibold">PCR creation and submission schedule</legend>
+                        <p class="text-sm text-gray-600">These dates control PCR preparation and submission; target duration still follows the semester. Dates include the end of the selected day ({{ config('app.timezone') }}).</p>
+                        <label class="block text-sm">PCR creation closes<input name="pcr_creation_closes_at" type="date" value="{{ old('pcr_creation_closes_at') }}" class="mt-1 block rounded-lg border-gray-300"></label>
+                        <x-input-error :messages="$errors->get('pcr_creation_closes_at')" />
+                        <label class="block text-sm">PCR submission deadline<input name="pcr_submission_due_at" type="date" value="{{ old('pcr_submission_due_at') }}" class="mt-1 block rounded-lg border-gray-300"></label>
+                        <x-input-error :messages="$errors->get('pcr_submission_due_at')" />
+                        <label class="block text-sm">Start daily reminders this many days before the deadline<input name="pcr_reminder_days" type="number" min="1" max="60" value="{{ old('pcr_reminder_days', 7) }}" class="mt-1 block w-24 rounded-lg border-gray-300"></label>
+                    </fieldset>
                     <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-spms-navy">
                         The new period will open automatically. Any currently open period will be closed.
                     </div>

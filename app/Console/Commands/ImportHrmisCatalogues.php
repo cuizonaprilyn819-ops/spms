@@ -38,7 +38,7 @@ class ImportHrmisCatalogues extends Command
         $offices = $this->officeRecords($departmentRows);
         $positions = $this->positionRecords($positionRows);
 
-        DB::transaction(function () use ($offices, $positions): void {
+        DB::transaction(function () use ($offices, $positions, $departmentRows): void {
             foreach (array_chunk($offices, 100) as $chunk) {
                 Office::query()->upsert(
                     $chunk,
@@ -55,6 +55,20 @@ class ImportHrmisCatalogues extends Command
                     ],
                 );
             }
+
+            // Resolve legacy parent IDs after all offices exist; source order is irrelevant.
+            $byLegacyId = Office::all()->keyBy('legacy_department_id');
+            foreach ($departmentRows as $row) {
+                if (! array_key_exists('parent_department_id', $row)) continue;
+                $child = $byLegacyId->get((int) $row['id']);
+                if (! $child) continue;
+                $parentId = (int) ($row['parent_department_id'] ?? 0);
+                $parent = $parentId ? $byLegacyId->get($parentId) : null;
+                if ($parentId && (! $parent || $parent->campus !== $child->campus)) throw new RuntimeException('A parent department is missing or belongs to another campus.');
+                $child->update(['parent_office_id' => $parent?->id]);
+                $child->unsetRelation('parentOffice');
+            }
+            foreach ($byLegacyId as $office) app(\App\Services\PlanningOrganization::class)->ancestors($office->fresh());
 
             foreach (array_chunk($positions, 100) as $chunk) {
                 PositionTitle::query()->upsert(

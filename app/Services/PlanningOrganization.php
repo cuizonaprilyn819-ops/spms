@@ -25,6 +25,9 @@ class PlanningOrganization
 
     public function verify(Office $office): void
     {
+        if ((int) $office->campus !== (int) config('hinunangan.campus_id')) {
+            throw ValidationException::withMessages(['office_id' => 'Choose an active Hinunangan Campus 6 office.']);
+        }
         $this->ancestors($office);
         $expected = ['office' => null, 'division' => 'office', 'unit' => 'division'];
         if (! array_key_exists($office->planning_level, $expected) || ! $office->hierarchy_verified_at || ! trim($office->mandate ?? '') || ! $office->head_id || ! $office->planning_reviewer_id || ! $office->is_active) {
@@ -36,7 +39,7 @@ class PlanningOrganization
         if ((int) $office->head_id === (int) $office->planning_reviewer_id || (int) $office->head?->office_id !== (int) $office->id) {
             throw ValidationException::withMessages(['office_id' => 'The head must belong to this office and have a separate reviewer.']);
         }
-        if (! $office->planningReviewer?->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'HR Head', 'HR'])) {
+        if (! $office->planningReviewer?->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'HR Head', 'HR'])) {
             throw ValidationException::withMessages(['planning_reviewer_id' => 'Assign a reviewer with an existing management role.']);
         }
         if ($office->parentOffice && $office->parentOffice->campus !== $office->campus) {
@@ -49,7 +52,7 @@ class PlanningOrganization
 
     public function canView(User $user, CommitmentPlan $plan): bool
     {
-        if ($user->hasRole('Administrator') || in_array($user->id, [$plan->prepared_by, $plan->reviewer_id, $plan->employee_id], true) || ($plan->level === 'opcr' && $user->hasRole('Planning Officer'))) {
+        if ($user->hasAnyRole(['Administrator', 'Planning Officer']) || in_array($user->id, [$plan->prepared_by, $plan->reviewer_id, $plan->employee_id], true)) {
             return true;
         }
 
@@ -58,15 +61,12 @@ class PlanningOrganization
 
     public function canPrepare(User $user, CommitmentPlan $plan): bool
     {
-        return $user->hasRole('Administrator')
-            || $plan->prepared_by === $user->id
-            || $plan->office->head_id === $user->id
-            || ($plan->level === 'opcr' && $user->hasRole('Planning Officer'));
+        return $user->hasAnyRole(['Administrator', 'Planning Officer']) || $plan->prepared_by === $user->id || $plan->office->head_id === $user->id;
     }
 
     public function isOwner(User $user, Office $office): bool
     {
-        return $user->hasRole('Administrator') || (int) $office->head_id === $user->id;
+        return $user->hasAnyRole(['Administrator', 'Planning Officer']) || (int) $office->head_id === $user->id;
     }
 
     public function visiblePlanIds(User $user): array

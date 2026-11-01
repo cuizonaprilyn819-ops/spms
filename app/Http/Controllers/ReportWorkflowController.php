@@ -85,14 +85,20 @@ class ReportWorkflowController extends Controller
         }
         abort_unless(in_array($form->status, [$form::STATUS_SUBMITTED, $form::STATUS_RESUBMITTED], true), 422);
         $ratings = [];
-        if ($form instanceof Ipcr && $form->office_target_id) {
+        $pcrCycle = app(\App\Services\PcrCompliance::class)->cycle($form);
+        if ($form instanceof Ipcr && ($form->office_target_id || $pcrCycle?->pcr_submission_due_at)) {
             abort_if((int) $form->employee_id === (int) $request->user()->id, 403, 'You cannot rate your own IPCR.');
             $ratings = $request->validate([
-                'quality_rating' => ['required', 'numeric', 'min:1', 'max:5'],
-                'efficiency_rating' => ['required', 'numeric', 'min:1', 'max:5'],
-                'timeliness_rating' => ['required', 'numeric', 'min:1', 'max:5'],
+                'quality_rating' => ['required', 'numeric', 'min:0', 'max:5'],
+                'efficiency_rating' => ['required', 'numeric', 'min:0', 'max:5'],
+                'timeliness_rating' => ['required', 'numeric', 'min:0', 'max:5'],
                 'rating_remarks' => ['nullable', 'string', 'max:5000'],
             ]);
+            $assignment = DB::table('office_target_employee')->where('office_target_id', $form->office_target_id)->where('user_id', $form->employee_id)->first();
+            $actual = $assignment ? (float) ($assignment->completed_value ?? ($assignment->completed_at ? $assignment->allocated_target_value : 0)) : 0;
+            if ($form->office_target_id && $actual <= 0) {
+                $ratings['quality_rating'] = $ratings['efficiency_rating'] = $ratings['timeliness_rating'] = 0;
+            }
             $ratings['average_rating'] = round(((float) $ratings['quality_rating'] + (float) $ratings['efficiency_rating'] + (float) $ratings['timeliness_rating']) / 3, 2);
         }
         $this->transition($form, $form::STATUS_APPROVED, $request->user()->id, null, ['approved_by' => $request->user()->id, 'approved_at' => now(), ...$ratings]);
@@ -114,8 +120,17 @@ class ReportWorkflowController extends Controller
     private function transition(Model $form, string $to, int $actor, ?string $remarks, array $extra = []): void
     {
         DB::transaction(function () use ($form, $to, $actor, $remarks, $extra): void {
-            $from = $form->status;
+            $current = $form->newQuery()->whereKey($form->id)->lockForUpdate()->firstOrFail();
+            if (in_array($to, ['submitted', 'resubmitted'])) {
+                abort_unless($current->isEditableBy($actor), 403);
+                $extra['submitted_at'] = now();
+            } elseif (in_array($to, ['approved', 'returned'])) {
+                abort_unless(in_array($current->status, ['submitted', 'resubmitted']), 422);
+            }
+            $from = $current->status;
+            $form->setRawAttributes($current->getAttributes(), true);
             $form->update(['status' => $to, ...$extra]);
+            if (in_array($to, ['submitted', 'resubmitted'])) app(\App\Services\PcrCompliance::class)->recordSubmission($form);
             $form->statusHistories()->create(['from_status' => $from, 'to_status' => $to, 'remarks' => $remarks, 'acted_by' => $actor]);
         });
     }
@@ -123,15 +138,18 @@ class ReportWorkflowController extends Controller
     private function authorizeReviewer(Request $request, Model $form): void
     {
         $user = $request->user();
+        abort_if((int) $form->prepared_by === $user->id || (int) $form->employee_id === $user->id, 403, 'You cannot review your own report.');
         if ($plan = $form->commitmentPlan) {
-            abort_unless($plan->reviewer_id === $user->id && $plan->prepared_by !== $user->id && $plan->employee_id !== $user->id, 403);
+            abort_unless(($user->hasRole('Planning Officer') || $plan->reviewer_id === $user->id) && $plan->prepared_by !== $user->id && $plan->employee_id !== $user->id, 403);
             abort_unless($plan->state === 'approved' && ! $plan->targets()->where('needs_reconciliation', true)->exists(), 422, 'Commitments need approval or reconciliation.');
 
             return;
         }
-        abort_unless($user->hasAnyRole(['Administrator', 'HR Head', 'Campus Director', 'Supervisor']), 403);
+        abort_unless($user->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor']), 403);
         if ($user->hasRole('Supervisor')) {
-            abort_unless($user->office_id && (int) $user->office_id === (int) $this->officeId($form), 403);
+            $office = \App\Models\Office::find($this->officeId($form));
+            $reviewOfficeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
+            abort_unless($user->office_id && (int) $user->office_id === (int) $reviewOfficeId, 403);
         }
         if ($user->hasRole('Campus Director') && $user->office?->campus) {
             abort_unless($form->preparedBy?->office?->campus === $user->office->campus, 403);
@@ -140,15 +158,16 @@ class ReportWorkflowController extends Controller
 
     private function reviewers(Model $form)
     {
-        $officeId = $this->officeId($form);
+        $office = \App\Models\Office::find($this->officeId($form));
+        $officeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
         $campus = $form->preparedBy?->office?->campus;
 
-        return User::role(['Supervisor', 'Campus Director', 'HR Head'])->where(function ($query) use ($officeId, $campus): void {
+        return User::role(['Supervisor', 'Campus Director', 'HR Head', 'Planning Officer'])->where(function ($query) use ($officeId, $campus): void {
             $query->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Supervisor'))->where('office_id', $officeId));
             if ($campus) {
                 $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))->whereHas('office', fn ($o) => $o->where('campus', $campus)));
             }
-            $query->orWhereHas('roles', fn ($r) => $r->where('name', 'HR Head'));
+            $query->orWhereHas('roles', fn ($r) => $r->whereIn('name', ['HR Head', 'Planning Officer']));
         })->get();
     }
 

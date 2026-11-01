@@ -61,6 +61,10 @@
                                     <td class="px-6 py-4">
                                         <p class="font-semibold text-spms-ink">{{ $target->target }}</p>
                                         <p class="mt-1 text-xs text-gray-500">Added by {{ $target->createdBy?->name }}</p>
+                                        <div class="mt-2 flex gap-3 text-xs">
+                                            <a class="text-spms-navy underline" href="{{ route('movs.create', ['performance_target_id' => $target->id]) }}">Upload MOV</a>
+                                            <a class="text-spms-navy underline" href="{{ route('movs.index', ['performance_target_id' => $target->id]) }}">My evidence</a>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4">
                                         <span class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy">{{ $typeLabels[$target->targetable_type] ?? 'Form' }}</span>

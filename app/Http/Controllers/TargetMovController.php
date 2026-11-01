@@ -19,7 +19,7 @@ class TargetMovController extends Controller
     {
         CommitmentPlanning::legacyOnly($officeTarget->evaluationCycle);
         $user = $request->user();
-        abort_unless($user->hasAnyRole(['Employee', 'Supervisor', 'HR Head']) && $user->office_id && $officeTarget->offices()->whereKey($user->office_id)->exists(), 403);
+        abort_unless($user->office_id && $officeTarget->offices()->whereKey($user->office_id)->exists(), 403);
         DB::transaction(function () use ($user, $officeTarget) {
             $assignment = DB::table('office_target_employee')->where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->lockForUpdate()->first();
             abort_unless($assignment && $assignment->accepted_at, 403);
@@ -27,7 +27,7 @@ class TargetMovController extends Controller
                 return;
             }
             abort_unless(TargetMov::where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->exists(), 422, 'Submit MOV before marking this target complete.');
-            DB::table('office_target_employee')->where('id', $assignment->id)->update(['completed_at' => now(), 'completed_value' => $assignment->allocated_target_value, 'updated_at' => now()]);
+            DB::table('office_target_employee')->where('id', $assignment->id)->update(['completed_at' => now(), 'completed_value' => $assignment->completed_value ?? $assignment->allocated_target_value, 'updated_at' => now()]);
             $recipients = User::where('office_id', $user->office_id)->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))->get();
             if ($officeTarget->createdBy?->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                 $recipients->push($officeTarget->createdBy);
@@ -42,23 +42,24 @@ class TargetMovController extends Controller
     {
         CommitmentPlanning::legacyOnly($officeTarget->evaluationCycle);
         $user = $request->user();
-        abort_unless($user->hasAnyRole(['Employee', 'Supervisor', 'HR Head']) && $user->office_id
+        abort_unless($user->office_id
             && $officeTarget->assignedEmployees()->whereKey($user->id)->wherePivotNotNull('accepted_at')->exists()
             && $officeTarget->offices()->whereKey($user->office_id)->exists(), 403);
         $data = $request->validate([
             'accomplishment' => ['required', 'string', 'max:5000'],
-            'completed_value' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
+            'completed_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
             'files' => ['required', 'array', 'min:1', 'max:5'],
             'files.*' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $paths = [];
+        $uploaded = [];
         try {
-            DB::transaction(function () use ($officeTarget, $user, $data, $request, &$paths) {
+            DB::transaction(function () use ($officeTarget, $user, $data, $request, &$paths, &$uploaded) {
                 OfficeTarget::whereKey($officeTarget->id)->lockForUpdate()->firstOrFail();
                 $assignment = DB::table('office_target_employee')->where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->lockForUpdate()->firstOrFail();
                 if (isset($data['completed_value'])) {
-                    if ($assignment->allocated_target_value === null || (float) $data['completed_value'] > (float) $assignment->allocated_target_value) {
-                        throw ValidationException::withMessages(['completed_value' => 'Completed quantity cannot exceed your assigned allocation. Ask your head to set an allocation if it is missing.']);
+                    if ($assignment->allocated_target_value === null) {
+                        throw ValidationException::withMessages(['completed_value' => 'Ask your head to set an allocation before reporting completion.']);
                     }
                     if ($assignment->completed_at) {
                         throw ValidationException::withMessages(['completed_value' => 'This assignment is already marked complete.']);
@@ -73,6 +74,7 @@ class TargetMovController extends Controller
                         'office_id' => $user->office_id, 'accomplishment' => $data['accomplishment'],
                         'path' => $path, 'original_name' => $file->getClientOriginalName()]);
                 }
+                $uploaded = TargetMov::whereIn('path', $paths)->get()->all();
                 $recipients = User::where('office_id', $user->office_id)
                     ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))
                     ->get();
@@ -84,6 +86,11 @@ class TargetMovController extends Controller
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($paths);
             throw $exception;
+        }
+
+        if (config('spms.ai.enabled')) {
+            set_time_limit(600);
+            foreach ($uploaded as $evidence) app(\App\Services\EvidenceAi::class)->analyze($evidence);
         }
 
         return back()->with('mov_status', 'MOV submitted successfully. Your office heads and assigning Campus Director have been notified.');
@@ -112,9 +119,9 @@ class TargetMovController extends Controller
     private function authorizeFile(Request $request, TargetMov $targetMov): void
     {
         $user = $request->user();
-        $canReview = $user->hasAnyRole(['Supervisor', 'HR Head']) && $user->office_id
-            && (int) $user->office_id === (int) $targetMov->office_id
-            && $targetMov->target->offices()->whereKey($user->office_id)->exists();
+        $managed = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user);
+        $canReview = in_array((int) $targetMov->office_id, $managed)
+            && $targetMov->target->offices()->whereKey($targetMov->office_id)->exists();
         $isAssigningDirector = $user->hasAnyRole(['Campus Director', 'Planning Officer']) && (int) $targetMov->target->created_by === (int) $user->id;
         abort_unless((int) $targetMov->user_id === (int) $user->id || $canReview || $isAssigningDirector, 403);
         abort_unless(Storage::disk('local')->exists($targetMov->path), 404);

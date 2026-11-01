@@ -72,7 +72,7 @@ class BrowserApiTest extends TestCase
 
     public function test_mov_upload_and_download_work_through_api(): void
     {
-        Storage::fake('public');
+        $storage = Storage::fake('public');
         $user = $this->signIn('Employee');
         $this->post('/api/movs', [
             'title' => 'API Evidence',
@@ -80,7 +80,7 @@ class BrowserApiTest extends TestCase
         ])->assertOk()->assertJsonStructure(['redirect']);
         $mov = Mov::firstOrFail();
         $this->assertSame($user->id, $mov->uploaded_by);
-        Storage::disk('public')->assertExists($mov->file_path);
+        $storage->assertExists($mov->file_path);
         $this->getJson('/api/movs/'.$mov->id)->assertOk()->assertJsonStructure(['html']);
         $this->get('/api/movs/'.$mov->id.'/download')->assertDownload('evidence.pdf');
     }

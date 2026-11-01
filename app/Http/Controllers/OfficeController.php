@@ -26,7 +26,7 @@ class OfficeController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Office::create($this->validatedData($request));
+        Office::create([...$this->validatedData($request), 'campus' => config('hinunangan.campus_id')]);
 
         return redirect()
             ->route('offices.index')
@@ -40,7 +40,17 @@ class OfficeController extends Controller
 
     public function update(Request $request, Office $office): RedirectResponse
     {
-        $office->update($this->validatedData($request, $office));
+        $data = $this->validatedData($request, $office);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($office, $data) {
+            Office::orderBy('id')->lockForUpdate()->get();
+            if (isset($data['parent_office_id'])) {
+                $parent = Office::findOrFail($data['parent_office_id']);
+                if (in_array($office->id, app(\App\Services\PlanningOrganization::class)->ancestors($parent))) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['parent_office_id' => 'An office cannot report to itself or a descendant.']);
+                }
+            }
+            $office->update($data);
+        });
 
         return redirect()
             ->route('offices.index')
@@ -75,6 +85,7 @@ class OfficeController extends Controller
                 Rule::unique('offices', 'code')->ignore($office),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
+            'parent_office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->where('campus', $office?->campus ?? config('hinunangan.campus_id'))],
         ]);
     }
 }

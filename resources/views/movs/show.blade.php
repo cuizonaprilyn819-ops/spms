@@ -13,6 +13,7 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            @if (session('mov_status'))<p class="mb-4 text-sm text-green-700">{{ session('mov_status') }}</p>@endif
             @if (session('status'))
                 <div class="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
                     {{ session('status') }}
@@ -21,6 +22,10 @@
 
             <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <dl class="grid gap-6 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs font-bold uppercase text-gray-500">Performance Target</dt>
+                        <dd class="mt-1 text-sm text-spms-ink">{{ $mov->performanceTarget?->target ?? 'General evidence' }}</dd>
+                    </div>
                     <div>
                         <dt class="text-xs font-bold uppercase text-gray-500">Original Filename</dt>
                         <dd class="mt-1 text-sm font-semibold text-spms-ink">{{ $mov->original_name }}</dd>
@@ -48,6 +53,8 @@
                         <img src="{{ $mov->file_url }}" alt="{{ $mov->title }}" class="max-h-[32rem] w-full object-contain">
                     </div>
                 @endif
+
+                <x-evidence-analysis :evidence="$mov" />
 
                 <div class="mt-6">
                     <a href="{{ route('movs.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Back to MOV</a>

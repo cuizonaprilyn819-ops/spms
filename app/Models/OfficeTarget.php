@@ -35,16 +35,20 @@ class OfficeTarget extends Model
         return $this->belongsToMany(User::class, 'office_target_employee')->withPivot(['assigned_by', 'accepted_at', 'completed_at', 'allocated_target_value', 'completed_value'])->withTimestamps();
     }
 
-    public function notifyAssignedSupervisors(array $officeIds): void
+    public function notifyAssignedSupervisors(array $officeIds, bool $updated = false): void
     {
-        User::query()->whereIn('office_id', $officeIds)
-            ->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head']))
-            ->each(function (User $supervisor): void {
+        $officeIds = app(\App\Services\TargetHierarchy::class)->reportingOfficeIds($officeIds);
+        $headIds = Office::whereIn('id', $officeIds)->whereNotNull('head_id')->pluck('head_id');
+        User::query()->where(function ($query) use ($officeIds, $headIds) {
+            $query->where(fn ($q) => $q->whereIn('office_id', $officeIds)->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head'])))
+                ->orWhereIn('id', $headIds);
+        })
+            ->each(function (User $supervisor) use ($updated): void {
                 $alreadyNotified = $supervisor->notifications()
                     ->where('type', TargetAssignedNotification::class)
                     ->where('data->target_id', $this->id)->exists();
-                if (! $alreadyNotified) {
-                    $supervisor->notify(new TargetAssignedNotification($this));
+                if ($updated || ! $alreadyNotified) {
+                    $supervisor->notify(new TargetAssignedNotification($this, $updated));
                 }
             });
     }
@@ -61,6 +65,6 @@ class OfficeTarget extends Model
 
     public function offices(): BelongsToMany
     {
-        return $this->belongsToMany(Office::class, 'office_target_office')->withPivot(['allocated_target_value', 'ai_briefing'])->withTimestamps();
+        return $this->belongsToMany(Office::class, 'office_target_office')->withPivot(['allocated_target_value', 'ai_briefing', 'upcr_id'])->withTimestamps();
     }
 }

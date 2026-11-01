@@ -32,6 +32,11 @@ class Office extends Model
         ];
     }
 
+    public function scopeForCampus($query)
+    {
+        return $query->where('campus', config('hinunangan.campus_id'))->where('is_active', true);
+    }
+
     public function employees(): HasMany
     {
         return $this->hasMany(User::class);

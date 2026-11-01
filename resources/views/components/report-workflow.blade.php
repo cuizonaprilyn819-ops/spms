@@ -1,4 +1,5 @@
 @props(['report', 'type'])
+@php($pcrCycle = app(\App\Services\PcrCompliance::class)->cycle($report))
 @if($report->commitmentPlan)
     <div class="rounded border border-blue-200 bg-blue-50 p-4"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
 @endif
@@ -17,20 +18,21 @@
                     <button class="rounded-md bg-spms-navy px-4 py-2 text-sm font-semibold text-white">{{ $report->status === $report::STATUS_RETURNED ? 'Resubmit' : 'Submit for review' }}</button>
                 </form>
             @endif
-            @hasanyrole('Administrator|HR Head|Campus Director|Supervisor')
+            @hasanyrole('Administrator|Planning Officer|HR Head|Campus Director|Supervisor')
                 @if($reviewable)
                     <button type="button" @click="returning = !returning" class="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white">Return for correction</button>
                     <form method="POST" action="{{ route('report-workflow.approve', [$type, $report]) }}">@csrf @method('PATCH')
-                        @if($type === 'ipcr' && $report->office_target_id)
+                        @if($type === 'ipcr' && ($report->office_target_id || $pcrCycle?->pcr_submission_due_at))
                             <div class="mb-3 space-y-2">
-                                <p class="text-sm font-semibold">Reviewer ratings (1–5)</p>
+                                <p class="text-sm font-semibold">Reviewer ratings (0–5)</p>
                                 @foreach(['quality_rating' => 'Quality (Q)', 'efficiency_rating' => 'Efficiency (E)', 'timeliness_rating' => 'Timeliness (T)'] as $field => $label)
                                     <label class="block text-sm">{{ $label }}
-                                        <input name="{{ $field }}" type="number" min="1" max="5" step="0.01" required value="{{ old($field) }}" class="block w-full rounded-md border-gray-300">
+                                        <input name="{{ $field }}" type="number" min="0" max="5" step="0.01" required value="{{ old($field) }}" class="block w-full rounded-md border-gray-300">
                                     </label>
                                     <x-input-error :messages="$errors->get($field)" />
                                 @endforeach
                                 <p class="text-xs text-gray-500">Average is calculated as (Q + E + T) ÷ 3 when approved.</p>
+                                @if($pcrCycle?->pcr_submission_due_at)<p class="text-xs text-blue-800">Consider the PCR submission record below when assessing Timeliness (T).</p>@endif
                                 <label class="block text-sm">Rating remarks<textarea name="rating_remarks" maxlength="5000" class="block w-full rounded-md border-gray-300">{{ old('rating_remarks') }}</textarea></label>
                                 <x-input-error :messages="$errors->get('rating_remarks')" />
                             </div>
@@ -41,6 +43,7 @@
             @endhasanyrole
         </div>
     </div>
+    <x-pcr-compliance :report="$report" :type="$type" />
     @if($type === 'ipcr' && $report->average_rating !== null)
         <p class="mt-4 text-sm font-semibold">Reviewer ratings: Q {{ $report->quality_rating }} · E {{ $report->efficiency_rating }} · T {{ $report->timeliness_rating }} · Average {{ number_format($report->average_rating, 2) }}</p>
     @endif

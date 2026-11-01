@@ -3,13 +3,13 @@
 <div class="planning-page mx-auto max-w-7xl space-y-6 p-6">
 @include('planning.messages')
 @php
-    $dutiesPeople = $people->filter(fn($person) => auth()->user()->hasRole('Administrator') || $person->office?->head_id===auth()->id());
-    $planOffices = $offices->filter(fn($office) => auth()->user()->hasRole('Administrator') || $office->head_id===auth()->id() || $office->id===auth()->user()->office_id);
+    $dutiesPeople = $people->filter(fn($person) => auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) || $person->office?->head_id===auth()->id());
+    $planOffices = $offices->filter(fn($office) => auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) || $office->head_id===auth()->id() || $office->id===auth()->user()->office_id);
     $levelByOffice = ['office'=>'opcr','division'=>'dpcr','unit'=>'upcr'];
-    $planLevels = auth()->user()->hasRole('Administrator') ? collect(['opcr','dpcr','upcr','ipcr']) : $planOffices->where('head_id',auth()->id())->pluck('planning_level')->map(fn($level) => $levelByOffice[$level] ?? null)->filter()->push('ipcr')->unique();
+    $planLevels = auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) ? collect(['opcr','dpcr','upcr','ipcr']) : $planOffices->where('head_id',auth()->id())->pluck('planning_level')->map(fn($level) => $levelByOffice[$level] ?? null)->filter()->push('ipcr')->unique();
     $defaultLevel = $planLevels->first();
 @endphp
-<nav class="spms-section-nav" aria-label="Planning sections"><a href="#plans" aria-current="location">Plans</a><a href="#new-plan">Create a plan</a><a href="#proposals">Upward proposals</a>@if($dutiesPeople->isNotEmpty() || auth()->user()->hasRole('Administrator'))<a href="#office-setup">Duties &amp; office setup</a>@endif</nav>
+<nav class="spms-section-nav" aria-label="Planning sections"><a href="#plans" aria-current="location">Plans</a><a href="#new-plan">Create a plan</a><a href="#proposals">Upward proposals</a>@if($dutiesPeople->isNotEmpty() || auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']))<a href="#office-setup">Duties &amp; office setup</a>@endif</nav>
 <section id="plans" class="planning-card"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 class="!mb-1">Plans by reporting level</h2><p class="text-sm text-slate-500">Open a plan to review its targets, allocation, and supporting work.</p></div><span class="text-xs text-slate-500">{{ $plans->count() }} {{ Str::plural('plan', $plans->count()) }} on this page</span></div><div class="overflow-x-auto"><table class="planning-table planning-plan-list"><thead><tr><th>Plan</th><th>Office / person</th><th>Period</th><th>Commitments</th><th>Revision</th></tr></thead><tbody>
 @forelse($plans as $p)<tr><td data-label="Plan"><a class="font-semibold text-blue-800 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700" href="{{ route('planning.show',$p) }}">{{ strtoupper($p->level) }} #{{ $p->id }}</a></td><td data-label="Office / person"><span class="font-medium">{{ $p->office->name }}</span>@if($p->employee)<span class="block text-xs text-slate-500">{{ $p->employee->name }}</span>@endif</td><td data-label="Period">{{ $p->cycle->label }}</td><td data-label="Commitments"><x-planning-status :state="$p->state" /></td><td data-label="Revision">{{ $p->revision }}</td></tr>
 @empty<tr><td colspan="5" class="!py-8"><p class="font-medium">No plans are available to you yet.</p><p class="mt-1 text-slate-500">Create a draft below when your evaluation period and reporting structure are ready.</p></td></tr>
@@ -52,14 +52,14 @@
 @endforeach</select></label><label>Review notes<textarea name="review_notes" required></textarea></label><button>Record decision</button></form>
 @endif</section>
 @endforeach
-@if($dutiesPeople->isNotEmpty() || auth()->user()->hasRole('Administrator'))<div id="office-setup" class="pt-3"><p class="spms-section-label">Office setup</p><h2 class="text-lg font-semibold">Duties and reporting relationships</h2><p class="mt-1 text-sm text-slate-500">Verified duties help the right targets reach the right people.</p></div>@endif
+@if($dutiesPeople->isNotEmpty() || auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']))<div id="office-setup" class="pt-3"><p class="spms-section-label">Office setup</p><h2 class="text-lg font-semibold">Duties and reporting relationships</h2><p class="mt-1 text-sm text-slate-500">Verified duties help the right targets reach the right people.</p></div>@endif
 @if($dutiesPeople->isNotEmpty())<details class="planning-card"><summary>Personnel duties</summary>
 @foreach($people as $person)
-@if(auth()->user()->hasRole('Administrator') || $person->office?->head_id===auth()->id())<form class="planning-form border-b pb-4" method="post" action="{{ route('planning.duties',$person) }}">
+@if(auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) || $person->office?->head_id===auth()->id())<form class="planning-form border-b pb-4" method="post" action="{{ route('planning.duties',$person) }}">
 @csrf<label>{{ $person->name }} — {{ $person->office?->name }}<textarea name="planning_duties" required>{{ $person->planning_duties }}</textarea></label><button>Save verified duties</button></form>
 @endif
 @endforeach</details>@endif
-@role('Administrator')
+@hasanyrole('Administrator|Planning Officer')
 <details class="planning-card"><summary>Reporting structure</summary><p class="text-sm text-gray-600">Verify Office → Division → Unit. A head belongs to their office; a reviewer is a separate person. Existing plan structures are preserved.</p>
 @foreach($offices as $o)<details class="mt-4 border-t pt-3"><summary>{{ $o->name }}</summary><form class="planning-form" method="post" action="{{ route('planning.organization',$o) }}">
 @csrf
@@ -83,5 +83,5 @@
 @foreach($cycles->where('planning_enabled',false)->where('status','open') as $c)<form class="planning-form" method="post" action="{{ route('planning.activate',$c) }}">
 @csrf<h3>{{ $c->label }}</h3><label>Readiness record: policy checked, reporting structure, reviewers and allocation inputs<textarea name="planning_readiness" required minlength="20"></textarea></label><label><input type="checkbox" name="confirmed" value="1" required> I verified readiness and will review missing data before allocations.</label><button>Enable for this period</button></form>
 @endforeach</details>
-@endrole
+@endhasanyrole
 </div></x-app-layout>

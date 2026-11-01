@@ -75,6 +75,11 @@ class PerformanceTarget extends Model
         return $this->hasMany(Evaluation::class);
     }
 
+    public function movs(): HasMany
+    {
+        return $this->hasMany(Mov::class);
+    }
+
     public static function factoryLike(): PerformanceTargetFactoryLike
     {
         return new PerformanceTargetFactoryLike;

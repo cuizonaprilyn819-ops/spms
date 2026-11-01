@@ -10,6 +10,17 @@
                     @csrf
 
                     <div>
+                        <x-input-label for="performance_target_id" :value="__('Performance Target')" />
+                        <select id="performance_target_id" name="performance_target_id" class="mt-1 block w-full rounded-lg border-gray-300">
+                            <option value="">General evidence (no target selected)</option>
+                            @foreach($targets as $target)
+                                <option value="{{ $target->id }}" @selected(old('performance_target_id', request('performance_target_id')) == $target->id)>{{ $target->target }} — {{ $target->targetable?->title }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('performance_target_id')" class="mt-2" />
+                    </div>
+
+                    <div>
                         <x-input-label for="title" :value="__('MOV Title')" />
                         <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title')" placeholder="Example: Signed accomplishment report" required />
                         <x-input-error :messages="$errors->get('title')" class="mt-2" />
