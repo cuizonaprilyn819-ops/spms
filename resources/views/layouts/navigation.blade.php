@@ -18,6 +18,7 @@
                 <x-responsive-nav-link :href="route('reports.index')" :active="$routeIs('reports.*', 'opcrs.*', 'dpcrs.*', 'upcrs.*', 'ipcrs.*', 'report-workflow.*')">My Reports</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('notifications.index')" :active="$routeIs('notifications.*')"><span class="flex items-center justify-between gap-2">Notifications @if($unreadCount)<span class="spms-nav-count">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>@endif</span></x-responsive-nav-link>
                 <p class="spms-nav-heading">Performance work</p>
+@role('Administrator')<x-responsive-nav-link :href="route('planning.campuses')" :active="$routeIs('planning.campuses')">Campuses &amp; planning access</x-responsive-nav-link>@endrole
                 <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
                 @hasanyrole('Administrator|Planning Officer')
                     <x-responsive-nav-link :href="route('target-documents.index')" :active="$routeIs('target-documents.*', 'target-drafts.*')">Planning Documents</x-responsive-nav-link>

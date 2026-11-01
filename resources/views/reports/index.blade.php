@@ -45,7 +45,7 @@
                                 @forelse ($myReports[$type] as $report)
                                     <a href="{{ route($type.'s.show', $report) }}" class="flex items-center justify-between gap-3 py-3 text-sm hover:text-spms-navy">
                                         <span class="min-w-0 truncate font-semibold text-spms-ink">{{ $report->title }}</span>
-                                        <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-600">{{ $report->status }}</span>
+                                        <span class="spms-badge shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-600" data-tone="neutral">{{ $report->status }}</span>
                                     </a>
                                 @empty
                                     <p class="py-4 text-sm text-slate-500">No {{ strtoupper($type) }} forms yet.</p>

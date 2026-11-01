@@ -4,7 +4,7 @@
     $cursor = $report;
     $level = $type;
     $seen = [];
-    while ($cursor && count($lineage) < 4) {
+    while ($cursor) {
         $key = $cursor::class.':'.$cursor->getKey();
         if (isset($seen[$key])) break;
         $seen[$key] = true;

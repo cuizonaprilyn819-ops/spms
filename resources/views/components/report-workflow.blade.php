@@ -1,7 +1,7 @@
 @props(['report', 'type'])
 @php($pcrCycle = app(\App\Services\PcrCompliance::class)->cycle($report))
 @if($report->commitmentPlan)
-    <div class="rounded border border-blue-200 bg-blue-50 p-4"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
+    <div class="spms-alert rounded border border-blue-200 bg-blue-50 p-4" data-tone="info"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
 @endif
 @php($reviewable = in_array($report->status, [$report::STATUS_SUBMITTED, $report::STATUS_RESUBMITTED], true))
 <section class="mt-6 rounded-lg border border-gray-200 bg-white p-5" x-data="{ returning: false }">
@@ -57,7 +57,7 @@
             <ol class="mt-3 space-y-3">@foreach($report->statusHistories as $history)
                 <li class="text-sm"><span class="font-semibold capitalize">{{ str_replace('_', ' ', $history->to_status) }}</span> by {{ $history->actor?->name ?? 'Deleted user' }}
                     <span class="text-gray-500">· {{ $history->created_at->format('M d, Y h:i:s A') }}</span>
-                    @if($history->remarks)<p class="mt-1 rounded bg-amber-50 p-2 text-gray-700">{{ $history->remarks }}</p>@endif
+                    @if($history->remarks)<p class="spms-alert mt-1 rounded bg-amber-50 p-2 text-gray-700" data-tone="warning">{{ $history->remarks }}</p>@endif
                 </li>
             @endforeach</ol>
         </div>

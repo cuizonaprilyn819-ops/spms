@@ -31,7 +31,12 @@ class CommitmentPlanning
 
     public function lockRoot(CommitmentPlan $plan): void
     {
+        $seen = [];
         while ($plan->parent_id) {
+            if (isset($seen[$plan->id])) {
+                $this->fail('The report lineage contains a cycle.');
+            }
+            $seen[$plan->id] = true;
             $plan = $plan->parent;
         }
         CommitmentPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
@@ -66,6 +71,9 @@ class CommitmentPlanning
             }
             $cycle->ensurePcrCreationOpen();
             $this->organization->verify($office);
+            if (! $cycle->multi_campus_enabled && $office->organization_scope !== 'legacy') {
+                $this->fail('Use an activated multi-campus period for university and campus offices. Existing periods retain their workflow.');
+            }
             if ($level !== 'ipcr' && $employee) {
                 $this->fail('Choose a person only for an IPCR; organizational plans belong to their office.');
             }
@@ -75,7 +83,15 @@ class CommitmentPlanning
                 $this->fail('Assign a reviewer who is separate from the preparer and ratee.');
             }
             if ($level === 'opcr') {
-                if ($parent || $office->planning_level !== 'office' || $employee) {
+                $campusChild = $cycle->multi_campus_enabled && $office->organization_scope === 'campus';
+                if ($campusChild) {
+                    if (! $parent || $parent->level !== 'opcr' || $parent->parent_id || $parent->evaluation_cycle_id !== $cycle->id || $parent->office_id !== $cycle->university_office_id || (int) $office->parent_office_id !== $parent->office_id) {
+                        $this->fail('A campus OPCR must select this period’s university OPCR.');
+                    }
+                } elseif ($parent || ($cycle->multi_campus_enabled && $office->id !== $cycle->university_office_id)) {
+                    $this->fail('Start with the designated university OPCR for this period.');
+                }
+                if ($office->planning_level !== 'office' || $employee) {
                     $this->fail('An OPCR belongs to a verified top-level office.');
                 }
             } else {
@@ -83,6 +99,9 @@ class CommitmentPlanning
                     $this->fail('Select the parent commitment from the same period.');
                 }
                 $expected = ['dpcr' => ['opcr', 'division'], 'upcr' => ['dpcr', 'unit']];
+                if ($cycle->multi_campus_enabled && ($level !== 'ipcr') && ($office->organization_scope !== 'campus' || ($level === 'dpcr' && $parent->office->organization_scope !== 'campus'))) {
+                    $this->fail('Use a verified campus branch beneath its campus OPCR.');
+                }
                 if (isset($expected[$level]) && ($parent->level !== $expected[$level][0] || $office->planning_level !== $expected[$level][1] || (int) $office->parent_office_id !== $parent->office_id)) {
                     $this->fail('The selected report does not follow this office’s reporting structure.');
                 }
@@ -132,7 +151,10 @@ class CommitmentPlanning
             $this->lockRoot($plan);
             $plan = CommitmentPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
             $this->writable($plan);
-            if ($plan->level !== 'opcr' && ! $parent) {
+            if ($plan->cycle->multi_campus_enabled && ! $plan->parent_id && empty($data['scope_metadata'])) {
+                $this->fail('Use guided target setting to confirm coverage, departments and quantity basis.');
+            }
+            if ($plan->parent_id && ! $parent) {
                 $this->fail('Select a relevant target from the parent plan.');
             }
             if (! $parent && $plan->targets()->where('target', $data['target'])->where('success_indicator', $data['success_indicator'])->where('source_evidence', $data['source_evidence'])->exists()) {
@@ -145,6 +167,7 @@ class CommitmentPlanning
                 if (! $this->eligible($parent, $plan)) {
                     $this->fail('The parent head must confirm this target’s relevance to the office or employee first.');
                 }
+                $data['scope_metadata'] = $parent->scope_metadata;
                 if ($plan->targets()->where('root_target_id', $parent->root_target_id ?: $parent->id)->exists()) {
                     $this->fail('This target is already included. Amend the draft rather than fetching it twice.');
                 }
@@ -153,6 +176,7 @@ class CommitmentPlanning
                 }
                 $data['source_revision'] = $parent->plan->revision;
                 $data['parent_target_id'] = $parent->id;
+                app(GuidedTargetPlanning::class)->assertDepartmentShare($parent, $plan, (float) $data['quantity']);
                 $data['root_target_id'] = $parent->root_target_id ?: $parent->id;
                 if ($parent->measurement === 'rate') {
                     $data['quantity'] = $parent->quantity;
@@ -182,6 +206,7 @@ class CommitmentPlanning
                 $target->update(['root_target_id' => $target->id]);
             }
             $this->event($plan, $actor, 'Target drafted', ['target_id' => $target->id]);
+            app(GuidedTargetPlanning::class)->syncEligibility($target, $actor);
             $plan->update(['agreed_at' => null]);
 
             return $target;
@@ -190,6 +215,14 @@ class CommitmentPlanning
 
     public function eligible(PerformanceTarget $source, CommitmentPlan $destination): bool
     {
+        if ($source->scope_metadata) {
+            $recipients = Office::whereIn('id', $source->scope_metadata['recipient_ids'])->get();
+            $branch = $this->organization->ancestors($destination->office);
+            $relevant = $recipients->contains(fn ($o) => in_array($destination->office_id, $this->organization->ancestors($o), true) || in_array($o->id, $branch, true));
+            if (! $relevant) {
+                return false;
+            }
+        }
         $q = DB::table('target_eligibilities')->where('performance_target_id', $source->id)->where('office_id', $destination->office_id);
 
         return $destination->level === 'ipcr' ? $q->where('employee_id', $destination->employee_id)->exists() : $q->whereNull('employee_id')->exists();
@@ -303,6 +336,7 @@ class CommitmentPlanning
                         $this->fail('The source revision or eligibility changed. Refresh and reconcile this target.');
                     }
                     if ($parent->measurement === 'count') {
+                        app(GuidedTargetPlanning::class)->assertDepartmentShare($parent, $plan, (float) $target->quantity);
                         $this->allocation->assertAvailable((float) $parent->quantity, $awaitingParent ? 0 : $this->reviewedShares($parent, $plan->id), (float) $target->quantity);
                     }
                     $driver = DB::table('planning_drivers')->where('performance_target_id', $parent->id)->where('office_id', $plan->office_id)->where('employee_id', $plan->employee_id)->whereDate('valid_until', '>=', today())->first();
@@ -316,7 +350,7 @@ class CommitmentPlanning
             }
             if ($awaitingParent) {
                 $plan->update(['state' => 'endorsed']);
-                $this->event($plan, $actor, 'Reviewed; awaiting parent commitment approval');
+                $this->event($plan, $actor, 'Reviewed; awaiting parent commitment approval', $external);
                 User::find($plan->prepared_by)?->notify(new PlanningNotification($plan, 'Your reviewer endorsed this draft. It is not confirmed until its parent commitments are approved.'));
 
                 return;
@@ -326,7 +360,8 @@ class CommitmentPlanning
             $this->project($plan);
             User::find($plan->prepared_by)?->notify(new PlanningNotification($plan, 'Commitments approved. Final performance review remains separate.'));
             foreach (CommitmentPlan::where('parent_id', $plan->id)->where('state', 'endorsed')->get() as $reviewedChild) {
-                $this->approve($reviewedChild, $reviewedChild->reviewer, ['published_after_parent_approval' => true]);
+                $evidence = $reviewedChild->events()->where('action', 'Reviewed; awaiting parent commitment approval')->first()?->data ?? [];
+                $this->approve($reviewedChild, $reviewedChild->reviewer, [...$evidence, 'published_after_parent_approval' => true]);
             }
         });
     }

@@ -1,7 +1,7 @@
 <x-app-layout>
 <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Upload historical PCR</h2><p class="mt-1 text-sm text-slate-500">Archive a previous-period form and its evidence.</p></x-slot>
 <div class="mx-auto max-w-4xl px-4 py-8">
-@if($errors->any())<div role="alert" class="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-900">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+@if($errors->any())<div role="alert" class="spms-alert mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-900" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
 <form enctype="multipart/form-data" method="post" action="{{ route('historical-pcrs.store') }}" class="space-y-6 rounded-xl border bg-white p-6">@csrf
 <div class="grid gap-5 sm:grid-cols-2">
 <label class="text-sm font-medium">Owner<select name="owner_id" required class="mt-2 w-full rounded-lg border-slate-300"><option value="">Select personnel</option>@foreach($people as $person)<option value="{{ $person->id }}" @selected(old('owner_id') == $person->id)>{{ $person->name }}</option>@endforeach</select></label>

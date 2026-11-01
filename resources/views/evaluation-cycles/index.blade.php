@@ -18,8 +18,8 @@
                     {{ session('status') }}
                 </div>
             @endif
-            @if($errors->any())<div role="alert" class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
-            @unless(app(\App\Services\PcrReminders::class)->emailAvailable())<p class="mb-4 rounded-lg bg-amber-50 p-4 text-sm">Outgoing reminder email is not enabled. Contact the administrator to configure email delivery. In-app reminders are available when the scheduler runs.</p>@endunless
+            @if($errors->any())<div role="alert" class="spms-alert mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+            @unless(app(\App\Services\PcrReminders::class)->emailAvailable())<p class="spms-alert mb-4 rounded-lg bg-amber-50 p-4 text-sm" data-tone="warning">Outgoing reminder email is not enabled. Contact the administrator to configure email delivery. In-app reminders are available when the scheduler runs.</p>@endunless
 
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
@@ -41,9 +41,9 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ App\Models\EvaluationCycle::semesterLabel($cycle->semester) }}</td>
                                     <td class="px-6 py-4">
                                         @if ($cycle->isOpen())
-                                            <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Open</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Open</span>
                                         @else
-                                            <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">Closed</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600" data-tone="neutral">Closed</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4">

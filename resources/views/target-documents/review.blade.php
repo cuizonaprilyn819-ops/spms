@@ -11,9 +11,9 @@
             <blockquote class="mt-4 whitespace-pre-line border-l-4 border-blue-200 pl-4 text-sm">{{ $proposal['source_excerpt'] }}</blockquote>
         </section>
         @if($draft->office_target_id)
-            <p class="rounded-xl bg-green-50 p-6">This target is already assigned. <a class="font-bold underline" href="{{ route('office-targets.show', $draft->office_target_id) }}">View assignment</a></p>
+            <p class="spms-alert rounded-xl bg-green-50 p-6" data-tone="success">This target is already assigned. <a class="font-bold underline" href="{{ route('office-targets.show', $draft->office_target_id) }}">View assignment</a></p>
         @elseif($proposal['cd_only'])
-            <p class="rounded-xl bg-amber-50 p-6">CD-only: this target is retained for the campus director and excluded from office assignment.</p>
+            <p class="spms-alert rounded-xl bg-amber-50 p-6" data-tone="warning">CD-only: this target is retained for the campus director and excluded from office assignment.</p>
         @else
             <form method="POST" action="{{ route('target-drafts.assign', $draft) }}" novalidate class="space-y-5 rounded-xl border border-gray-200 bg-white p-6" x-data="{
                 assignmentType: '{{ old('assignment_type', 'office') }}', busy: false, search: '', feedback: '', targetValue: {{ (float) old('target_value', $proposal['target_value'] ?? 0) }},
@@ -39,7 +39,7 @@
                 }
             }" @submit="submitAssignment($event)">
                 @csrf
-                @if($errors->any())<div role="alert" class="rounded-lg bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+                @if($errors->any())<div role="alert" class="spms-alert rounded-lg bg-red-50 p-4 text-sm text-red-700" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
                 <p class="text-sm text-gray-600">Correct the extracted details, select one or more offices, and distribute the total quantity. Suggested offices are preselected; you can remove them or add others.</p>
                 <div><label for="review-title" class="text-sm font-semibold">Target title</label><input id="review-title" name="title" maxlength="255" required value="{{ old('title', $proposal['title']) }}" class="mt-1 w-full rounded-lg border-gray-300"/></div>
                 <div><label for="review-indicator" class="text-sm font-semibold">Success indicator</label><textarea id="review-indicator" name="success_indicator" rows="3" required maxlength="5000" class="mt-1 w-full rounded-lg border-gray-300">{{ old('success_indicator', $proposal['success_indicator']) }}</textarea></div>

@@ -28,6 +28,7 @@ class PerformanceTarget extends Model
         'measurement', 'quantity', 'unit', 'whole_numbers', 'standards', 'source_evidence',
         'allocation_basis', 'needs_reconciliation', 'supersedes_id',
         'contributes_only',
+        'scope_metadata',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class PerformanceTarget extends Model
             'weight' => 'decimal:2',
             'allocation_basis' => 'array', 'whole_numbers' => 'boolean', 'needs_reconciliation' => 'boolean',
             'contributes_only' => 'boolean',
+            'scope_metadata' => 'array',
         ];
     }
 

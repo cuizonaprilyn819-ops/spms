@@ -37,9 +37,9 @@
                     </div>
                     <div class="flex items-center gap-3">
                         @if ($ipcr->isApproved())
-                            <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
+                            <span class="spms-badge rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Approved</span>
                         @else
-                            <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ ucfirst(str_replace('_', ' ', $ipcr->status)) }}</span>
+                            <span class="spms-badge rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" data-tone="warning">{{ ucfirst(str_replace('_', ' ', $ipcr->status)) }}</span>
                         @endif
                     </div>
                 </div>

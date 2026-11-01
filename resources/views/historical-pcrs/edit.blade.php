@@ -1,8 +1,8 @@
 <x-app-layout>
 <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Review {{ strtoupper($pcr->type) }} transcription</h2><p class="mt-1 text-sm text-slate-500">{{ $pcr->owner_name }} · Save a new revision with a reason.</p></x-slot>
 <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-@if(session('status'))<p role="status" class="mb-5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">{{ session('status') }}</p>@endif
-@if($errors->any())<div role="alert" class="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-900">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+@if(session('status'))<p role="status" class="spms-alert mb-5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900" data-tone="success">{{ session('status') }}</p>@endif
+@if($errors->any())<div role="alert" class="spms-alert mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-900" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
 <form method="post" action="{{ route('historical-pcrs.update', $pcr) }}" class="space-y-6" x-data="{ rows: @js(old('snapshot.rows', $snapshot['rows'])) }">@csrf @method('put')<input type="hidden" name="revision_id" value="{{ $pcr->current_revision_id }}">
 <section class="space-y-5 rounded-xl border bg-white p-5"><div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-semibold">Source details</h3><a data-no-spa class="inline-flex rounded-lg border px-4 py-2 text-sm text-spms-navy" href="{{ route('historical-pcrs.original', $pcr) }}">Download original PDF</a></div>
 <div class="grid gap-4 md:grid-cols-2">@foreach(['office'=>'Office as printed','owner_position'=>'Owner’s position','form_date'=>'Source form date','reported_overall'=>'Reported final average','adjectival_rating'=>'Adjectival rating'] as $field=>$label)<label class="text-sm font-medium">{{ $label }}<input name="snapshot[{{ $field }}]" value="{{ old('snapshot.'.$field, $snapshot[$field] ?? '') }}" class="mt-2 w-full rounded-lg border-slate-300"></label>@endforeach</div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\PlanningOrganization;
 use Database\Factories\OfficeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,8 @@ class Office extends Model
     /** @use HasFactory<OfficeFactory> */
     use HasFactory;
 
+    protected $attributes = ['organization_scope' => 'legacy'];
+
     protected $fillable = [
         'legacy_department_id',
         'name',
@@ -21,6 +24,7 @@ class Office extends Model
         'department_head_reference',
         'supervisor_reference',
         'is_active',
+        'campus_id', 'organization_scope',
         'parent_office_id', 'planning_level', 'mandate', 'head_id', 'planning_reviewer_id', 'hierarchy_verified_at',
     ];
 
@@ -34,7 +38,18 @@ class Office extends Model
 
     public function scopeForCampus($query)
     {
-        return $query->where('campus', config('hinunangan.campus_id'))->where('is_active', true);
+        return $query->where('is_active', true)->where(function ($q) {
+            $q->where(fn ($legacy) => $legacy->where('organization_scope', 'legacy')->where('campus', config('hinunangan.campus_id')));
+            if (auth()->check()) {
+                $ids = app(PlanningOrganization::class)->accessibleOfficeIds(auth()->user());
+                $q->orWhere(fn ($scoped) => $scoped->where('organization_scope', '!=', 'legacy')->whereIn('id', $ids));
+            }
+        });
+    }
+
+    public function campusRecord()
+    {
+        return $this->belongsTo(Campus::class, 'campus_id');
     }
 
     public function employees(): HasMany

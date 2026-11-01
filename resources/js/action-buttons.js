@@ -25,7 +25,7 @@ const paths = {
 export function actionForLabel(text) {
     const label = text.replace(/\s+/g, ' ').trim().toLowerCase();
     if (/^(delete|remove)\b/.test(label)) return 'delete';
-    if (/^reject\b/.test(label)) return 'reject';
+    if (/^(reject|revoke)\b/.test(label)) return 'reject';
     if (/^(reset password|request password|change password|reset your password)\b/.test(label)) return 'key';
     if (/^(cancel|back|all plans)\b/.test(label)) return 'back';
     if (/^(return|confirm return)\b/.test(label)) return 'return';
@@ -43,7 +43,7 @@ export function actionForLabel(text) {
     if (/^(search)\b/.test(label)) return 'search';
     if (/^(filter|apply(?: filters)?)\b/.test(label)) return 'filter';
     if (/^(view|preview|show|hide)\b/.test(label)) return 'view';
-    if (/^(suggest|analy[sz]e|propose a target)\b/.test(label)) return 'suggest';
+    if (/^(suggest|analy[sz]e|propose a target|ask ai)\b/.test(label)) return 'suggest';
     if (/^(refresh|reload|retry|reset)\b/.test(label)) return 'refresh';
     if (/^(open)\b/.test(label)) return 'open';
     return null;
@@ -90,6 +90,7 @@ export function installActionButtons() {
         else if (/(^|\s)bg-amber-/.test(control.className)) control.classList.add('spms-action-warning');
         else if (/\bspms-button-primary\b/.test(control.className) || /(^|\s)bg-(spms-navy|blue-[6-9]00)/.test(control.className)) control.classList.add('spms-action-primary');
         else if (['upload', 'download', 'document', 'spreadsheet'].includes(icon)) control.classList.add('spms-action-info');
+        else if (['save', 'send', 'add', 'suggest'].includes(icon) && !control.classList.contains('is-secondary')) control.classList.add('spms-action-primary');
         if (control.querySelector(':scope > .spms-action-label')) {
             control.querySelector('[data-action-generated] path')?.setAttribute('d', paths[icon]);
             if (active === control) show(control);

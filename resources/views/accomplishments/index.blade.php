@@ -41,9 +41,7 @@
                                     <td class="px-6 py-4 text-sm leading-6 text-gray-600">{{ $accomplishment->details }}</td>
                                     <td class="px-6 py-4">
                                         <div class="flex min-w-40 items-center gap-3">
-                                            <div class="h-2 flex-1 rounded-full bg-gray-200">
-                                                <div class="h-2 rounded-full bg-spms-green" style="width: {{ min(100, (float) $accomplishment->completion_percentage) }}%"></div>
-                                            </div>
+                                            <div class="spms-progress flex-1" data-tone="info" role="progressbar" aria-label="Reported completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ min(100, (float) $accomplishment->completion_percentage) }}"><span class="spms-progress-fill" style="width: {{ min(100, (float) $accomplishment->completion_percentage) }}%"></span></div>
                                             <span class="text-sm font-semibold text-spms-ink">{{ number_format((float) $accomplishment->completion_percentage, 2) }}%</span>
                                         </div>
                                     </td>

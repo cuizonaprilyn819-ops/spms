@@ -43,9 +43,9 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $dpcr->employee->name }}</td>
                                     <td class="px-6 py-4">
                                         @if ($dpcr->isApproved())
-                                            <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Approved</span>
                                         @else
-                                            <span class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" data-tone="warning">Draft</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right">

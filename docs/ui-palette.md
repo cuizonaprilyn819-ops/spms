@@ -38,6 +38,21 @@ The approved workspace refresh adds Sneat-inspired button colors while preservin
 
 The primary tone is slightly darker than Sneat's accent so normal white button text remains readable. Bright success, warning, and danger buttons use dark labels. Meaning always remains in the text, accessible name, and icon; colors do not grant permission or change workflow decisions.
 
+## Shared semantic components
+
+Sneat colors also apply to messages, badges, selected tabs, dropdown items, summary accents and progress indicators through `resources/css/semantic-ui.css`. Use `semantic-alert`, `semantic-badge` and `semantic-progress` Blade components, or the shared `spms-alert`, `spms-badge` and `data-tone` attributes on retained markup.
+
+| Tone | Soft surface | Readable foreground | Meaning |
+| --- | --- | --- | --- |
+| Primary | `#EAE8FF` | `#484AB5` | Drafts, selections, main actions |
+| Success | `#E8F9DC` | `#2D6418` | Approved commitments, validated work, successful actions |
+| Warning | `#FFF2D1` | `#805100` | Pending review, returned drafts, unallocated work |
+| Danger | `#FFE2DC` | `#AD2812` | Errors, rejection, destructive actions |
+| Info | `#D8F6FD` | `#07627A` | Information and reported work |
+| Neutral | `#EDF0F3` | `#50617A` | Secondary or inactive states |
+
+Badges support `soft`, `solid` and `outline` variants and optional pills. Saturated fills use readable contrasting labels. Progress is static unless `busy` explicitly describes active processing; reduced-motion disables its animation. Keep reported and validated values labeled separately. No colors imply approval or change ratings.
+
 ## Action buttons
 
 On desktop, recognizable form and page actions use 44 px icon buttons. Their text appears in a label on hover or keyboard focus. Labels are placed above page content so scrolling tables cannot clip them; Escape dismisses the label. Each control retains its accessible name and original form behavior. Motion runs briefly on interaction and respects reduced-motion preferences.

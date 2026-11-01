@@ -1,8 +1,8 @@
 <x-app-layout>
 <x-slot name="header"><div class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wide text-spms-navy">Historical {{ strtoupper($pcr->type) }}</p><h2 class="mt-1 text-xl font-bold text-spms-ink">{{ $pcr->owner_name }}</h2><p class="mt-1 text-sm text-slate-500">{{ $period }} · {{ $snapshot['owner_position'] }}</p></div><span class="rounded-full bg-spms-tint px-3 py-2 text-xs font-semibold text-spms-navy">Revision {{ $revision->number }}</span></div></x-slot>
 <div class="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-    @if(session('status'))<p role="status" class="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">{{ session('status') }}</p>@endif
-    @if($errors->any())<div role="alert" class="rounded-lg bg-red-50 p-4 text-sm text-red-900">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+    @if(session('status'))<p role="status" class="spms-alert rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900" data-tone="success">{{ session('status') }}</p>@endif
+    @if($errors->any())<div role="alert" class="spms-alert rounded-lg bg-red-50 p-4 text-sm text-red-900" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     <div class="flex flex-wrap gap-2">
         <a class="inline-flex rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-spms-navy" href="{{ route('historical-pcrs.index') }}">Back to historical PCRs</a>
         <a class="inline-flex rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white" href="{{ route('historical-pcrs.original', $pcr) }}" data-no-spa>Download original PDF</a>

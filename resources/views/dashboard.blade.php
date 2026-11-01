@@ -44,7 +44,7 @@
                         <h2 id="system-totals" class="text-lg font-bold text-spms-ink">System totals</h2>
                         <div class="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 sm:grid-cols-3 lg:grid-cols-4">
                             @foreach($counts as $label => $count)
-                                <div class="spms-dashboard-count">
+                                <div class="spms-dashboard-count" data-tone="{{ match($label) { 'Employees','Offices','Position Titles'=>'info','OPCRs','DPCRs','UPCRs','IPCRs'=>'primary','Accomplishments'=>'success','MOV Files'=>'warning',default=>'neutral' } }}">
                                     <p>{{ number_format($count) }}</p>
                                     <p>{{ $label }}</p>
                                 </div>

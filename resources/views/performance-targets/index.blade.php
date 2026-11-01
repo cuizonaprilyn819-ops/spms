@@ -67,7 +67,7 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <span class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy">{{ $typeLabels[$target->targetable_type] ?? 'Form' }}</span>
+                                        <span class="spms-badge inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy" data-tone="info">{{ $typeLabels[$target->targetable_type] ?? 'Form' }}</span>
                                         <p class="mt-2 text-sm text-gray-600">{{ $target->targetable?->title ?? 'Deleted form' }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-sm leading-6 text-gray-600">{{ $target->success_indicator }}</td>

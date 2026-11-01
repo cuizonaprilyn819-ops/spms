@@ -9,13 +9,14 @@
     $planLevels = auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) ? collect(['opcr','dpcr','upcr','ipcr']) : $planOffices->where('head_id',auth()->id())->pluck('planning_level')->map(fn($level) => $levelByOffice[$level] ?? null)->filter()->push('ipcr')->unique();
     $defaultLevel = $planLevels->first();
 @endphp
+@role('Administrator')<p><a class="spms-button spms-button-secondary inline-flex" href="{{ route('planning.campuses') }}">Campuses and planning access</a></p>@endrole
 <nav class="spms-section-nav" aria-label="Planning sections"><a href="#plans" aria-current="location">Plans</a><a href="#new-plan">Create a plan</a><a href="#proposals">Upward proposals</a>@if($dutiesPeople->isNotEmpty() || auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']))<a href="#office-setup">Duties &amp; office setup</a>@endif</nav>
 <section id="plans" class="planning-card"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 class="!mb-1">Plans by reporting level</h2><p class="text-sm text-slate-500">Open a plan to review its targets, allocation, and supporting work.</p></div><span class="text-xs text-slate-500">{{ $plans->count() }} {{ Str::plural('plan', $plans->count()) }} on this page</span></div><div class="overflow-x-auto"><table data-workspace-table class="planning-table planning-plan-list"><thead><tr><th>Plan</th><th>Office / person</th><th>Period</th><th>Commitments</th><th>Revision</th></tr></thead><tbody>
 @forelse($plans as $p)<tr><td data-label="Plan"><a class="font-semibold text-blue-800 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700" href="{{ route('planning.show',$p) }}">{{ strtoupper($p->level) }} #{{ $p->id }}</a></td><td data-label="Office / person"><span class="font-medium">{{ $p->office->name }}</span>@if($p->employee)<span class="block text-xs text-slate-500">{{ $p->employee->name }}</span>@endif</td><td data-label="Period">{{ $p->cycle->label }}</td><td data-label="Commitments"><x-planning-status :state="$p->state" /></td><td data-label="Revision">{{ $p->revision }}</td></tr>
 @empty<tr><td colspan="5" class="!py-8"><p class="font-medium">No plans are available to you yet.</p><p class="mt-1 text-slate-500">Create a draft below when your evaluation period and reporting structure are ready.</p></td></tr>
 @endforelse
 </tbody></table></div></section>
-<details id="new-plan" class="planning-card"><summary>Create a commitment plan</summary><p class="mt-2 text-sm text-slate-500">Start with OPCR. Each lower level selects its immediate parent plan.</p><form class="planning-form" method="post" action="{{ route('planning.store') }}">
+<details id="new-plan" class="planning-card"><summary>Create a commitment plan</summary><p class="mt-2 text-sm text-slate-500">Start with the university OPCR for multi-campus periods, then campus OPCR, DPCR, UPCR and IPCR. Each child selects its immediate parent.</p><form class="planning-form" method="post" action="{{ route('planning.store') }}">
 @csrf
 <div class="grid gap-3 sm:grid-cols-3"><label>Period<select name="evaluation_cycle_id" required>
 @foreach($cycles->where('planning_enabled',true)->where('status','open') as $c)<option value="{{ $c->id }}">{{ $c->label }}</option>
@@ -25,7 +26,7 @@
 @endforeach</select></label><label>Responsible office<select name="office_id">
 @foreach($planOffices as $o)<option value="{{ $o->id }}" @selected($o->id===auth()->user()->office_id)>{{ $o->name }} — {{ $o->planning_level ?: 'Not configured' }}</option>
 @endforeach</select></label></div>
-<label>Parent plan (leave blank for OPCR)<select name="parent_id"><option value="">No parent</option>
+<label>Parent plan (blank only for the root OPCR)<select name="parent_id"><option value="">No parent</option>
 @foreach($parentPlans as $p)<option value="{{ $p->id }}">#{{ $p->id }} {{ strtoupper($p->level) }} · {{ $p->office->name }} · {{ $p->state }}</option>
 @endforeach</select></label>
 <label>Employee (IPCR only)<select name="employee_id"><option value="">Office commitment</option>

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CommitmentPlan;
 use App\Models\Office;
+use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OfficeController extends Controller
@@ -41,12 +45,17 @@ class OfficeController extends Controller
     public function update(Request $request, Office $office): RedirectResponse
     {
         $data = $this->validatedData($request, $office);
-        \Illuminate\Support\Facades\DB::transaction(function () use ($office, $data) {
+        DB::transaction(function () use ($office, $data) {
             Office::orderBy('id')->lockForUpdate()->get();
+            if (array_key_exists('parent_office_id', $data) && (int) $office->parent_office_id !== (int) $data['parent_office_id']) {
+                $branch = Office::all()->filter(fn ($o) => in_array($office->id, app(PlanningOrganization::class)->ancestors($o), true))->modelKeys();
+                abort_if(CommitmentPlan::whereIn('office_id', $branch)->exists(), 422, 'This branch has commitment plans. Configure a new office rather than changing its historical reporting structure.');
+                $data['hierarchy_verified_at'] = null;
+            }
             if (isset($data['parent_office_id'])) {
                 $parent = Office::findOrFail($data['parent_office_id']);
-                if (in_array($office->id, app(\App\Services\PlanningOrganization::class)->ancestors($parent))) {
-                    throw \Illuminate\Validation\ValidationException::withMessages(['parent_office_id' => 'An office cannot report to itself or a descendant.']);
+                if (in_array($office->id, app(PlanningOrganization::class)->ancestors($parent))) {
+                    throw ValidationException::withMessages(['parent_office_id' => 'An office cannot report to itself or a descendant.']);
                 }
             }
             $office->update($data);
@@ -85,7 +94,7 @@ class OfficeController extends Controller
                 Rule::unique('offices', 'code')->ignore($office),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->where('campus', $office?->campus ?? config('hinunangan.campus_id'))],
+            'parent_office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->when(! $office || $office->organization_scope === 'legacy', fn ($q) => $q->where('campus', $office?->campus ?? config('hinunangan.campus_id')))],
         ]);
     }
 }

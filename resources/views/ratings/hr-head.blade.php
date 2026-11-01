@@ -92,7 +92,7 @@
                                     </td>
                                     <td class="px-6 py-4 text-gray-700">{{ $ipcr->title }}</td>
                                     <td class="whitespace-nowrap px-6 py-4 text-gray-700">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->quality_rating, 2) }} / {{ number_format((float) $ipcr->efficiency_rating, 2) }} / {{ number_format((float) $ipcr->timeliness_rating, 2) }}@else<span class="text-gray-400">—</span>@endif</td>
-                                    <td class="px-6 py-4 font-bold text-spms-navy">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->average_rating, 2) }}@else<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Not rated</span>@endif</td>
+                                    <td class="px-6 py-4 font-bold text-spms-navy">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->average_rating, 2) }}@else<span class="spms-badge rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800" data-tone="warning">Not rated</span>@endif</td>
                                     <td class="px-6 py-4 text-gray-600">{{ $ipcr->approvedBy?->name ?? 'Unknown' }}</td>
                                     <td class="px-6 py-4 text-right"><a class="font-semibold text-spms-navy hover:underline" href="{{ route('ipcrs.show', $ipcr) }}">View</a></td>
                                 </tr>

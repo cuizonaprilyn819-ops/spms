@@ -1,4 +1,5 @@
 import './bootstrap';
+import '../css/semantic-ui.css';
 
 import Alpine from 'alpinejs';
 import { installBrowserApi } from './browser-api';

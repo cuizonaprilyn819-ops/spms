@@ -15,7 +15,7 @@
     <div class="py-8">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             @if (session('status'))
-                <div class="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                <div class="spms-alert mb-5" data-tone="success" role="status">
                     {{ session('status') }}
                 </div>
             @endif
@@ -70,7 +70,7 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $employee->positionTitle?->title ?? 'Unassigned' }}</td>
                                     <td class="px-6 py-4">
                                         @forelse ($employee->roles as $role)
-                                            <span class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy">{{ $role->name }}</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy" data-tone="info">{{ $role->name }}</span>
                                         @empty
                                             <span class="text-sm text-gray-500">No role</span>
                                         @endforelse

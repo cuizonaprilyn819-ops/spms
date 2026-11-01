@@ -45,9 +45,9 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $ipcr->employee->name }}</td>
                                     <td class="px-6 py-4">
                                         @if ($ipcr->isApproved())
-                                            <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Approved</span>
                                         @else
-                                            <span class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold capitalize text-amber-700">{{ str_replace('_', ' ', $ipcr->status) }}</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold capitalize text-amber-700" data-tone="warning">{{ str_replace('_', ' ', $ipcr->status) }}</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right">

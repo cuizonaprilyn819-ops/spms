@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Office;
 use App\Models\PositionTitle;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
@@ -109,7 +111,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return array{offices: \Illuminate\Database\Eloquent\Collection<int, Office>, positionTitles: \Illuminate\Database\Eloquent\Collection<int, PositionTitle>, roles: \Illuminate\Database\Eloquent\Collection<int, Role>}
+     * @return array{offices: Collection<int, Office>, positionTitles: Collection<int, PositionTitle>, roles: Collection<int, Role>}
      */
     private function formData(?User $employee = null): array
     {
@@ -118,7 +120,9 @@ class EmployeeController extends Controller
         return [
             'offices' => Office::query()->where(function ($query) use ($employee) {
                 $query->where(fn ($active) => $active->forCampus());
-                if ($employee?->office_id) $query->orWhere('id', $employee->office_id);
+                if ($employee?->office_id) {
+                    $query->orWhere('id', $employee->office_id);
+                }
             })->orderBy('name')->get(),
             'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
             'roles' => Role::query()
@@ -133,6 +137,11 @@ class EmployeeController extends Controller
      */
     private function validatedData(Request $request, ?User $employee = null): array
     {
+        $officeIds = Office::forCampus()->pluck('id')->all();
+        if ($employee?->office_id) {
+            $officeIds[] = $employee->office_id;
+        }
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -143,10 +152,7 @@ class EmployeeController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($employee),
             ],
-            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where(function ($query) use ($employee) {
-                $query->where(fn ($active) => $active->where('is_active', true)->where('campus', config('hinunangan.campus_id')));
-                if ($employee?->office_id) $query->orWhere('id', $employee->office_id);
-            })],
+            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereIn('id', $officeIds)],
             'position_title_id' => [
                 'nullable',
                 'integer',
@@ -163,7 +169,9 @@ class EmployeeController extends Controller
     private function assignableRoles(?User $employee = null): array
     {
         $roles = self::ASSIGNABLE_ROLES;
-        if (auth()->user()?->hasRole('Administrator')) $roles[] = 'Planning Officer';
+        if (auth()->user()?->hasRole('Administrator')) {
+            $roles[] = 'Planning Officer';
+        }
 
         if (auth()->user()?->hasRole('Administrator')) {
             $anotherCampusDirectorExists = User::role('Campus Director')
@@ -177,7 +185,9 @@ class EmployeeController extends Controller
             $anotherHrHeadExists = User::role('HR Head')
                 ->when($employee, fn ($query) => $query->where('users.id', '!=', $employee->id))
                 ->exists();
-            if (! $anotherHrHeadExists) array_unshift($roles, 'HR Head');
+            if (! $anotherHrHeadExists) {
+                array_unshift($roles, 'HR Head');
+            }
         }
 
         return $roles;
@@ -187,7 +197,7 @@ class EmployeeController extends Controller
     {
         $position = isset($data['position_title_id']) ? PositionTitle::find($data['position_title_id']) : null;
         if ($position && in_array(strtolower($position->title), ['office head', 'department head'], true) && $data['role'] !== 'Supervisor') {
-            throw \Illuminate\Validation\ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
+            throw ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
         }
     }
 }
