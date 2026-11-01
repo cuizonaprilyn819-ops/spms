@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Mov;
+use App\Models\PerformanceTarget;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,17 +29,23 @@ class MovController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('movs.index', compact('movs'));
+        $reportMovs = Mov::with(['performanceTarget', 'uploadedBy'])
+            ->where('uploaded_by', $user->id)
+            ->when(request()->filled('performance_target_id'), fn ($query) => $query->where('performance_target_id', request()->integer('performance_target_id')))
+            ->latest()->paginate(10, ['*'], 'report_page')->withQueryString();
+
+        return view('movs.index', compact('movs', 'reportMovs'));
     }
 
     public function create(): View
     {
-        return view('movs.create');
+        return view('movs.create', ['targets' => PerformanceTarget::with('targetable')->latest()->get()]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
+            'performance_target_id' => ['nullable', 'integer', 'exists:performance_targets,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'file' => ['required', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg', 'max:10240'],
@@ -48,6 +55,7 @@ class MovController extends Controller
         $path = $file->store('movs', 'public');
 
         $mov = Mov::create([
+            'performance_target_id' => $data['performance_target_id'] ?? null,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'file_path' => $path,
@@ -58,6 +66,11 @@ class MovController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
+        if (config('spms.ai.enabled')) {
+            set_time_limit(150);
+            app(\App\Services\EvidenceAi::class)->analyze($mov);
+        }
+
         return redirect()
             ->route('movs.show', $mov)
             ->with('status', 'MOV uploaded successfully.');
@@ -66,7 +79,7 @@ class MovController extends Controller
     public function show(Mov $mov): View
     {
         return view('movs.show', [
-            'mov' => $mov->load('uploadedBy'),
+            'mov' => $mov->load(['uploadedBy', 'performanceTarget']),
         ]);
     }
 

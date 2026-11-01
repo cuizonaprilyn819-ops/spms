@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PlanningOutput extends Model
 {
+    public function analysis() { return $this->morphOne(EvidenceAnalysis::class, 'evidence'); }
+
     protected $guarded = [];
 
     protected function casts(): array

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Dpcr;
+use App\Models\Office;
+use App\Models\Opcr;
 use App\Models\Upcr;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -13,14 +15,16 @@ class UpcrManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_employees_can_create_upcrs_linked_to_dpcrs(): void
+    public function test_unit_heads_can_create_upcrs_linked_to_dpcrs(): void
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
-        $user->assignRole('Employee');
-        $employee = User::factory()->create();
-        $dpcr = Dpcr::factoryLike()->create();
+        $office = Office::factory()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
+        $user->assignRole('Supervisor');
+        $employee = $user;
+        $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
+        $dpcr = Dpcr::factoryLike()->create(['opcr' => $opcr, 'employee' => $user]);
 
         $response = $this
             ->actingAs($user)
@@ -47,9 +51,9 @@ class UpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['office_id' => Office::factory()->create()->id]);
         $user->assignRole('Supervisor');
-        $upcr = Upcr::factoryLike()->create();
+        $upcr = Upcr::factoryLike()->create(['employee' => $user]);
 
         $response = $this
             ->actingAs($user)
@@ -63,10 +67,12 @@ class UpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
-        $user->assignRole('Employee');
-        $employee = User::factory()->create();
-        $dpcr = Dpcr::factoryLike()->create();
+        $office = Office::factory()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
+        $user->assignRole('Supervisor');
+        $employee = $user;
+        $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
+        $dpcr = Dpcr::factoryLike()->create(['opcr' => $opcr, 'employee' => $user]);
 
         Upcr::create([
             'dpcr_id' => $dpcr->id,

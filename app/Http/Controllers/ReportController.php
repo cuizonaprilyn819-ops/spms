@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Dpcr;
 use App\Models\Ipcr;
 use App\Models\Opcr;
+use App\Models\ReportGeneration;
 use App\Models\TargetMov;
 use App\Models\Upcr;
 use App\Services\CommitmentPlanning;
@@ -70,6 +71,7 @@ class ReportController extends Controller
                 ->through(fn ($record) => $this->archiveRow($selectedType, $record));
 
         return view('reports.index', [
+            'reviewQueue' => request()->user()->hasRole('Planning Officer') ? collect(self::MODELS)->flatMap(fn ($model, $type) => $model::whereIn('status', ['submitted', 'resubmitted'])->with('preparedBy')->get()->map(fn ($report) => ['type' => $type, 'report' => $report])) : collect(),
             'reports' => $reports,
             'myReportTypes' => $myReportTypes,
             'myReports' => $myReports,
@@ -77,6 +79,7 @@ class ReportController extends Controller
             'finishedReports' => $finishedReports,
             'selectedType' => $selectedType,
             'canExport' => $this->canExport(),
+            'generationHistory' => ReportGeneration::where('generated_by', request()->user()->id)->latest('id')->paginate(10, ['*'], 'history_page'),
         ]);
     }
 
@@ -164,12 +167,7 @@ class ReportController extends Controller
         $records = $query->get();
         $records = $records->filter(fn ($record) => ! $record->commitmentPlan || app(PlanningOrganization::class)->canView(request()->user(), $record->commitmentPlan));
         abort_if($finishedId !== null && $records->isEmpty(), 404);
-        if ($export && request()->user()->usesMyReports()) {
-            $records = $records->filter(fn ($record) => $record->isApproved());
-            abort_if($records->isEmpty(), 403, 'Your IPCR must be approved before exporting.');
-        }
-
-        return [
+        $data = [
             'type' => $type,
             'canExport' => $finishedId !== null || $this->canExport(),
             'archiveId' => $finishedId,
@@ -180,6 +178,17 @@ class ReportController extends Controller
             'forms' => $records->map(fn ($record): array => $this->form($type, $record))->values()->all(),
             'formHeaders' => $this->formHeaders($type),
         ];
+
+        ReportGeneration::create([
+            'generated_by' => request()->user()->id,
+            'report_type' => $type,
+            'format' => $export ? (request()->routeIs('reports.*.pdf', 'reports.pdf') ? 'pdf' : 'excel') : 'preview',
+            'record_ids' => $records->pluck('id')->values()->all(),
+            'snapshot' => $data,
+            'ip_address' => request()->ip(),
+        ]);
+
+        return $data;
     }
 
     private function records(string $type): Builder
@@ -222,7 +231,7 @@ class ReportController extends Controller
 
     private function canExport(): bool
     {
-        return ! request()->user()->usesMyReports() || Ipcr::where('employee_id', request()->user()->id)->where('status', Ipcr::STATUS_APPROVED)->exists();
+        return true;
     }
 
     /**
@@ -298,7 +307,7 @@ class ReportController extends Controller
         $office = match ($type) {
             'opcr' => $record->office,
             'dpcr' => $record->opcr?->office,
-            'upcr' => $record->dpcr?->opcr?->office,
+            'upcr' => $record->employee?->office ?? $record->dpcr?->opcr?->office,
             'ipcr' => $record->employee?->office ?? $record->upcr?->dpcr?->opcr?->office,
         };
 
@@ -327,7 +336,7 @@ class ReportController extends Controller
         $rows = $targetLines->map(fn ($target): array => $this->formRow($type, $record, $target))->values()->all();
         if ($type === 'ipcr' && $record->office_target_id) {
             $details = TargetMov::where('office_target_id', $record->office_target_id)->where('user_id', $record->employee_id)
-                ->orderBy('created_at')->pluck('accomplishment')->unique()->implode("\n\n");
+                ->with('analysis')->orderBy('created_at')->get()->map(fn ($mov) => $mov->analysis?->status === 'completed' && $mov->analysis->statement ? $mov->analysis->statement : $mov->accomplishment)->unique()->implode("\n\n");
             $rating = fn ($value) => $value === null ? '' : number_format((float) $value, 2);
             $rows = [[$record->success_indicators, '', $details, $rating($record->quality_rating), $rating($record->efficiency_rating), $rating($record->timeliness_rating), $rating($record->average_rating), $record->rating_remarks ?? '']];
         }
@@ -371,10 +380,13 @@ class ReportController extends Controller
         $average = $latestEvaluation ? number_format((float) $latestEvaluation->rating, 2) : '';
         $computed = $latestEvaluation ? number_format((float) $latestEvaluation->computed_rating, 2) : '';
         $remarks = trim(($latestEvaluation?->remarks ?? '').' '.($latestEvaluation?->adjectival_rating ? '['.$latestEvaluation->adjectival_rating.']' : ''));
+        $evidenceStatements = $target->movs()->with('analysis')->get()->map(fn ($mov) => $mov->analysis?->status === 'completed' ? $mov->analysis->statement : null)->filter()->unique()->implode("\n\n");
         $planningAccomplishment = null;
         if ($target->commitment_plan_id) {
             $summary = app(CommitmentPlanning::class)->summary($target);
+            $planningStatements = $summary['outputs']->each(fn ($output) => $output->loadMissing('analysis'))->map(fn ($output) => $output->analysis?->status === 'completed' ? $output->analysis->statement : null)->filter()->unique()->implode("\n\n");
             $planningAccomplishment = 'Committed: '.$target->quantity.' '.$target->unit.'; Reported: '.($summary['reported'] ?? 'Unavailable').'; Validated: '.($summary['validated'] ?? 'Unavailable').'; Unallocated: '.($summary['unallocated'] ?? 'Not applicable');
+            if ($planningStatements !== '') $planningAccomplishment .= "\n\n".$planningStatements;
             $remarks = trim($remarks.' Root OPCR target #'.$target->root_target_id.'; source #'.$target->parent_target_id.'; revision '.$target->plan_revision.($target->needs_reconciliation ? '; reconciliation required' : ''));
         }
 
@@ -382,7 +394,7 @@ class ReportController extends Controller
             return [
                 (string) $target->success_indicator,
                 '',
-                (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
+                (string) ($planningAccomplishment ?? ($evidenceStatements ?: ($latestAccomplishment?->details ?? ''))),
                 $quality,
                 $efficiency,
                 $timeliness,
@@ -396,7 +408,7 @@ class ReportController extends Controller
             (string) $target->success_indicator,
             '',
             $this->employeeLabel($type, $record),
-            (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
+            (string) ($planningAccomplishment ?? ($evidenceStatements ?: ($latestAccomplishment?->details ?? ''))),
             $quality,
             $efficiency,
             $timeliness,
@@ -414,7 +426,7 @@ class ReportController extends Controller
             (string) $target->success_indicator,
             '',
             $this->employeeLabel($type, $record),
-            (string) ($planningAccomplishment ?? $latestAccomplishment?->details ?? ''),
+            (string) ($planningAccomplishment ?? ($evidenceStatements ?: ($latestAccomplishment?->details ?? ''))),
             $quality,
             $efficiency,
             $timeliness,

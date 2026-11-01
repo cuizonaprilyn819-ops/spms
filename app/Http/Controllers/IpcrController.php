@@ -21,12 +21,12 @@ class IpcrController extends Controller
         $query = Ipcr::with(['upcr.dpcr.opcr.evaluationCycle', 'upcr.dpcr.opcr.office', 'employee', 'preparedBy', 'approvedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
         $user = request()->user();
         if ($user->hasRole('Supervisor')) {
-            $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
+            $query->whereHas('employee', fn ($q) => $q->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user)));
         }
         if ($user->hasRole('Campus Director') && $user->office?->campus) {
             $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
         }
-        if (! $user->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor'])) {
+        if (! $user->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor'])) {
             $query->where('employee_id', $user->id);
         }
         $ipcrs = $query
@@ -40,15 +40,18 @@ class IpcrController extends Controller
     {
         abort_unless(request()->user()->office_id, 403, 'An office assignment is required before preparing an IPCR.');
         $sourceTarget = null;
+        $sourceUpcr = null;
         if (request()->filled('office_target_id')) {
             $sourceTarget = OfficeTarget::findOrFail(request()->integer('office_target_id'));
-            abort_unless($sourceTarget->assignedEmployees()->whereKey(request()->user()->id)->wherePivotNotNull('completed_at')->exists(), 403);
+            abort_unless($sourceTarget->assignedEmployees()->whereKey(request()->user()->id)->wherePivotNotNull('accepted_at')->exists(), 403);
+            $sourceUpcr = app(\App\Services\TargetHierarchy::class)->findUpcr($sourceTarget, request()->user());
         }
 
         return view('ipcrs.create', [
             'sourceTarget' => $sourceTarget,
+            'sourceUpcr' => $sourceUpcr,
             'upcrs' => Upcr::with(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'employee'])
-                ->whereHas('dpcr.opcr', fn ($query) => $query->where('office_id', request()->user()->office_id))
+                ->whereHas('employee', fn ($query) => $query->where('office_id', request()->user()->office_id))
                 ->where('status', Upcr::STATUS_APPROVED)
                 ->orderByDesc('created_at')
                 ->get(),
@@ -62,10 +65,19 @@ class IpcrController extends Controller
             $data = $request->validate(['office_target_id' => ['required', 'integer'], 'title' => ['required', 'string', 'max:255'], 'success_indicators' => ['required', 'string', 'max:5000'], 'targets' => ['nullable', 'string', 'max:5000']]);
             $target = OfficeTarget::findOrFail($data['office_target_id']);
             CommitmentPlanning::legacyOnly($target->evaluationCycle);
-            abort_unless($target->assignedEmployees()->whereKey($request->user()->id)->wherePivotNotNull('completed_at')->exists(), 403);
-            $ipcr = Ipcr::firstOrCreate(['office_target_id' => $target->id, 'employee_id' => $request->user()->id], [...$data, 'prepared_by' => $request->user()->id, 'status' => Ipcr::STATUS_DRAFT]);
+            abort_unless($target->assignedEmployees()->whereKey($request->user()->id)->wherePivotNotNull('accepted_at')->exists(), 403);
+            $ipcr = \Illuminate\Support\Facades\DB::transaction(function () use ($target, $request, $data) {
+                OfficeTarget::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                if (! Ipcr::where('office_target_id', $target->id)->where('employee_id', $request->user()->id)->exists()) $target->evaluationCycle?->ensurePcrCreationOpen();
+                $hierarchy = app(\App\Services\TargetHierarchy::class);
+                $hierarchy->linkAvailableUpcrs($target);
+                $upcr = $hierarchy->findUpcr($target, $request->user());
+                $ipcr = Ipcr::firstOrCreate(['office_target_id' => $target->id, 'employee_id' => $request->user()->id], [...$data, 'upcr_id' => $upcr?->id, 'prepared_by' => $request->user()->id, 'status' => Ipcr::STATUS_DRAFT]);
+                if ($upcr && ! $ipcr->upcr_id && $ipcr->isEditableBy($request->user()->id)) $ipcr->update(['upcr_id' => $upcr?->id]);
+                return $ipcr;
+            });
 
-            return redirect()->route('ipcrs.show', $ipcr)->with('status', 'IPCR prepared from your completed target.');
+            return redirect()->route('ipcrs.show', $ipcr)->with('status', 'IPCR prepared from your assigned target.');
         }
         abort_unless($request->user()->office_id, 403, 'An office assignment is required before preparing an IPCR.');
         if (! $request->user()->hasRole('Supervisor')) {
@@ -82,15 +94,16 @@ class IpcrController extends Controller
         $upcr = Upcr::with('dpcr.opcr')->findOrFail($data['upcr_id']);
         CommitmentPlanning::legacyOnly($upcr->dpcr->opcr->evaluationCycle);
         abort_unless($request->user()->reportAssignees()->whereKey($data['employee_id'])->exists(), 403);
-        abort_unless((int) $upcr->dpcr->opcr->office_id === (int) $request->user()->office_id && $upcr->isApproved(), 403);
+        abort_unless((int) $upcr->employee?->office_id === (int) $request->user()->office_id && $upcr->isApproved(), 403);
 
         $request->validate([
             'employee_id' => [
                 Rule::unique('ipcrs', 'employee_id')
-                    ->where('upcr_id', $request->integer('upcr_id')),
+                    ->where('upcr_id', $request->integer('upcr_id'))->whereNull('office_target_id'),
             ],
         ]);
 
+        $upcr->dpcr->opcr->evaluationCycle->ensurePcrCreationOpen();
         $ipcr = Ipcr::create([
             ...$data,
             'status' => Ipcr::STATUS_DRAFT,
@@ -108,6 +121,10 @@ class IpcrController extends Controller
             abort_unless(app(PlanningOrganization::class)->canView(request()->user(), $ipcr->commitmentPlan), 403);
 
             return redirect()->route('planning.show', $ipcr->commitmentPlan);
+        }
+        $viewer = request()->user();
+        if ($viewer->hasAnyRole(['Supervisor', 'HR Head']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
+            abort_unless(in_array((int) $ipcr->employee?->office_id, app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer)), 403);
         }
         if (request()->user()->usesMyReports()) {
             abort_unless((int) $ipcr->employee_id === (int) request()->user()->id, 403);

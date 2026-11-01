@@ -10,31 +10,32 @@ class OfficeTargetProgress
 {
     public function forUser(User $user): Collection
     {
-        $head = $user->hasAnyRole(['Supervisor', 'HR Head']);
+        $managed = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user);
+        $head = count($managed) > 0;
         $director = $user->hasRole('Campus Director');
         $query = OfficeTarget::whereNull('performance_target_id');
         if ($head) {
-            $query->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
+            $query->whereHas('offices', fn ($q) => $q->whereIn('offices.id', $managed));
         } elseif ($director) {
             $query->where('created_by', $user->id);
-        } elseif (! $user->hasRole('Administrator')) {
+        } elseif (! $user->hasAnyRole(['Administrator', 'Planning Officer'])) {
             $query->whereHas('assignedEmployees', fn ($q) => $q->whereKey($user->id));
         }
-        $personal = ! $head && ! $director && ! $user->hasRole('Administrator');
+        $personal = ! $head && ! $director && ! $user->hasAnyRole(['Administrator', 'Planning Officer']);
 
-        return $query->with(['offices', 'assignedEmployees' => function ($q) use ($head, $personal, $user) {
+        return $query->with(['offices', 'assignedEmployees' => function ($q) use ($head, $personal, $user, $managed) {
             if ($head) {
-                $q->where('users.office_id', $user->office_id ?? 0);
+                $q->whereIn('users.office_id', $managed);
             } elseif ($personal) {
                 $q->whereKey($user->id);
             }
-        }])->orderBy('deadline')->get()->map(function ($target) use ($head, $personal, $user) {
+        }])->orderBy('deadline')->get()->map(function ($target) use ($head, $personal, $user, $managed) {
             $people = $target->assignedEmployees->filter(fn ($person) => $target->offices->contains('id', $person->office_id));
             $required = $personal ? $people->first()?->pivot->allocated_target_value
-                : ($head ? $target->offices->firstWhere('id', $user->office_id)?->pivot->allocated_target_value : $target->target_value);
+                : ($head ? $target->offices->whereIn('id', $managed)->sum(fn ($office) => (float) $office->pivot->allocated_target_value) : $target->target_value);
             $known = $required !== null && (float) $required > 0;
             $done = $people->sum(fn ($person) => $person->pivot->allocated_target_value === null ? 0
-                : min((float) $person->pivot->allocated_target_value, (float) ($person->pivot->completed_value ?? ($person->pivot->completed_at ? $person->pivot->allocated_target_value : 0))));
+                : (float) ($person->pivot->completed_value ?? ($person->pivot->completed_at ? $person->pivot->allocated_target_value : 0)));
             $percent = $known ? min(100, round(100 * $done / (float) $required, 1)) : null;
 
             return ['id' => $target->id, 'title' => $target->title, 'unit' => $target->unit_of_measure,

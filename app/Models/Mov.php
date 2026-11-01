@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Storage;
 
 class Mov extends Model
 {
+    public function analysis() { return $this->morphOne(EvidenceAnalysis::class, 'evidence'); }
+
     protected $fillable = [
+        'performance_target_id',
         'title',
         'description',
         'file_path',
@@ -22,6 +25,11 @@ class Mov extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function performanceTarget(): BelongsTo
+    {
+        return $this->belongsTo(PerformanceTarget::class);
     }
 
     public function getFileSizeLabelAttribute(): string

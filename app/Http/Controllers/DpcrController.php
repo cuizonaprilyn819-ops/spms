@@ -20,7 +20,7 @@ class DpcrController extends Controller
         $query = Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee', 'preparedBy', 'approvedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
 
         if ($this->isOfficeScoped(request())) {
-            $query->whereHas('opcr', fn ($opcr) => $opcr->where('office_id', request()->user()->office_id));
+            $query->whereHas('employee', fn ($person) => $person->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds(request()->user())));
         }
 
         $dpcrs = $query
@@ -35,12 +35,11 @@ class DpcrController extends Controller
         abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR Head']) && request()->user()->office_id, 403);
         $opcrs = Opcr::with(['evaluationCycle', 'office'])->orderByDesc('created_at');
         $officeId = request()->user()->office_id;
-        $opcrs->where('office_id', $officeId)->where('status', Opcr::STATUS_APPROVED);
+        $opcrs->whereIn('office_id', app(\App\Services\PlanningOrganization::class)->ancestors(request()->user()->office))->where('status', Opcr::STATUS_APPROVED);
 
         return view('dpcrs.create', [
             'opcrs' => $opcrs->get(),
             'employees' => User::where('office_id', $officeId)
-                ->whereKeyNot(request()->user()->id)
                 ->orderBy('name')->get(),
         ]);
     }
@@ -61,7 +60,8 @@ class DpcrController extends Controller
         $employee = User::findOrFail($data['employee_id']);
 
         $officeId = (int) $request->user()->office_id;
-        abort_unless((int) $opcr->office_id === $officeId && (int) $employee->office_id === $officeId && $opcr->isApproved(), 403);
+        $reportingPath = app(\App\Services\PlanningOrganization::class)->ancestors($request->user()->office);
+        abort_unless(in_array((int) $opcr->office_id, $reportingPath) && (int) $employee->office_id === $officeId && $opcr->isApproved(), 403);
 
         $request->validate([
             'employee_id' => [
@@ -70,6 +70,7 @@ class DpcrController extends Controller
             ],
         ]);
 
+        $opcr->evaluationCycle->ensurePcrCreationOpen();
         $dpcr = Dpcr::create([
             ...$data,
             'status' => Dpcr::STATUS_DRAFT,
@@ -123,14 +124,13 @@ class DpcrController extends Controller
     private function isOfficeScoped(Request $request): bool
     {
         return $request->user()->hasRole('Supervisor')
-            && ! $request->user()->hasAnyRole(['Administrator', 'HR', 'HR Head', 'Campus Director'])
-            && $request->user()->office_id !== null;
+            && ! $request->user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head', 'Campus Director']);
     }
 
     private function authorizeOfficeAccess(Request $request, Dpcr $dpcr): void
     {
         if ($this->isOfficeScoped($request)) {
-            abort_unless((int) $dpcr->opcr()->value('office_id') === (int) $request->user()->office_id, 403);
+            abort_unless(in_array((int) $dpcr->employee?->office_id, app(\App\Services\TargetHierarchy::class)->managedOfficeIds($request->user())), 403);
         }
     }
 }

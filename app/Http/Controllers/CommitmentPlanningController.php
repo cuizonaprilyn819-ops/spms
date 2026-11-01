@@ -42,6 +42,7 @@ class CommitmentPlanningController extends Controller
     {
         $office = Office::findOrFail($proposal->review_office_id);
         $recipient = $office->head_id === $proposal->submitted_by ? User::role('Administrator')->whereKeyNot($proposal->submitted_by)->first() : $office->head;
+        User::role('Planning Officer')->whereKeyNot($proposal->submitted_by)->get()->each(fn ($person) => $person->notify(new TargetProposalNotification($proposal->id, 'A target proposal is ready for validation.')));
         $recipient?->notify(new TargetProposalNotification($proposal->id, 'A target proposal is ready for supervisory review.'));
     }
 
@@ -53,7 +54,7 @@ class CommitmentPlanningController extends Controller
     public function index(Request $request)
     {
         $plans = CommitmentPlan::with(['office', 'cycle', 'employee'])->latest()->get()->filter(fn ($p) => $this->planning->organization->canView($request->user(), $p));
-        $offices = Office::with(['head', 'planningReviewer'])->orderBy('name')->get();
+        $offices = Office::forCampus()->with(['head', 'planningReviewer'])->orderBy('name')->get();
         $parents = CommitmentPlan::with('office')->get()->filter(fn ($p) => $this->planning->organization->canView($request->user(), $p) || ($request->user()->office && in_array($p->office_id, [$request->user()->office_id, $request->user()->office->parent_office_id], true)));
         $people = User::with('office')->orderBy('name')->get()->filter(fn ($u) => $request->user()->hasRole('Administrator') || $u->id === $request->user()->id || $u->office?->head_id === $request->user()->id);
 
@@ -62,8 +63,8 @@ class CommitmentPlanningController extends Controller
 
     public function organization(Request $r, Office $office)
     {
-        abort_unless($r->user()->hasRole('Administrator'), 403);
-        $data = $r->validate(['parent_office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')], 'planning_level' => ['required', Rule::in(['office', 'division', 'unit'])], 'mandate' => ['required', 'string', 'max:10000'], 'head_id' => ['required', Rule::exists('users', 'id')], 'planning_reviewer_id' => ['required', Rule::exists('users', 'id')], 'verified' => ['accepted']]);
+        abort_unless($r->user()->hasAnyRole(['Administrator', 'Planning Officer']), 403);
+        $data = $r->validate(['parent_office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where('campus', config('hinunangan.campus_id'))->where('is_active', true)], 'planning_level' => ['required', Rule::in(['office', 'division', 'unit'])], 'mandate' => ['required', 'string', 'max:10000'], 'head_id' => ['required', Rule::exists('users', 'id')], 'planning_reviewer_id' => ['required', Rule::exists('users', 'id')], 'verified' => ['accepted']]);
         DB::transaction(function () use ($office, $data, $r) {
             // Serialize hierarchy changes so concurrent reparenting cannot create cycles.
             Office::orderBy('id')->lockForUpdate()->get();
@@ -82,7 +83,7 @@ class CommitmentPlanningController extends Controller
 
     public function duties(Request $r, User $person)
     {
-        abort_unless($r->user()->hasRole('Administrator') || ($person->office && $this->planning->organization->isOwner($r->user(), $person->office)), 403);
+        abort_unless($r->user()->hasAnyRole(['Administrator', 'Planning Officer']) || ($person->office && $this->planning->organization->isOwner($r->user(), $person->office)), 403);
         $person->update($r->validate(['planning_duties' => ['required', 'string', 'max:10000']]));
         $this->planning->event(null, $r->user(), 'Duties recorded', ['employee_id' => $person->id]);
 
@@ -91,7 +92,7 @@ class CommitmentPlanningController extends Controller
 
     public function activate(Request $r, EvaluationCycle $cycle)
     {
-        abort_unless($r->user()->hasRole('Administrator'), 403);
+        abort_unless($r->user()->hasAnyRole(['Administrator', 'Planning Officer']), 403);
         $data = $r->validate(['planning_readiness' => ['required', 'string', 'min:20', 'max:5000'], 'confirmed' => ['accepted']]);
         DB::transaction(function () use ($cycle, $r, $data) {
             $cycle = EvaluationCycle::whereKey($cycle->id)->lockForUpdate()->firstOrFail();
@@ -114,7 +115,7 @@ class CommitmentPlanningController extends Controller
 
     public function store(Request $r)
     {
-        $d = $r->validate(['evaluation_cycle_id' => ['required', Rule::exists('evaluation_cycles', 'id')], 'office_id' => ['required', Rule::exists('offices', 'id')], 'level' => ['required', Rule::in(array_keys(CommitmentPlanning::REPORTS))], 'parent_id' => ['nullable', Rule::exists('commitment_plans', 'id')], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'head_exception_reason' => ['nullable', 'string', 'max:5000']]);
+        $d = $r->validate(['evaluation_cycle_id' => ['required', Rule::exists('evaluation_cycles', 'id')], 'office_id' => ['required', Rule::exists('offices', 'id')->where('campus', config('hinunangan.campus_id'))->where('is_active', true)], 'level' => ['required', Rule::in(array_keys(CommitmentPlanning::REPORTS))], 'parent_id' => ['nullable', Rule::exists('commitment_plans', 'id')], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'head_exception_reason' => ['nullable', 'string', 'max:5000']]);
         $p = $this->planning->createPlan($r->user(), EvaluationCycle::findOrFail($d['evaluation_cycle_id']), Office::findOrFail($d['office_id']), $d['level'], CommitmentPlan::find($d['parent_id'] ?? null), User::find($d['employee_id'] ?? null), $d['head_exception_reason'] ?? null);
 
         return redirect()->route('planning.show', $p);
@@ -126,7 +127,7 @@ class CommitmentPlanningController extends Controller
         $sources = $plan->parent?->targets()->get() ?? collect();
         $sources = $sources->filter(fn ($t) => $this->planning->eligible($t, $plan))->map(fn ($t) => ['target' => $t, 'eligible' => true, 'summary' => $this->planning->summary($t), 'suggestion' => $this->planning->suggestion($t)]);
 
-        return view('planning.show', ['plan' => $plan, 'lines' => $plan->targets()->get()->map(fn ($t) => ['target' => $t, 'summary' => $this->planning->summary($t)]), 'sources' => $sources, 'canManage' => $this->planning->organization->canPrepare($r->user(), $plan), 'offices' => Office::where('parent_office_id', $plan->office_id)->get(), 'people' => User::where('office_id', $plan->office_id)->get(), 'eligibilities' => DB::table('target_eligibilities')->whereIn('performance_target_id', $plan->targets()->pluck('id'))->get(), 'events' => $plan->events()->with('actor')->paginate(20)]);
+        return view('planning.show', ['plan' => $plan, 'lines' => $plan->targets()->get()->map(fn ($t) => ['target' => $t, 'summary' => $this->planning->summary($t)]), 'sources' => $sources, 'canManage' => $this->planning->organization->canPrepare($r->user(), $plan), 'offices' => Office::forCampus()->where('parent_office_id', $plan->office_id)->get(), 'people' => User::where('office_id', $plan->office_id)->get(), 'eligibilities' => DB::table('target_eligibilities')->whereIn('performance_target_id', $plan->targets()->pluck('id'))->get(), 'events' => $plan->events()->with('actor')->paginate(20)]);
     }
 
     public function target(Request $r, CommitmentPlan $plan)
@@ -188,7 +189,10 @@ class CommitmentPlanningController extends Controller
             if ($data['measurement'] === 'shared') {
                 $data['quantity'] = $target->contributes_only ? 0 : 1;
             }
+            $locked->cycle->validateSchedule($data);
+            $before = $target->toArray();
             $target->update($data);
+            \App\Models\WorkflowAudit::record($target, 'Commitment target edited', $before, $target->fresh()->toArray());
             $locked->update(['agreed_at' => null]);
             $this->planning->event($plan, $r->user(), 'Draft target changed', ['target_id' => $target->id]);
         });
@@ -200,7 +204,7 @@ class CommitmentPlanningController extends Controller
     {
         abort_unless($target->plan, 404);
         $this->manage($r, $target->plan);
-        $d = $r->validate(['office_id' => ['required', Rule::exists('offices', 'id')], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'reason' => ['required', 'string', 'max:5000']]);
+        $d = $r->validate(['office_id' => ['required', Rule::exists('offices', 'id')->where('campus', config('hinunangan.campus_id'))->where('is_active', true)], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'reason' => ['required', 'string', 'max:5000']]);
         $office = Office::findOrFail($d['office_id']);
         $this->planning->organization->verify($office);
         $person = User::find($d['employee_id'] ?? null);
@@ -223,7 +227,7 @@ class CommitmentPlanningController extends Controller
     {
         abort_unless($target->plan, 404);
         $this->manage($r, $target->plan);
-        $d = $r->validate(['office_id' => ['required', Rule::exists('offices', 'id')], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'name' => ['required', 'string', 'max:255'], 'source' => ['required', 'string', 'max:5000'], 'value' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'], 'capacity' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'], 'valid_until' => ['required', 'date', 'after_or_equal:today']]);
+        $d = $r->validate(['office_id' => ['required', Rule::exists('offices', 'id')->where('campus', config('hinunangan.campus_id'))->where('is_active', true)], 'employee_id' => ['nullable', Rule::exists('users', 'id')], 'name' => ['required', 'string', 'max:255'], 'source' => ['required', 'string', 'max:5000'], 'value' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'], 'capacity' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'], 'valid_until' => ['required', 'date', 'after_or_equal:today']]);
         $office = Office::findOrFail($d['office_id']);
         $person = User::find($d['employee_id'] ?? null);
         abort_unless($person ? ($person->office_id === $office->id && $office->id === $target->plan->office_id) : $office->parent_office_id === $target->plan->office_id, 422);
@@ -311,8 +315,9 @@ class CommitmentPlanningController extends Controller
         $d['submission_mode'] = $mode['submission_mode'] ?? 'incremental';
         $d['reference'] = mb_strtoupper(trim($d['reference']));
         $path = $r->file('evidence')->store('planning-outputs', 'local');
+        $outputId = null;
         try {
-            DB::transaction(function () use ($d, $r, $path, $target, $p) {
+            DB::transaction(function () use ($d, $r, $path, $target, $p, &$outputId) {
                 $this->planning->lockRoot($p);
                 $p->refresh();
                 $target->refresh();
@@ -335,6 +340,7 @@ class CommitmentPlanningController extends Controller
                 abort_if(PlanningOutput::where('root_target_id', $target->root_target_id)->where('reference', $d['reference'])->exists(), 422, 'This output reference is already recorded. Attach a contribution instead of counting it again.');
                 unset($d['evidence']);
                 $out = PlanningOutput::create([...$d, 'performance_target_id' => $target->id, 'root_target_id' => $target->root_target_id, 'evidence' => ['path' => $path, 'name' => $r->file('evidence')->getClientOriginalName()], 'submitted_by' => $r->user()->id]);
+                $outputId = $out->id;
                 $this->planning->event($p, $r->user(), 'Output reported', ['output_id' => $out->id, 'reference' => $d['reference']]);
                 $p->reviewer->notify(new PlanningNotification($p, 'Supporting output is ready for validation.'));
                 $this->planning->project($p);
@@ -342,6 +348,11 @@ class CommitmentPlanningController extends Controller
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);
             throw $e;
+        }
+
+        if (config('spms.ai.enabled') && $outputId) {
+            set_time_limit(150);
+            app(\App\Services\EvidenceAi::class)->analyze(PlanningOutput::findOrFail($outputId));
         }
 
         return back()->with('status', 'Output recorded as reported work, pending validation.');
@@ -427,8 +438,9 @@ class CommitmentPlanningController extends Controller
         abort_unless($plan->reviewer_id === $r->user()->id && $employeeId !== $r->user()->id, 403);
         abort_unless($plan->state === 'approved' && $plan->cycle->isOpen() && $target->plan_revision === $plan->revision && ! $target->needs_reconciliation, 422);
         $summary = $this->planning->summary($target);
-        abort_if($summary['outputs']->isEmpty() || $summary['outputs']->whereNull('validated_at')->isNotEmpty(), 422, 'Validate supporting output before recording a rating.');
-        $d = $r->validate(['quality_rating' => ['required', 'numeric', 'min:1', 'max:5'], 'efficiency_rating' => ['required', 'numeric', 'min:1', 'max:5'], 'timeliness_rating' => ['required', 'numeric', 'min:1', 'max:5'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        abort_if($summary['outputs']->whereNull('validated_at')->isNotEmpty() || ($summary['outputs']->isEmpty() && max((float) $r->input('quality_rating'), (float) $r->input('efficiency_rating'), (float) $r->input('timeliness_rating')) > 0), 422, 'Validate supporting output before recording a positive rating.');
+        $d = $r->validate(['quality_rating' => ['required', 'numeric', 'min:0', 'max:5'], 'efficiency_rating' => ['required', 'numeric', 'min:0', 'max:5'], 'timeliness_rating' => ['required', 'numeric', 'min:0', 'max:5'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        if ($summary['validated'] !== null && $summary['validated'] <= 0) $d['quality_rating'] = $d['efficiency_rating'] = $d['timeliness_rating'] = 0;
         $average = Evaluation::computeAverage($d['quality_rating'], $d['efficiency_rating'], $d['timeliness_rating']);
         DB::transaction(function () use ($target, $plan, $r, $d, $average, $employeeId) {
             CommitmentPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
@@ -473,6 +485,7 @@ class CommitmentPlanningController extends Controller
             abort_if($draft->performance_target_id, 422, 'This extracted target has already been imported.');
             $t = $this->planning->addTarget($plan, $r->user(), $data);
             $draft->forceFill(['performance_target_id' => $t->id])->save();
+            \App\Models\WorkflowAudit::record($t, 'CD reviewed and imported AI document target', ['ai_proposal' => $draft->proposal], $t->toArray());
         });
 
         return redirect()->route('planning.show', $plan)->with('status', 'Extracted target saved in the OPCR draft.');

@@ -94,7 +94,7 @@ class HrmOfficeAccessTest extends TestCase
         $this->actingAs($hrm)->get(route('employees.edit', $employee))->assertForbidden();
         $this->actingAs($hrm)->delete(route('employees.destroy', $employee))->assertForbidden();
         $this->actingAs($hrm)->get(route('opcrs.create'))->assertForbidden();
-        $this->actingAs($hrm)->patch(route('opcrs.approve', $opcr))->assertForbidden();
+        $this->actingAs($hrm)->patch(route('report-workflow.approve', ['type' => 'opcr', 'report' => $opcr->id]))->assertForbidden();
         $this->actingAs($hrm)->get(route('evaluations.create'))->assertForbidden();
         $this->actingAs($hrm)->get(route('performance-targets.create'))->assertForbidden();
     }

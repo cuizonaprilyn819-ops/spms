@@ -1,6 +1,7 @@
 <x-app-layout>
     <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Target Planning Documents</h2></x-slot>
     <div class="mx-auto max-w-5xl space-y-6 px-4 py-8">
+        @if(session('status'))<p role="status" class="rounded-lg bg-green-50 p-4 text-sm text-green-800">{{ session('status') }}</p>@endif
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-spms-navy">1. Upload → 2. Analyze → 3. Review → 4. Assign</p>
             <h1 class="mt-3 text-2xl font-bold">Upload a target planning document</h1>

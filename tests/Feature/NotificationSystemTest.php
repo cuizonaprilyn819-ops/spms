@@ -78,19 +78,24 @@ class NotificationSystemTest extends TestCase
         $approver = User::factory()->create();
         $approver->assignRole('Supervisor');
         $preparedBy = User::factory()->create();
+        $employee = User::factory()->create(['office_id' => \App\Models\Office::factory()->create()->id]);
+        $approver->update(['office_id' => $employee->office_id]);
         $ipcr = Ipcr::factoryLike()->create([
             'prepared_by_user' => $preparedBy,
+            'employee' => $employee,
+            'status' => Ipcr::STATUS_SUBMITTED,
         ]);
 
         $this
             ->actingAs($approver)
-            ->patch(route('ipcrs.approve', $ipcr))
+            ->from(route('ipcrs.show', $ipcr))
+            ->patch(route('report-workflow.approve', ['type' => 'ipcr', 'report' => $ipcr->id]))
             ->assertRedirect(route('ipcrs.show', $ipcr));
 
         $notification = $preparedBy->notifications()->firstOrFail();
 
-        $this->assertSame('approval_notification', $notification->data['kind']);
-        $this->assertSame('IPCR', $notification->data['form_type']);
+        $this->assertSame(\App\Notifications\ReportWorkflowNotification::class, $notification->type);
+        $this->assertSame('IPCR report approved', $notification->data['title']);
         $this->assertStringContainsString('approved', $notification->data['message']);
     }
 

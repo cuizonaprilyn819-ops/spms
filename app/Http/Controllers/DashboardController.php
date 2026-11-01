@@ -133,7 +133,7 @@ class DashboardController extends Controller
 
     private function personalDashboard(User $user, Collection $officeProgress): array
     {
-        $targetQuery = PerformanceTarget::query()->where(function ($query) use ($user): void {
+        $targetQuery = PerformanceTarget::query()->currentPlanningRevision()->where(function ($query) use ($user): void {
             $query->where(function ($formQuery) use ($user): void {
                 $formQuery->where('targetable_type', Dpcr::class)
                     ->whereIn('targetable_id', Dpcr::where('employee_id', $user->id)->select('id'));
@@ -164,9 +164,10 @@ class DashboardController extends Controller
         $inProgress = $progressByTarget->filter(fn ($progress) => (float) $progress > 0 && (float) $progress < 100)->count();
         $notStarted = max(0, $targetIds->count() - $completed - $inProgress);
 
-        $officeTargets = OfficeTarget::query();
-        if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
-            $officeTargets->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
+        $managedOffices = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user);
+        $officeTargets = OfficeTarget::whereNull('performance_target_id');
+        if (count($managedOffices) > 0) {
+            $officeTargets->whereHas('offices', fn ($q) => $q->whereIn('offices.id', $managedOffices));
         } elseif ($user->hasRole('Campus Director')) {
             $officeTargets->where('created_by', $user->id);
         } else {
@@ -174,8 +175,8 @@ class DashboardController extends Controller
         }
         $officeTargetIds = $officeTargets->pluck('id');
         $movQuery = TargetMov::whereIn('office_target_id', $officeTargetIds);
-        if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
-            $movQuery->where('office_id', $user->office_id ?? 0);
+        if (count($managedOffices) > 0) {
+            $movQuery->whereIn('office_id', $managedOffices);
         } elseif (! $user->hasRole('Campus Director')) {
             $movQuery->where('user_id', $user->id);
         }
@@ -217,7 +218,7 @@ class DashboardController extends Controller
             });
         }
         if ($viewer->hasAnyRole(['Supervisor', 'HR Head'])) {
-            $employees->where('office_id', $viewer->office_id ?? 0);
+            $employees->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer));
         }
 
         $employees = $employees->orderBy('name')->get();
@@ -228,6 +229,7 @@ class DashboardController extends Controller
         $employeeIds = $employees->modelKeys();
         $assignments = DB::table('office_target_employee')
             ->join('office_targets', 'office_targets.id', '=', 'office_target_employee.office_target_id')
+            ->whereNull('office_targets.performance_target_id')
             ->whereIn('user_id', $employeeIds)
             ->get(['user_id', 'office_target_id', 'completed_at', 'office_targets.created_by'])
             ->groupBy('user_id');
@@ -240,6 +242,7 @@ class DashboardController extends Controller
         foreach ([Dpcr::class, Upcr::class, Ipcr::class] as $model) {
             $forms = $model::whereIn('employee_id', $reportEmployeeIds)->select('id', 'employee_id');
             $query = PerformanceTarget::query()
+                ->currentPlanningRevision()
                 ->joinSub($forms, 'forms', 'forms.id', '=', 'performance_targets.targetable_id')
                 ->where('targetable_type', $model)
                 ->select('performance_targets.id', 'forms.employee_id')->toBase();

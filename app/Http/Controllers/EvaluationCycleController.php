@@ -17,7 +17,7 @@ class EvaluationCycleController extends Controller
             ->orderBy('semester')
             ->paginate(10);
 
-        return view('evaluation-cycles.index', compact('cycles'));
+        return view('evaluation-cycles.index', ['cycles' => $cycles, 'people' => \App\Models\User::whereHas('office', fn ($q) => $q->forCampus())->orderBy('name')->get()]);
     }
 
     public function create(): View
@@ -30,6 +30,9 @@ class EvaluationCycleController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
+            'pcr_creation_closes_at' => ['nullable', 'required_with:pcr_submission_due_at', 'date_format:Y-m-d'],
+            'pcr_submission_due_at' => ['nullable', 'required_with:pcr_creation_closes_at', 'date_format:Y-m-d', 'after_or_equal:pcr_creation_closes_at'],
+            'pcr_reminder_days' => ['sometimes', 'integer', 'min:1', 'max:60'],
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'semester' => [
                 'required',
@@ -40,6 +43,9 @@ class EvaluationCycleController extends Controller
             ],
         ]);
 
+        foreach (['pcr_creation_closes_at', 'pcr_submission_due_at'] as $field) {
+            if (! empty($data[$field])) $data[$field] = \Illuminate\Support\Carbon::parse($data[$field])->endOfDay();
+        }
         DB::transaction(function () use ($data): void {
             EvaluationCycle::query()
                 ->where('status', EvaluationCycle::STATUS_OPEN)
@@ -78,6 +84,39 @@ class EvaluationCycleController extends Controller
         return redirect()
             ->route('evaluation-cycles.index')
             ->with('status', "{$evaluationCycle->label} is now open.");
+    }
+
+    public function chairperson(Request $request, EvaluationCycle $evaluationCycle): RedirectResponse
+    {
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Planning Officer']), 403);
+        $data = $request->validate(['pmt_chairperson_id' => ['required', Rule::exists('users', 'id')->whereIn('office_id', \App\Models\Office::forCampus()->select('id'))]]);
+        DB::transaction(function () use ($evaluationCycle, $data) {
+            $cycle = EvaluationCycle::whereKey($evaluationCycle->id)->lockForUpdate()->firstOrFail();
+            abort_unless($cycle->isOpen(), 422, 'Open the evaluation period before changing its PMT chairperson.');
+            $before = ['pmt_chairperson_id' => $cycle->pmt_chairperson_id];
+            $cycle->update($data);
+            \App\Models\WorkflowAudit::record($cycle, 'PMT chairperson assigned', $before, $data);
+        });
+        return back()->with('status', 'PMT chairperson updated for this evaluation period.');
+    }
+
+    public function deadlines(Request $request, EvaluationCycle $evaluationCycle): RedirectResponse
+    {
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Planning Officer']), 403);
+        $data = $request->validate([
+            'pcr_creation_closes_at' => ['required', 'date_format:Y-m-d'],
+            'pcr_submission_due_at' => ['required', 'date_format:Y-m-d', 'after_or_equal:pcr_creation_closes_at'],
+            'pcr_reminder_days' => ['required', 'integer', 'min:1', 'max:60'],
+        ]);
+        foreach (['pcr_creation_closes_at', 'pcr_submission_due_at'] as $field) $data[$field] = \Illuminate\Support\Carbon::parse($data[$field])->endOfDay();
+        DB::transaction(function () use ($evaluationCycle, $data) {
+            $cycle = EvaluationCycle::whereKey($evaluationCycle->id)->lockForUpdate()->firstOrFail();
+            abort_unless($cycle->isOpen(), 422, 'Open the evaluation period before changing PCR deadlines.');
+            $before = $cycle->only(array_keys($data));
+            $cycle->update($data);
+            \App\Models\WorkflowAudit::record($cycle, 'PCR creation and submission deadlines updated', $before, $cycle->only(array_keys($data)));
+        });
+        return back()->with('status', 'PCR deadlines and reminder window saved. Existing first-submission records keep their original deadline snapshot.');
     }
 
     public function close(EvaluationCycle $evaluationCycle): RedirectResponse

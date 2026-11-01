@@ -13,6 +13,11 @@ trait HasReportWorkflow
         return $this->morphOne(CommitmentPlan::class, 'report');
     }
 
+    public function submissionRecord()
+    {
+        return $this->morphOne(\App\Models\PcrSubmission::class, 'report');
+    }
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SUBMITTED = 'submitted';

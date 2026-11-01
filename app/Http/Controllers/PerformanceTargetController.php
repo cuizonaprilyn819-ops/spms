@@ -17,7 +17,8 @@ class PerformanceTargetController extends Controller
     public function index(): View
     {
         $user = request()->user();
-        $officeTargets = OfficeTarget::with('createdBy');
+        // Planning projections are already represented by their report target lines below.
+        $officeTargets = OfficeTarget::with('createdBy')->whereNull('performance_target_id');
         if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
             $officeTargets->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
         } elseif ($user->hasRole('Campus Director')) {

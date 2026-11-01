@@ -18,6 +18,8 @@
                     {{ session('status') }}
                 </div>
             @endif
+            @if($errors->any())<div role="alert" class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+            @unless(app(\App\Services\PcrReminders::class)->emailAvailable())<p class="mb-4 rounded-lg bg-amber-50 p-4 text-sm">Outgoing reminder email is not enabled. Contact the administrator to configure email delivery. In-app reminders are available when the scheduler runs.</p>@endunless
 
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
@@ -45,6 +47,29 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4">
+                                        <p class="mb-2 text-sm">PCR creation: {{ $cycle->pcr_creation_closes_at ? ($cycle->pcr_creation_closes_at->isPast() ? 'Closed' : 'Closes').' '.$cycle->pcr_creation_closes_at->format('M j, Y') : 'Closing date not set' }}<br>Submission due: {{ $cycle->submissionDueAt()->format('M j, Y') }}</p>
+                                        @hasanyrole('Administrator|Planning Officer')
+                                        @if($cycle->isOpen())
+                                        <details class="mb-3"><summary class="cursor-pointer text-sm font-semibold">PCR deadlines and reminders</summary>
+                                            <form method="POST" action="{{ route('evaluation-cycles.deadlines', $cycle) }}" class="mt-3 space-y-2">@csrf @method('PATCH')
+                                                <label class="block text-sm">PCR creation closes<input name="pcr_creation_closes_at" type="date" required value="{{ $cycle->pcr_creation_closes_at?->format('Y-m-d') }}" class="ml-2 rounded-lg border-gray-300"></label>
+                                                <label class="block text-sm">Submission deadline<input name="pcr_submission_due_at" type="date" required value="{{ $cycle->pcr_submission_due_at?->format('Y-m-d') }}" class="ml-2 rounded-lg border-gray-300"></label>
+                                                <label class="block text-sm">Reminder window (days)<input name="pcr_reminder_days" type="number" min="1" max="60" required value="{{ $cycle->pcr_reminder_days ?? 7 }}" class="ml-2 w-20 rounded-lg border-gray-300"></label>
+                                                <p class="text-xs text-gray-500">Daily reminders until completion. Dates include the end of the selected day ({{ config('app.timezone') }}). Existing submission deadline snapshots are preserved.</p>
+                                                <button class="rounded-lg border px-3 py-2 text-sm font-semibold">Save PCR deadlines</button>
+                                            </form>
+                                        </details>
+                                        @endif
+                                        @endhasanyrole
+                                        <p class="mb-2 text-sm">PMT Chairperson: {{ $cycle->pmtChairperson?->name ?? 'Unassigned' }}</p>
+                                        @hasanyrole('Administrator|Planning Officer')
+                                        @if($cycle->isOpen())
+                                        <form method="POST" action="{{ route('evaluation-cycles.chairperson', $cycle) }}" class="mb-3 flex gap-2">@csrf @method('PATCH')
+                                            <select name="pmt_chairperson_id" aria-label="PMT chairperson for {{ $cycle->label }}" required class="rounded-lg border-gray-300"><option value="">Select chairperson</option>@foreach($people as $person)<option value="{{ $person->id }}" @selected($cycle->pmt_chairperson_id === $person->id)>{{ $person->name }}</option>@endforeach</select>
+                                            <button class="rounded-lg border px-3 py-2">Assign chairperson</button>
+                                        </form>
+                                        @endif
+                                        @endhasanyrole
                                         <div class="flex justify-end gap-2">
                                             @if ($cycle->isOpen())
                                                 <form method="POST" action="{{ route('evaluation-cycles.close', $cycle) }}">

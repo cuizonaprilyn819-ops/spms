@@ -33,7 +33,7 @@ class OpcrController extends Controller
     public function create(): View
     {
         abort_unless(request()->user()->hasRole('Campus Director') && request()->user()->office_id, 403);
-        $offices = Office::query()->whereKey(request()->user()->office_id);
+        $offices = Office::forCampus()->whereKey(request()->user()->office_id);
 
         return view('opcrs.create', [
             'cycles' => EvaluationCycle::where('status', EvaluationCycle::STATUS_OPEN)
@@ -55,7 +55,7 @@ class OpcrController extends Controller
                 Rule::exists('evaluation_cycles', 'id')
                     ->where('status', EvaluationCycle::STATUS_OPEN),
             ],
-            'office_id' => ['required', 'integer', Rule::exists('offices', 'id')],
+            'office_id' => ['required', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->where('campus', config('hinunangan.campus_id'))],
             'title' => ['required', 'string', 'max:255'],
             'success_indicators' => ['nullable', 'string', 'max:5000'],
             'targets' => ['nullable', 'string', 'max:5000'],
@@ -72,6 +72,7 @@ class OpcrController extends Controller
             ],
         ]);
 
+        EvaluationCycle::findOrFail($data['evaluation_cycle_id'])->ensurePcrCreationOpen();
         $opcr = Opcr::create([
             ...$data,
             'status' => Opcr::STATUS_DRAFT,

@@ -2,6 +2,21 @@
 <x-slot name="header"><div class="flex items-center justify-between gap-4"><div><h2 class="text-xl font-bold text-spms-ink">{{ $target->title }}</h2><p class="mt-1 text-sm text-gray-500">Assigned by {{ $target->createdBy?->name }}</p></div><div class="flex gap-2">@if(Auth::user()->hasRole('Administrator') || $target->created_by === Auth::id())<a href="{{ route('office-targets.edit', $target) }}" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-spms-ink">Edit</a>@endif @if($target->file_path)<a href="{{ route('office-targets.download', $target) }}" class="rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white">Download Reference</a>@endif</div></div></x-slot>
 <div class="py-8"><div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8"><div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
 @if($target->strategic_goal || $target->strategic_objective)<div class="mb-8 rounded-lg border border-blue-200 bg-blue-50/40 p-5"><p class="text-xs font-bold uppercase tracking-wide text-spms-navy">Breakthrough Goal</p><h3 class="mt-1 text-lg font-bold text-spms-ink">{{ $target->strategic_goal }}</h3><div class="mt-4 border-t border-blue-200 pt-4"><p class="text-xs font-bold uppercase tracking-wide text-spms-navy">Strategic Objective</p><p class="mt-1 font-semibold text-spms-ink">{{ $target->strategic_objective }}</p></div></div>@endif
+@hasanyrole('Administrator|Planning Officer|Campus Director|Supervisor|HR Head')
+@php
+    $contributors = $target->assignedEmployees->filter(fn ($p) => $target->offices->contains('id', $p->office_id));
+    $actualFor = fn ($p) => (float) ($p->pivot->completed_value ?? ($p->pivot->completed_at ? $p->pivot->allocated_target_value : 0));
+    $totalActual = $contributors->sum($actualFor);
+@endphp
+<section class="mb-6 rounded-lg border bg-blue-50 p-4"><h3 class="font-bold">Shared target: {{ $totalActual }} / {{ $target->target_value }} {{ $target->unit_of_measure }}</h3>
+<p>{{ $totalActual >= $target->target_value ? 'Reported complete' : 'In progress' }}</p>
+@foreach($target->offices as $office)
+    <p class="mt-2 font-semibold">{{ $office->name }}: {{ $contributors->where('office_id', $office->id)->sum($actualFor) }} / {{ $office->pivot->allocated_target_value }}</p>
+    @foreach($contributors->where('office_id', $office->id) as $person)<p class="ml-4 text-sm">{{ $person->name }}: {{ $actualFor($person) }} / {{ $person->pivot->allocated_target_value }}</p>@endforeach
+@endforeach
+<p class="mt-3 text-xs">Supervisor ratings use each assignee's own contribution. Shared completion does not transfer credit to another assignee.</p></section>
+@endhasanyrole
+<x-target-hierarchy :target="$target" />
 <x-office-ai-briefing :target="$target" />
 @if($target->description)<div class="mb-5"><h3 class="text-sm font-bold">Source passage</h3><p class="mt-2 whitespace-pre-line text-sm text-gray-600">{{ $target->description }}</p></div>@endif
 <dl class="grid gap-6 sm:grid-cols-2">
@@ -15,4 +30,5 @@
 </dl><div class="mt-8"><a href="{{ route('office-targets.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold">Back to Office Targets</a></div></div></div></div>
 <div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-employee-assignment :target="$target" /></div>
 <div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-movs :target="$target" /></div>
+<div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-workflow-audit :subject="$target" /></div>
 </x-app-layout>

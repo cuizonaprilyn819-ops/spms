@@ -82,6 +82,31 @@ class ReportGenerationTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_employee_can_generate_unapproved_ipcr_with_blank_accomplishments_and_audited_snapshots(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $employee = User::factory()->create();
+        $employee->assignRole('Employee');
+        $ipcr = Ipcr::factoryLike()->create(['employee' => $employee, 'title' => 'Ongoing quarter', 'status' => 'draft']);
+        PerformanceTarget::factoryLike()->create(['targetable' => $ipcr, 'created_by_user' => $employee]);
+        $other = Ipcr::factoryLike()->create(['upcr' => $ipcr->upcr, 'title' => 'Private other report']);
+
+        $this->actingAs($employee)->get(route('reports.show', 'ipcr'))->assertOk()->assertSee('Export PDF');
+        $entry = \App\Models\ReportGeneration::sole();
+        $this->assertSame([$ipcr->id], $entry->record_ids);
+        $this->assertSame('', $entry->snapshot['forms'][0]['rows'][0][2]);
+        $this->assertSame($employee->id, $entry->generated_by);
+        $this->assertSame('preview', $entry->format);
+        $this->get(route('reports.pdf', 'ipcr'))->assertOk();
+        $this->get(route('reports.excel', 'ipcr'))->assertOk();
+        $this->assertSame(['preview', 'pdf', 'excel'], \App\Models\ReportGeneration::orderBy('id')->pluck('format')->all());
+        $this->get(route('reports.index'))->assertOk()->assertSee('Generation history / Audit log');
+        $this->assertDatabaseCount('report_generations', 3);
+        $this->actingAs($other->employee)->get(route('reports.index'))->assertOk()->assertSee('No reports generated yet.');
+        $this->actingAs($employee)->get(route('reports.pdf', 'opcr'))->assertForbidden();
+        $this->assertDatabaseCount('report_generations', 3);
+    }
+
     private function sampleReportData(): array
     {
         $employee = User::factory()->create(['name' => 'Report Employee']);

@@ -66,11 +66,14 @@ class IpcrManagementTest extends TestCase
 
         $approver = User::factory()->create();
         $approver->assignRole('Supervisor');
-        $ipcr = Ipcr::factoryLike()->create();
+        $employee = User::factory()->create(['office_id' => \App\Models\Office::factory()->create()->id]);
+        $approver->update(['office_id' => $employee->office_id]);
+        $ipcr = Ipcr::factoryLike()->create(['employee' => $employee, 'status' => Ipcr::STATUS_SUBMITTED]);
 
         $response = $this
             ->actingAs($approver)
-            ->patch(route('ipcrs.approve', $ipcr));
+            ->from(route('ipcrs.show', $ipcr))
+            ->patch(route('report-workflow.approve', ['type' => 'ipcr', 'report' => $ipcr->id]));
 
         $response->assertRedirect(route('ipcrs.show', $ipcr));
 
@@ -91,7 +94,7 @@ class IpcrManagementTest extends TestCase
 
         $response = $this
             ->actingAs($user)
-            ->patch(route('ipcrs.approve', $ipcr));
+            ->patch(route('report-workflow.approve', ['type' => 'ipcr', 'report' => $ipcr->id]));
 
         $response->assertForbidden();
         $this->assertSame(Ipcr::STATUS_DRAFT, $ipcr->fresh()->status);

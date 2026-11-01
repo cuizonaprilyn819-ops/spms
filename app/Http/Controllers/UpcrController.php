@@ -18,7 +18,7 @@ class UpcrController extends Controller
         $query = Upcr::with(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'dpcr.employee', 'employee', 'preparedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
         $user = request()->user();
         if ($user->hasRole('Supervisor')) {
-            $query->whereHas('employee', fn ($q) => $q->where('office_id', $user->office_id));
+            $query->whereHas('employee', fn ($q) => $q->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user)));
         }
         if ($user->hasRole('Campus Director') && $user->office?->campus) {
             $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
@@ -35,11 +35,12 @@ class UpcrController extends Controller
 
     public function create(): View
     {
-        abort_unless(request()->user()->hasRole('Supervisor') && request()->user()->office_id, 403);
+        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR Head']) && request()->user()->office_id, 403);
 
         return view('upcrs.create', [
             'dpcrs' => Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee'])
-                ->whereHas('opcr', fn ($query) => $query->where('office_id', request()->user()->office_id))
+                ->whereHas('opcr', fn ($query) => $query->whereIn('office_id', app(\App\Services\PlanningOrganization::class)->ancestors(request()->user()->office)))
+                ->whereHas('employee', fn ($query) => $query->whereIn('office_id', app(\App\Services\PlanningOrganization::class)->ancestors(request()->user()->office)))
                 ->orderByDesc('created_at')
                 ->get(),
             'employees' => request()->user()->reportAssignees()->with('office')->orderBy('name')->get(),
@@ -48,7 +49,7 @@ class UpcrController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasRole('Supervisor') && $request->user()->office_id, 403);
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR Head']) && $request->user()->office_id, 403);
         $data = $request->validate([
             'dpcr_id' => ['required', 'integer', Rule::exists('dpcrs', 'id')],
             'employee_id' => ['required', 'integer', Rule::exists('users', 'id')],
@@ -60,7 +61,8 @@ class UpcrController extends Controller
         $dpcr = Dpcr::with('opcr')->findOrFail($data['dpcr_id']);
         CommitmentPlanning::legacyOnly($dpcr->opcr->evaluationCycle);
         abort_unless($request->user()->reportAssignees()->whereKey($data['employee_id'])->exists(), 403);
-        abort_unless((int) $dpcr->opcr->office_id === (int) $request->user()->office_id, 403);
+        $path = app(\App\Services\PlanningOrganization::class)->ancestors($request->user()->office);
+        abort_unless(in_array((int) $dpcr->opcr->office_id, $path) && in_array((int) $dpcr->employee?->office_id, $path), 403);
 
         $request->validate([
             'employee_id' => [
@@ -69,10 +71,13 @@ class UpcrController extends Controller
             ],
         ]);
 
+        $dpcr->opcr->evaluationCycle->ensurePcrCreationOpen();
         $upcr = Upcr::create([
             ...$data,
             'prepared_by' => $request->user()->id,
         ]);
+
+        \App\Models\OfficeTarget::where('evaluation_cycle_id', $dpcr->opcr->evaluation_cycle_id)->whereHas('offices', fn ($q) => $q->whereKey($request->user()->office_id))->each(fn ($target) => app(\App\Services\TargetHierarchy::class)->linkAvailableUpcrs($target));
 
         return redirect()
             ->route('upcrs.show', $upcr)
@@ -87,6 +92,10 @@ class UpcrController extends Controller
             return redirect()->route('planning.show', $upcr->commitmentPlan);
         }
 
+        $viewer = request()->user();
+        if ($viewer->hasAnyRole(['Supervisor', 'HR Head']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
+            abort_unless(in_array((int) $upcr->employee?->office_id, app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer)), 403);
+        }
         return view('upcrs.show', [
             'upcr' => $upcr->load(['dpcr.opcr.evaluationCycle', 'dpcr.opcr.office', 'dpcr.employee', 'employee.office', 'preparedBy', 'approvedBy', 'statusHistories.actor']),
         ]);

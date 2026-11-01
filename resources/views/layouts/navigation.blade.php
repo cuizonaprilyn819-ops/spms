@@ -51,20 +51,20 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|HR|HR Head')
+                @hasanyrole('Administrator|HR|HR Head|Planning Officer')
                     <x-responsive-nav-link :href="route('evaluation-cycles.index')" :active="$routeIs('evaluation-cycles.*')">
                         {{ __('Evaluation Periods') }}
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|Campus Director')
+                @hasanyrole('Administrator|Campus Director|Planning Officer')
                     <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('target-documents.index')" :active="$routeIs('target-documents.*') || $routeIs('target-drafts.*')">
                         {{ __('Target Planning Documents') }}
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @unless(Auth::user()->hasAnyRole(['Administrator', 'Campus Director']))
+                @unless(Auth::user()->hasAnyRole(['Administrator', 'Campus Director', 'Planning Officer']))
                     <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
                 @endunless
 
@@ -80,8 +80,8 @@
                     </x-responsive-nav-link>
                 @endhasanyrole
 
-                @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor|Employee')
-                    @if(Auth::user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor']))
+                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee')
+                    @if(Auth::user()->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor']))
                         <x-responsive-nav-link :href="route('office-targets.index')" :active="$routeIs('office-targets.*')">
                             {{ __('Targets') }}
                         </x-responsive-nav-link>

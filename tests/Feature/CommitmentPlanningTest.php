@@ -205,6 +205,7 @@ class CommitmentPlanningTest extends TestCase
         $plan = $this->plan($office, 'opcr');
         $this->engine->addTarget($plan, $office->head, $this->data());
         $this->engine->submit($plan, $office->head);
+        $this->assertSame('commitment', $plan->report->submissionRecord()->sole()->phase);
         $plan->refresh();
         $this->actingAs($office->head)->post(route('planning.transition', [$plan, 'approve']))->assertForbidden();
         $this->actingAs($this->reviewer)->post(route('planning.transition', [$plan, 'approve']))->assertSessionHasErrors('planning');
@@ -419,6 +420,20 @@ class CommitmentPlanningTest extends TestCase
         DB::table('planning_drivers')->insert(['performance_target_id' => $source->id, 'office_id' => $division->id, 'name' => 'Requests', 'value' => 50, 'source' => 'Outdated input', 'valid_until' => today()->subDay()->toDateString(), 'confirmed_by' => $office->head_id]);
         $this->assertSame([], $this->engine->suggestion($source)['shares']);
         $this->assertArrayHasKey('requires_manual', $this->engine->suggestion($source));
+    }
+
+    public function test_personal_dashboard_counts_current_targets_without_their_projections(): void
+    {
+        [$office, $root, $source] = $this->root();
+        $division = $this->office('division', $office);
+        [$plan, $line] = $this->link($root, $source, $division, 'dpcr', 60);
+        $this->approve($plan);
+        $this->actingAs($division->head)->get(route('dashboard'))
+            ->assertOk()->assertViewHas('personalDashboard', fn ($data) => $data['assignedTargets'] === 1);
+        $this->engine->amend($plan, $division->head, 'Revise wording without duplicating assigned work');
+        $this->assertSame(2, $plan->report->performanceTargets()->count());
+        $this->get(route('dashboard'))->assertOk()
+            ->assertViewHas('personalDashboard', fn ($data) => $data['assignedTargets'] === 1);
     }
 
     public function test_document_drafts_enter_opcr_instead_of_assigning_directly(): void

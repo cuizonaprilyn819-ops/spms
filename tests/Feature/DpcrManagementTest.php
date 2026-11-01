@@ -18,10 +18,11 @@ class DpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
+        $office = Office::factory()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
         $user->assignRole('Supervisor');
-        $employee = User::factory()->create();
-        $opcr = Opcr::factoryLike()->create();
+        $employee = User::factory()->create(['office_id' => $office->id]);
+        $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
 
         $response = $this
             ->actingAs($user)
@@ -49,9 +50,9 @@ class DpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
-        $user->assignRole('Office Head');
-        $dpcr = Dpcr::factoryLike()->create();
+        $user = User::factory()->create(['office_id' => Office::factory()->create()->id]);
+        $user->assignRole('Supervisor');
+        $dpcr = Dpcr::factoryLike()->create(['employee' => $user]);
 
         $response = $this
             ->actingAs($user)
@@ -61,17 +62,18 @@ class DpcrManagementTest extends TestCase
         $response->assertSee($dpcr->title);
     }
 
-    public function test_office_heads_can_approve_dpcrs(): void
+    public function test_campus_directors_can_approve_dpcrs(): void
     {
         $this->seed(RoleSeeder::class);
 
         $approver = User::factory()->create();
-        $approver->assignRole('Office Head');
-        $dpcr = Dpcr::factoryLike()->create();
+        $approver->assignRole('Campus Director');
+        $dpcr = Dpcr::factoryLike()->create(['status' => Dpcr::STATUS_SUBMITTED]);
 
         $response = $this
             ->actingAs($approver)
-            ->patch(route('dpcrs.approve', $dpcr));
+            ->from(route('dpcrs.show', $dpcr))
+            ->patch(route('report-workflow.approve', ['type' => 'dpcr', 'report' => $dpcr->id]));
 
         $response->assertRedirect(route('dpcrs.show', $dpcr));
 
@@ -82,7 +84,7 @@ class DpcrManagementTest extends TestCase
         $this->assertNotNull($dpcr->approved_at);
     }
 
-    public function test_supervisors_cannot_approve_dpcrs(): void
+    public function test_supervisors_outside_the_office_cannot_approve_dpcrs(): void
     {
         $this->seed(RoleSeeder::class);
 
@@ -92,7 +94,7 @@ class DpcrManagementTest extends TestCase
 
         $response = $this
             ->actingAs($user)
-            ->patch(route('dpcrs.approve', $dpcr));
+            ->patch(route('report-workflow.approve', ['type' => 'dpcr', 'report' => $dpcr->id]));
 
         $response->assertForbidden();
         $this->assertSame(Dpcr::STATUS_DRAFT, $dpcr->fresh()->status);
@@ -102,10 +104,11 @@ class DpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
+        $office = Office::factory()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
         $user->assignRole('Supervisor');
-        $employee = User::factory()->create();
-        $opcr = Opcr::factoryLike()->create();
+        $employee = User::factory()->create(['office_id' => $office->id]);
+        $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
 
         Dpcr::create([
             'opcr_id' => $opcr->id,
@@ -133,7 +136,7 @@ class DpcrManagementTest extends TestCase
         $office = Office::factory()->create();
         $otherOffice = Office::factory()->create();
         $head = User::factory()->create(['office_id' => $office->id]);
-        $head->assignRole('Office Head');
+        $head->assignRole('Supervisor');
         $employee = User::factory()->create(['office_id' => $office->id]);
         $otherEmployee = User::factory()->create(['office_id' => $otherOffice->id]);
         $approvedOpcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED, 'title' => 'Assigned Office Target']);
@@ -159,7 +162,7 @@ class DpcrManagementTest extends TestCase
         $office = Office::factory()->create();
         $otherOffice = Office::factory()->create();
         $head = User::factory()->create(['office_id' => $office->id]);
-        $head->assignRole('Office Head');
+        $head->assignRole('Supervisor');
         $otherEmployee = User::factory()->create(['office_id' => $otherOffice->id]);
         $opcr = Opcr::factoryLike()->create(['office' => $office, 'status' => Opcr::STATUS_APPROVED]);
 

@@ -22,6 +22,13 @@
         <x-input-error :messages="$errors->get('description')" class="mt-2" />
     </div>
 
+    <div><x-input-label for="parent_office_id" value="Parent office (approving supervisor)" />
+        <select id="parent_office_id" name="parent_office_id" class="mt-1 block w-full rounded-lg border-gray-300"><option value="">No parent office</option>
+        @foreach(\App\Models\Office::where('is_active', true)->where('campus', $office?->campus ?? config('hinunangan.campus_id'))->whereKeyNot($office?->id ?? 0)->orderBy('name')->get() as $parent)
+            <option value="{{ $parent->id }}" @selected((int) old('parent_office_id', $office?->parent_office_id) === $parent->id)>{{ $parent->name }}</option>
+        @endforeach</select><x-input-error :messages="$errors->get('parent_office_id')" class="mt-2" />
+    </div>
+
     <div class="flex items-center justify-end gap-3">
         <a href="{{ route('offices.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Cancel</a>
         <x-primary-button>{{ $submit }}</x-primary-button>

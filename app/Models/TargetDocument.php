@@ -12,7 +12,7 @@ class TargetDocument extends Model
         return $this->belongsTo(EvaluationCycle::class);
     }
 
-    protected $fillable = ['created_by', 'evaluation_cycle_id', 'original_name', 'path', 'mime_type', 'status', 'summary', 'error'];
+    protected $fillable = ['created_by', 'evaluation_cycle_id', 'original_name', 'path', 'mime_type', 'status', 'summary', 'error', 'content_hash', 'analysis_token'];
 
     public function drafts(): HasMany
     {
