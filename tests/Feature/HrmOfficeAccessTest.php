@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Dpcr;
 use App\Models\Ipcr;
 use App\Models\Office;
 use App\Models\Opcr;
-use App\Models\Upcr;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,7 +49,7 @@ class HrmOfficeAccessTest extends TestCase
 
         $hrm = User::factory()->create();
         $hrm->assignRole('HRM Office II');
-        $office = Office::factory()->create();
+        $office = Office::factory()->activeForCampus()->create();
 
         $this
             ->actingAs($hrm)
@@ -59,7 +57,8 @@ class HrmOfficeAccessTest extends TestCase
             ->assertOk()
             ->assertSee('Employee')
             ->assertDontSee('<option value="Administrator"', false)
-            ->assertSee('Office Head');
+            ->assertSee('Supervisor')
+            ->assertDontSee('<option value="Office Head"', false);
 
         $this
             ->actingAs($hrm)

@@ -18,9 +18,9 @@ Personnel editing replaces the unsupported `orWhereKey` query with a bound `orWh
 
 - Production asset build, Blade compilation, PHP syntax checks, and 15 JavaScript tests pass.
 - A focused PostgreSQL run passes 79 tests with 497 assertions, including real PDF import with configured Poppler, archive ownership, revision protections, exports, planning, authentication/recovery, API responses, and the three new personnel-office regression tests.
-- The full PostgreSQL suite runs 264 tests: 17 unsuccessful tests are identical to the refreshed baseline (7 errors, 10 failures). One PDF-import test skips when Poppler paths are absent; the focused run supplies them and passes that test. The complete suite is not claimed to pass.
+- At the initial UI rollout, the full PostgreSQL suite ran 264 tests with 17 baseline problems (7 errors, 10 failures). The subsequent [test-suite reconciliation](test-suite-reconciliation.md) resolves these and passes all 266 tests, with Poppler configured and no skips.
 - Browser review covers desktop and mobile page families, role-specific creation/editing, historical owner restrictions, source-page switching, keyboard tabs, action labels, reduced motion, and form submissions.
 - Browser planning checks use a disposable database: a linked 60-of-100 commitment is submitted and independently approved, leaving 40 unallocated while the performance report remains separate.
 - No schema migration, role reassignment, period activation, external AI/email activation, or institutional data change is required by this release.
 
-Existing failures concern legacy role/fixture expectations, report preparation/attachments, IPCR management, and strategy/supervisor assignment. Their complete test identities are captured in the local comparison logs, rather than being removed or rewritten as part of this visual change.
+The initial failures concerned legacy role/fixture expectations, report preparation/attachments, IPCR management, and strategy/supervisor assignment. Their resolution and the retained permission boundaries are documented in the follow-up reconciliation.

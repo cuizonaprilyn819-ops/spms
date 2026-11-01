@@ -12,12 +12,12 @@ class ReportPreparationAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_each_role_can_only_open_its_own_report_preparation_form(): void
+    public function test_report_preparation_respects_current_roles_and_office_assignment(): void
     {
         $this->seed(RoleSeeder::class);
         $office = Office::factory()->create();
 
-        $users = collect(['Campus Director', 'Office Head', 'Supervisor', 'Employee', 'Administrator'])
+        $users = collect(['Campus Director', 'HR Head', 'Supervisor', 'Employee', 'Administrator', 'HR', 'HRM Office II', 'Planning Officer'])
             ->mapWithKeys(function (string $role) use ($office): array {
                 $user = User::factory()->create(['office_id' => $role === 'Administrator' ? null : $office->id]);
                 $user->assignRole($role);
@@ -26,22 +26,21 @@ class ReportPreparationAuthorizationTest extends TestCase
             });
 
         $allowed = [
-            'Campus Director' => 'opcrs.create',
-            'Office Head' => 'dpcrs.create',
-            'Supervisor' => 'upcrs.create',
-            'Employee' => 'ipcrs.create',
+            'Campus Director' => ['opcrs.create', 'ipcrs.create'],
+            'HR Head' => ['dpcrs.create', 'upcrs.create', 'ipcrs.create'],
+            'Supervisor' => ['dpcrs.create', 'upcrs.create', 'ipcrs.create'],
+            'Employee' => ['ipcrs.create'],
+            'Administrator' => [], // An administrator without an office cannot prepare a personal IPCR.
+            'HR' => ['ipcrs.create'],
+            'HRM Office II' => ['ipcrs.create'],
+            'Planning Officer' => ['ipcrs.create'],
         ];
 
-        foreach ($allowed as $role => $route) {
-            $this->actingAs($users[$role])->get(route($route))->assertOk();
-
-            foreach (array_diff(array_values($allowed), [$route]) as $forbiddenRoute) {
-                $this->actingAs($users[$role])->get(route($forbiddenRoute))->assertForbidden();
+        foreach ($allowed as $role => $routes) {
+            foreach (['opcrs.create', 'dpcrs.create', 'upcrs.create', 'ipcrs.create'] as $route) {
+                $response = $this->actingAs($users[$role])->get(route($route));
+                in_array($route, $routes, true) ? $response->assertOk() : $response->assertForbidden();
             }
-        }
-
-        foreach ($allowed as $route) {
-            $this->actingAs($users['Administrator'])->get(route($route))->assertForbidden();
         }
     }
 }

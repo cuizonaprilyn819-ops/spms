@@ -14,13 +14,13 @@ class OpcrManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_office_heads_can_create_opcrs_for_open_cycles(): void
+    public function test_campus_directors_can_create_opcrs_for_their_office_and_open_cycle(): void
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
-        $user->assignRole('Office Head');
-        $office = Office::factory()->create();
+        $office = Office::factory()->activeForCampus()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
+        $user->assignRole('Campus Director');
         $cycle = EvaluationCycle::create([
             'year' => 2025,
             'semester' => EvaluationCycle::FIRST_SEMESTER,
@@ -48,6 +48,11 @@ class OpcrManagementTest extends TestCase
             'status' => Opcr::STATUS_DRAFT,
             'prepared_by' => $user->id,
         ]);
+        $otherOffice = Office::factory()->activeForCampus()->create();
+        $this->post(route('opcrs.store'), [
+            'evaluation_cycle_id' => $cycle->id, 'office_id' => $otherOffice->id, 'title' => 'Wrong office OPCR',
+        ])->assertForbidden();
+        $this->assertDatabaseCount('opcrs', 1);
     }
 
     public function test_users_can_view_opcrs(): void
@@ -108,9 +113,9 @@ class OpcrManagementTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
 
-        $user = User::factory()->create();
-        $user->assignRole('Office Head');
-        $office = Office::factory()->create();
+        $office = Office::factory()->activeForCampus()->create();
+        $user = User::factory()->create(['office_id' => $office->id]);
+        $user->assignRole('Campus Director');
         $cycle = EvaluationCycle::create([
             'year' => 2025,
             'semester' => EvaluationCycle::FIRST_SEMESTER,
@@ -136,14 +141,14 @@ class OpcrManagementTest extends TestCase
         $response->assertSessionHasErrors('office_id');
     }
 
-    public function test_office_heads_only_see_targets_assigned_to_their_office(): void
+    public function test_supervisors_only_see_opcrs_for_their_office(): void
     {
         $this->seed(RoleSeeder::class);
 
         $office = Office::factory()->create();
         $otherOffice = Office::factory()->create();
         $head = User::factory()->create(['office_id' => $office->id]);
-        $head->assignRole('Office Head');
+        $head->assignRole('Supervisor');
         $assigned = Opcr::factoryLike()->create(['office' => $office, 'title' => 'Assigned Office OPCR']);
         $notAssigned = Opcr::factoryLike()->create([
             'office' => $otherOffice,

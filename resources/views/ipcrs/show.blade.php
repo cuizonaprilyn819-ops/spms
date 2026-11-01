@@ -19,6 +19,7 @@
 
             <x-report-lineage :report="$ipcr" type="ipcr" />
             <x-report-workflow :report="$ipcr" type="ipcr" />
+            <x-report-attachments :report="$ipcr" type="ipcr" />
             @if($ipcr->office_target_id)
                 <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                     <a href="{{ route('office-targets.show', $ipcr->office_target_id) }}#target-movs" class="font-semibold text-spms-navy underline">View Target MOV</a>

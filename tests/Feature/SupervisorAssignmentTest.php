@@ -2,7 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Office, User, Opcr, Dpcr, Upcr, Ipcr};
+use App\Models\Dpcr;
+use App\Models\Ipcr;
+use App\Models\Office;
+use App\Models\Opcr;
+use App\Models\Upcr;
+use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -42,7 +47,14 @@ class SupervisorAssignmentTest extends TestCase
             foreach ([$outsider, $admin] as $invalid) {
                 $this->post(route($type.'s.store'), array_replace($data, ['employee_id' => $invalid->id]))->assertForbidden();
             }
-            $this->actingAs($employee)->get(route($type.'s.index'))->assertOk()->assertSee('Updated assignment');
+            if ($type === 'ipcr') {
+                $this->actingAs($employee)->get(route('ipcrs.index'))->assertOk()->assertSee('Updated assignment');
+                $this->get(route('ipcrs.show', $report))->assertOk();
+            } else {
+                // An Employee assignment does not grant access to organisational UPCR administration.
+                $this->actingAs($employee)->get(route('upcrs.index'))->assertForbidden();
+                $this->get(route('upcrs.show', $report))->assertForbidden();
+            }
         }
     }
 }

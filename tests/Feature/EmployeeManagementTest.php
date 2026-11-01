@@ -62,7 +62,7 @@ class EmployeeManagementTest extends TestCase
 
         $user = User::factory()->create();
         $user->assignRole('HR');
-        $office = Office::factory()->create();
+        $office = Office::factory()->activeForCampus()->create();
 
         $response = $this
             ->actingAs($user)
@@ -90,7 +90,7 @@ class EmployeeManagementTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('Administrator');
         $employee = User::factory()->create();
-        $office = Office::factory()->create();
+        $office = Office::factory()->activeForCampus()->create();
 
         $response = $this
             ->actingAs($user)
@@ -98,7 +98,7 @@ class EmployeeManagementTest extends TestCase
                 'name' => 'Maria Office Head',
                 'email' => 'maria.office-head@example.com',
                 'office_id' => $office->id,
-                'role' => 'Office Head',
+                'role' => 'Supervisor',
                 'password' => '',
                 'password_confirmation' => '',
             ]);
@@ -109,7 +109,7 @@ class EmployeeManagementTest extends TestCase
 
         $this->assertSame('Maria Office Head', $employee->name);
         $this->assertSame($office->id, $employee->office_id);
-        $this->assertTrue($employee->hasRole('Office Head'));
+        $this->assertTrue($employee->hasRole('Supervisor'));
     }
 
     public function test_administrators_can_assign_operational_roles_but_not_administrator(): void
@@ -122,9 +122,11 @@ class EmployeeManagementTest extends TestCase
         $this->actingAs($administrator)->get(route('employees.create'))
             ->assertOk()
             ->assertSee('Campus Director')
-            ->assertSee('Office Head')
+            ->assertSee('HR Head')
+            ->assertSee('Planning Officer')
             ->assertSee('Employee')
             ->assertSee('Supervisor')
+            ->assertDontSee('<option value="Office Head"', false)
             ->assertDontSee('<option value="Administrator"', false);
 
         $this->actingAs($administrator)->post(route('employees.store'), [
@@ -134,6 +136,12 @@ class EmployeeManagementTest extends TestCase
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
         ])->assertSessionHasErrors('role');
+
+        $this->actingAs($administrator)->post(route('employees.store'), [
+            'name' => 'Obsolete role', 'email' => 'obsolete-role@example.test',
+            'role' => 'Office Head', 'password' => 'Password123!', 'password_confirmation' => 'Password123!',
+        ])->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => 'obsolete-role@example.test']);
     }
 
     public function test_administrator_role_cannot_be_assigned_through_employee_management(): void
