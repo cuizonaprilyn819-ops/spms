@@ -6,6 +6,7 @@ import { installDashboardRefresh } from './dashboard-refresh';
 import { aiChat } from './ai-chat';
 import { installWorkspaceUi } from './workspace-ui';
 import { installActionButtons } from './action-buttons';
+import { installWorkspacePages } from './workspace-pages';
 
 installWorkspaceUi();
 
@@ -50,3 +51,4 @@ Alpine.start();
 installBrowserApi(Alpine);
 installDashboardRefresh(Alpine);
 installActionButtons();
+installWorkspacePages();

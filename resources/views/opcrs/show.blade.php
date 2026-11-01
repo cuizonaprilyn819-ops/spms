@@ -17,6 +17,7 @@
                 </div>
             @endif
 
+            <x-report-lineage :report="$opcr" type="opcr" />
             <x-report-workflow :report="$opcr" type="opcr" />
             <x-report-attachments :report="$opcr" type="opcr" />
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

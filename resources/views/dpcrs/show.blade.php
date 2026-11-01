@@ -17,6 +17,7 @@
                 </div>
             @endif
 
+            <x-report-lineage :report="$dpcr" type="dpcr" />
             <x-report-workflow :report="$dpcr" type="dpcr" />
             <x-report-attachments :report="$dpcr" type="dpcr" />
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

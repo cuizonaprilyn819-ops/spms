@@ -1,4 +1,4 @@
-<div x-data="aiChat" data-endpoint="{{ route('assistant.chat') }}" class="fixed bottom-5 right-5 z-50" @keydown.escape.window="if (open) toggle()">
+<div x-data="aiChat" data-endpoint="{{ route('assistant.chat') }}" class="spms-assistant fixed bottom-5 right-5 z-50" @keydown.escape.window="if (open) toggle()">
     <section x-show="open" style="display: none" id="spms-ai-chat" aria-labelledby="spms-ai-title" class="mb-3 flex w-[calc(100vw-2.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl" role="region">
         <header class="flex items-center justify-between bg-spms-navy px-4 py-3 text-white">
             <div><h2 id="spms-ai-title" class="font-bold">SPMS Assistant</h2><p class="text-xs text-blue-100">Help with targets and reports</p></div>
@@ -21,7 +21,7 @@
                 <textarea id="ai-chat-message" x-ref="input" x-model="message" :disabled="busy" maxlength="4000" rows="2" placeholder="Ask about your work…" class="w-full resize-none rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                 <div class="mt-2 flex items-center justify-between">
                     <button type="button" @click="clear()" :disabled="busy" class="text-xs text-gray-500 disabled:opacity-50">Clear chat</button>
-                    <button type="submit" :disabled="busy || !message.trim()" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Send</button>
+                    <x-primary-button x-bind:disabled="busy || !message.trim()">Send</x-primary-button>
                 </div>
             </form>
             <p class="mt-2 text-[11px] text-gray-500">Messages are sent to OpenAI. Review AI suggestions before using them. Chat clears when you navigate away.</p>

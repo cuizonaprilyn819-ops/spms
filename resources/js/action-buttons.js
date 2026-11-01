@@ -33,11 +33,12 @@ export function actionForLabel(text) {
     if (/^(upload|attach|submit mov)\b/.test(label)) return 'upload';
     if (/^(download|export|get relevant)\b/.test(label)) return 'download';
     if (/^(pdf)\b/.test(label)) return 'document';
-    if (/^(excel)\b/.test(label)) return 'spreadsheet';
+    if (/^(excel|xlsx)\b/.test(label)) return 'spreadsheet';
+    if (/^(docx|word)\b/.test(label)) return 'document';
     if (/^(edit|amend|propose an amendment)\b/.test(label)) return 'edit';
     if (/^(approve|confirm|validate|verify|mark|enable)\b/.test(label) || /^record my agreement\b/.test(label)) return 'check';
     if (/^(save|update|record|finish)\b/.test(label)) return 'save';
-    if (/^(add|new|create|open a new)\b/.test(label)) return 'add';
+    if (/^(add|new|create|prepare|open a new)\b/.test(label)) return 'add';
     if (/^(send|submit|assign|resubmit|forward)\b/.test(label)) return 'send';
     if (/^(search)\b/.test(label)) return 'search';
     if (/^(filter|apply(?: filters)?)\b/.test(label)) return 'filter';
@@ -84,9 +85,11 @@ export function installActionButtons() {
         const tableScroll = control.closest('table')?.parentElement;
         if (tableScroll?.classList.contains('overflow-x-auto')) tableScroll.classList.add('spms-action-scroll');
         if (icon === 'delete' || icon === 'reject') control.classList.add('spms-action-danger');
-        else if (/(^|\s)bg-(spms-green|green-|emerald-)/.test(control.className)) control.classList.add('spms-action-success');
+        else if (icon === 'return') control.classList.add('spms-action-warning');
+        else if (/^(approve|confirm|validate|verify)\b/i.test(label) || /(^|\s)bg-(spms-green|green-|emerald-)/.test(control.className)) control.classList.add('spms-action-success');
         else if (/(^|\s)bg-amber-/.test(control.className)) control.classList.add('spms-action-warning');
-        else if (/(^|\s)bg-(spms-navy|blue-[6-9]00)/.test(control.className)) control.classList.add('spms-action-primary');
+        else if (/\bspms-button-primary\b/.test(control.className) || /(^|\s)bg-(spms-navy|blue-[6-9]00)/.test(control.className)) control.classList.add('spms-action-primary');
+        else if (['upload', 'download', 'document', 'spreadsheet'].includes(icon)) control.classList.add('spms-action-info');
         if (control.querySelector(':scope > .spms-action-label')) {
             control.querySelector('[data-action-generated] path')?.setAttribute('d', paths[icon]);
             if (active === control) show(control);

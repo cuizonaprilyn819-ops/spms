@@ -1,6 +1,5 @@
 <x-app-layout>
     <p data-dashboard-refresh role="status" class="px-6 pt-4 text-xs text-gray-500">Updates every 15 seconds while visible. Last loaded: {{ now()->format('H:i:s') }}</p>
-    @include('planning.dashboard')
     @php
         $user = Auth::user()->loadMissing(['office', 'roles']);
         $officeRoleLabel = ($user->office?->name ?? 'No Office Assigned').' - '.($user->roles->pluck('name')->join(', ') ?: 'No Role Assigned');
@@ -25,6 +24,8 @@
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <x-workspace-shortcuts />
+            @include('planning.dashboard')
             @role('Administrator')
                 @php
                     $palette = ['#34508e', '#22736d', '#a16207', '#b42318', '#526475', '#687b8e'];
@@ -51,9 +52,11 @@
                         </div>
                     </section>
 
-                    <section class="mt-10" aria-labelledby="system-charts">
+                    <details class="mt-6 rounded-lg border border-slate-200 bg-white p-5" aria-labelledby="system-charts">
+                        <summary class="cursor-pointer">
                         <h2 id="system-charts" class="text-lg font-bold text-spms-ink">System distributions</h2>
                         <p class="mt-1 text-sm text-slate-500">Counts and shares for each category.</p>
+                        </summary>
                         <div class="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                             @foreach($charts as $chart)
                                 @php
@@ -85,7 +88,7 @@
                                 </article>
                             @endforeach
                         </div>
-                    </section>
+                    </details>
                 </div>
             @else
             @php

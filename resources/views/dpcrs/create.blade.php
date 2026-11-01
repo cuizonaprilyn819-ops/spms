@@ -1,19 +1,19 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Assign Office Target') }}</h2>
+        <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Create DPCR') }}</h2>
     </x-slot>
 
     <div class="py-8">
         <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    Select an approved target assigned to your office, then delegate it to an employee from the same office.
+                    Select the approved parent OPCR, then identify the personnel responsible for this division report.
                 </div>
                 <form method="POST" action="{{ route('dpcrs.store') }}" class="space-y-6">
                     @csrf
 
                     <div>
-                        <x-input-label for="opcr_id" :value="__('Office Target From Above')" />
+                        <x-input-label for="opcr_id" :value="__('Approved Parent OPCR')" />
                         <select id="opcr_id" name="opcr_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
                             <option value="">Select an approved office target</option>
                             @foreach ($opcrs as $opcr)
@@ -26,7 +26,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="employee_id" :value="__('Assign To Employee')" />
+                        <x-input-label for="employee_id" :value="__('Responsible Personnel')" />
                         <select id="employee_id" name="employee_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
                             <option value="">Select employee</option>
                             @foreach ($employees as $employee)

@@ -33,7 +33,7 @@
 
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table data-workspace-table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-spms-surface">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Office</th>

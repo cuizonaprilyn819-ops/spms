@@ -14,10 +14,12 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <section class="mb-10" aria-labelledby="historical-pcr-heading">
+            <nav class="spms-page-tabs" data-workspace-tabs data-workspace-default="{{ $selectedType ? '#finished-report-forms' : '#current-report-forms' }}" aria-label="Report sections"><a href="#current-report-forms">Current PCRs</a><a href="#historical-report-forms">Historical &amp; related PCRs</a><a href="#finished-report-forms">Finished reports</a><a href="#report-generation-history">Generation history</a></nav>
+            <section id="historical-report-forms" class="mb-10" aria-labelledby="historical-pcr-heading">
                 <div class="flex flex-wrap items-end justify-between gap-3"><div><h3 id="historical-pcr-heading" class="text-lg font-bold text-spms-ink">Historical PCRs</h3><p class="mt-1 text-sm text-slate-500">Your original forms and the PCRs on which you are a named reviewer.</p></div><a class="inline-flex rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-spms-navy" href="{{ route('historical-pcrs.index') }}">View historical PCRs</a></div>
                 @include('historical-pcrs.cards', ['items' => $historicalPcrs->take(4)])
             </section>
+            <div id="current-report-forms">
             <p class="mb-4 text-sm text-slate-500">Generate reports anytime, before or after the evaluation period. Unrecorded accomplishments remain blank. All generations are logged.</p>
             <div class="mb-6 flex flex-wrap gap-3">
                 @foreach($reports as $type => $title)
@@ -56,7 +58,8 @@
                     @endforeach
                 </div>
             </section>
-            <section class="mb-10" aria-labelledby="generation-history-heading">
+            </div>
+            <section id="report-generation-history" class="mb-10" aria-labelledby="generation-history-heading">
                 <h3 id="generation-history-heading" class="text-lg font-bold text-spms-ink">Generation history / Audit log</h3>
                 <p class="mt-1 text-sm text-slate-500">Your report generations, with a saved snapshot of the content at generation time.</p>
                 <ul class="mt-4 divide-y divide-slate-200 rounded-lg bg-white p-4">
@@ -68,7 +71,7 @@
                 </ul>
                 <div class="mt-3">{{ $generationHistory->withQueryString()->links() }}</div>
             </section>
-            <section aria-labelledby="finished-reports-heading">
+            <section id="finished-report-forms" aria-labelledby="finished-reports-heading">
                 <div class="flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <h3 id="finished-reports-heading" class="text-lg font-bold text-spms-ink">Finished reports</h3>

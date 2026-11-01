@@ -13,9 +13,9 @@
                     <p class="text-xs font-bold uppercase tracking-widest text-spms-navy">University wide</p>
                     <p class="mt-1 text-sm text-gray-600">{{ $evaluations->total() }} {{ \Illuminate\Support\Str::plural('target evaluation', $evaluations->total()) }} · {{ $ratedIpcrCount }} rated {{ \Illuminate\Support\Str::plural('IPCR', $ratedIpcrCount) }} · {{ $unratedIpcrCount }} approved without scores</p>
                 </div>
-                <form method="GET" action="{{ route('ratings.index') }}" class="flex items-center gap-2">
+                <form method="GET" action="{{ route('ratings.index') }}" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <label for="role" class="text-sm font-semibold text-spms-ink">Show</label>
-                    <select id="role" name="role" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm text-spms-ink focus:border-spms-navy focus:ring-spms-navy">
+                    <select id="role" name="role" onchange="this.form.submit()" class="min-w-0 max-w-full rounded-lg border-gray-300 text-sm text-spms-ink focus:border-spms-navy focus:ring-spms-navy">
                         <option value="" @selected(!$role)>Employees and supervisors</option>
                         <option value="Employee" @selected($role === 'Employee')>Employees</option>
                         <option value="Supervisor" @selected($role === 'Supervisor')>Supervisors</option>

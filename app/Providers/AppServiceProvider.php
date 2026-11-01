@@ -36,6 +36,15 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with('unreadCount', $request->attributes->get('navigationUnreadCount'));
         });
+        \Illuminate\Support\Facades\View::composer('components.period-reference', function ($view) {
+            $request = request();
+            if (! $request->attributes->has('workspaceCurrentPeriod')) {
+                $request->attributes->set('workspaceCurrentPeriod', \App\Models\EvaluationCycle::query()
+                    ->where('status', \App\Models\EvaluationCycle::STATUS_OPEN)
+                    ->orderByDesc('opened_at')->orderByDesc('id')->first());
+            }
+            $view->with('currentPeriod', $request->attributes->get('workspaceCurrentPeriod'));
+        });
         // Pagination in API-rendered screens should still support opening a new browser tab.
         \Illuminate\Pagination\Paginator::currentPathResolver(function () {
             return request()->routeIs('api.*')

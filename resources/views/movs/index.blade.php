@@ -22,7 +22,7 @@
             </section>
             <h3 class="mb-3 text-lg font-bold text-spms-ink">Assigned Office Target Evidence</h3>
             <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table data-workspace-table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50"><tr>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-500">TARGET</th>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-500">UPLOADED BY</th>

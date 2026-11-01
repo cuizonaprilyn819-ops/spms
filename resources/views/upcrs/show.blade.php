@@ -25,6 +25,7 @@
                     </article>
                 @empty<p class="mt-2 text-sm">No office targets linked to this UPCR yet.</p>@endforelse
             </section>
+            <x-report-lineage :report="$upcr" type="upcr" />
             <x-report-workflow :report="$upcr" type="upcr" />
             <x-report-attachments :report="$upcr" type="upcr" />
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

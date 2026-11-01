@@ -118,7 +118,7 @@ class EmployeeController extends Controller
         return [
             'offices' => Office::query()->where(function ($query) use ($employee) {
                 $query->where(fn ($active) => $active->forCampus());
-                if ($employee?->office_id) $query->orWhereKey($employee->office_id);
+                if ($employee?->office_id) $query->orWhere('id', $employee->office_id);
             })->orderBy('name')->get(),
             'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
             'roles' => Role::query()
