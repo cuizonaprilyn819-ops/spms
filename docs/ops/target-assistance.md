@@ -36,7 +36,10 @@ php artisan queue:work target-assistance --queue=target-assistance --sleep=2 --t
 On this local workstation, add `-d extension=pdo_pgsql` before `artisan` if PHP's
 PostgreSQL extension is not enabled globally. The dedicated connection has a
 300-second retry interval. It does not process existing mail/reminder queues.
-Use **Retry conflict check** for failed/outdated checks. Restart this worker after
+Use **Retry conflict check** for failed/outdated checks. A pending check older than
+10 minutes expires on retry, so a stopped worker cannot leave approval blocked
+indefinitely; an independent reviewer can then record a manual review.
+Restart this worker after
 deploying code. Monitor failed jobs and the application log; do not log API keys or
 export assistance snapshots to Git.
 

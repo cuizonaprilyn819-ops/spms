@@ -45,6 +45,7 @@ class OfficeTargetProgressTest extends TestCase
         $this->actingAs($head)->get(route('dashboard'))->assertOk()->assertSee('100%')
             ->assertViewHas('personalDashboard', fn ($data) => $data['progress']['In progress'] === 0 && $data['progress']['Completed'] === 1);
         $this->actingAs($employee)->patch(route('target-movs.complete', $target))->assertRedirect();
+        $this->assertEquals(3, $target->assignedEmployees()->whereKey($employee->id)->first()->pivot->completed_value);
         $this->assertEquals(100, app(OfficeTargetProgress::class)->forUser($head)->sole()['percent']);
     }
 

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class TargetConflictReview
 {
@@ -61,6 +62,9 @@ class TargetConflictReview
         $context = $this->context($subject, $actor);
         $kind = $this->subjects->kind($subject);
         $existing = TargetConflictScan::where('subject_kind', $kind)->where('subject_id', $subject->id)->where('fingerprint', $context['fingerprint'])->where(fn ($q) => $q->where('user_id', $actor->id)->orWhere('published', true))->latest('id')->first();
+        if ($existing?->status === 'pending' && $existing->updated_at->lt(now()->subMinutes(10))) {
+            $existing->update(['status' => 'failed', 'failure' => 'The background check exceeded its processing window. Retry or record a manual conflict review.', 'finished_at' => now()]);
+        }
         if ($existing && (! $ai || in_array($existing->status, ['pending', 'completed'], true))) {
             if ($publish && ! $existing->published) {
                 $existing->update(['published' => true]);
@@ -193,7 +197,7 @@ class TargetConflictReview
                     }
                     $this->finding($mirror, 'ai', $finding->only(['code', 'title', 'explanation', 'recommendation', 'references', 'blocking']));
                     $this->notify($mirror->fresh());
-                } catch (ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                } catch (ModelNotFoundException|HttpExceptionInterface) {
                     continue;
                 }
             }

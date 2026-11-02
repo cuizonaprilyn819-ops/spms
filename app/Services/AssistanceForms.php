@@ -77,7 +77,7 @@ class AssistanceForms
             if ($kind === 'proposal') {
                 abort_unless((int) ($values['office_id'] ?? 0) === (int) $u->office_id || $u->hasRole('Administrator'), 403);
             }
-            if (! empty($values['evaluation_cycle_id'])) {
+            if ($edit && ! empty($values['evaluation_cycle_id'])) {
                 $cycle = EvaluationCycle::findOrFail($values['evaluation_cycle_id']);
                 abort_unless($cycle->isOpen(), 422, 'This evaluation period is closed.');
             }

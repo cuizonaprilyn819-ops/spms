@@ -249,6 +249,19 @@ class TargetAssistanceReviewTest extends TestCase
         $this->assertNotNull($scan->fresh()->failure);
     }
 
+    public function test_abandoned_pending_check_can_be_retried_and_manually_reviewed(): void
+    {
+        $reviews = app(TargetConflictReview::class);
+        $stuck = $reviews->scan($this->plan, $this->owner(), false, true);
+        $stuck->update(['status' => 'pending', 'updated_at' => now()->subMinutes(11)]);
+        $retry = $reviews->scan($this->plan, $this->owner(), true, true);
+        $this->assertSame('failed', $stuck->fresh()->status);
+        $this->assertNotSame($stuck->id, $retry->id);
+        $this->assertSame('failed', $retry->status);
+        $reviews->disposition($retry, $this->reviewer, 'manual-review', 'Checked current quantities and target relationships after the worker stopped.');
+        $reviews->assertApproval($this->plan->fresh(), $this->reviewer);
+    }
+
     public function test_api_rephrasing_uses_the_existing_rendered_page_contract(): void
     {
         $this->mock(AiAssistant::class, fn ($m) => $m->shouldReceive('draft')->once()->andReturn('Deploy 2 exchange students abroad'));
