@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'target_assistance' => ['enabled' => env('SPMS_TARGET_ASSISTANCE_ENABLED', true)],
     'ai' => [
         'enabled' => env('SPMS_AI_ENABLED', false),
         'api_key' => env('OPENAI_API_KEY'),

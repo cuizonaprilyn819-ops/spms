@@ -1,0 +1,8 @@
+.spms-assistance-dialog { width:min(58rem,calc(100vw - 2rem)); max-height:calc(100dvh - 3rem); overflow:auto; border:1px solid #dce1eb; border-radius:1rem; padding:1.5rem; color:#26344c; background:white; box-shadow:0 16px 56px #11163f30; }
+.spms-assistance-dialog::backdrop { background:#11163f80; }
+.spms-rephrase-button { display:inline-flex; margin:.5rem 0; vertical-align:middle; }
+.spms-assistance-dialog button { min-height:2.5rem; padding:.5rem .85rem; border-radius:.5rem; border:1px solid #c8c9f5; color:#4645ae; background:#f0efff; }
+.spms-assistance-dialog button:focus-visible,.spms-rephrase-button:focus-visible { outline:3px solid #5f61e6; outline-offset:3px; }
+.spms-assistance-dialog[aria-busy="true"] [data-assistance-content] { border-left:3px solid #5f61e6; padding-left:1rem; }
+@media (max-width:640px) { .spms-assistance-dialog { padding:1rem; } }
+@media (prefers-reduced-motion:reduce) { .spms-assistance-dialog *, .spms-rephrase-button * { animation:none!important; transition:none!important; } }

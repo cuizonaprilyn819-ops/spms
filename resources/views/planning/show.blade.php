@@ -77,6 +77,7 @@
 @include('planning.target-fields',['line'=>$t,'scopePayload'=>$t->scope_metadata ? ['quantity'=>$t->scope_metadata['entered_quantity']] : []])
 @if($t->scope_metadata)@include('planning.scope-fields',['scope'=>$t->scope_metadata])@endif
 @else
+<label>Local target wording<input name="local_target" maxlength="255" value="{{ $t->target }}"></label>
 <label>Current parent target<select name="source_target_id">
 @foreach($sources->where('eligible',true) as $src)<option value="{{ $src['target']->id }}"
 @selected($t->parent_target_id===$src['target']->id)>#{{ $src['target']->id }} {{ $src['target']->target }}</option>

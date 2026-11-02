@@ -191,6 +191,10 @@ class CommitmentPlanningController extends Controller
                     $data['quantity'] = $source->quantity;
                 }
                 $data += ['scope_metadata' => $source->scope_metadata, 'parent_target_id' => $source->id, 'source_revision' => $plan->parent->revision, 'needs_reconciliation' => false, 'allocation_basis' => ['override_reason' => $data['override_reason'], 'confirmed_by' => $r->user()->id, 'suggestion' => $this->planning->suggestion($source)]];
+                $local = $r->validate(['local_target' => ['nullable', 'string', 'max:255']]);
+                if (isset($local['local_target'])) {
+                    $data['target'] = $local['local_target'];
+                }
                 unset($data['source_target_id'], $data['override_reason']);
             }
             if (($data['whole_numbers'] ?? true) && $data['measurement'] === 'count' && floor((float) $data['quantity']) !== (float) $data['quantity']) {

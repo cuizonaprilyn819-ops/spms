@@ -40,6 +40,7 @@
                 <!-- Page Content -->
                 <main id="main-content" tabindex="-1">
                     {{ $slot }}
+                    <x-target-assistance />
                 </main>
                 <footer class="spms-workspace-footer"><span>SLSU SPMS</span><span>Institution-wide performance management</span></footer>
             </div>

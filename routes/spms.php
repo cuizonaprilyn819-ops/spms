@@ -35,7 +35,12 @@ Route::pattern('office_target', '[0-9]+');
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class])->group(function () {
+    Route::post('target-assistance/preview', [\App\Http\Controllers\TargetAssistanceController::class, 'preview'])->middleware('throttle:10,1')->name('target-assistance.preview');
+    Route::get('target-conflicts', [\App\Http\Controllers\TargetConflictController::class, 'index'])->name('target-conflicts.index');
+    Route::post('target-conflicts/scans', [\App\Http\Controllers\TargetConflictController::class, 'scan'])->middleware('throttle:5,1')->name('target-conflicts.scan');
+    Route::get('target-conflicts/scans/{scan}', [\App\Http\Controllers\TargetConflictController::class, 'show'])->name('target-conflicts.show');
+    Route::post('target-conflicts/scans/{scan}/dispositions', [\App\Http\Controllers\TargetConflictController::class, 'disposition'])->name('target-conflicts.disposition');
     Route::get('planning-campuses', [PlanningCampusController::class, 'index'])->name('planning.campuses');
     Route::post('planning-campuses', [PlanningCampusController::class, 'campus'])->name('planning.campus-store');
     Route::post('planning-campuses/offices', [PlanningCampusController::class, 'office'])->name('planning.campus-office');

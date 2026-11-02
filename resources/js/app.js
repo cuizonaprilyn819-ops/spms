@@ -1,5 +1,7 @@
 import './bootstrap';
 import '../css/semantic-ui.css';
+import '../css/target-assistance.css';
+import { installTargetAssistance } from './target-assistance';
 
 import Alpine from 'alpinejs';
 import { installBrowserApi } from './browser-api';
@@ -53,3 +55,4 @@ installBrowserApi(Alpine);
 installDashboardRefresh(Alpine);
 installActionButtons();
 installWorkspacePages();
+installTargetAssistance();

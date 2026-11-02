@@ -20,6 +20,7 @@
                 <p class="spms-nav-heading">Performance work</p>
 @role('Administrator')<x-responsive-nav-link :href="route('planning.campuses')" :active="$routeIs('planning.campuses')">Campuses &amp; planning access</x-responsive-nav-link>@endrole
                 <x-responsive-nav-link :href="route('planning.index')" :active="$routeIs('planning.*')">Commitment Planning</x-responsive-nav-link>
+                @if(config('spms.target_assistance.enabled'))<x-responsive-nav-link :href="route('target-conflicts.index')" :active="$routeIs('target-conflicts.*')">Target conflicts</x-responsive-nav-link>@endif
                 @hasanyrole('Administrator|Planning Officer')
                     <x-responsive-nav-link :href="route('target-documents.index')" :active="$routeIs('target-documents.*', 'target-drafts.*')">Planning Documents</x-responsive-nav-link>
                 @endhasanyrole

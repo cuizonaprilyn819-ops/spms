@@ -12,6 +12,7 @@ use App\Notifications\ReportWorkflowNotification;
 use App\Services\CommitmentPlanning;
 use App\Services\PcrCompliance;
 use App\Services\PlanningOrganization;
+use App\Services\TargetConflictReview;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,9 @@ class ReportWorkflowController extends Controller
             'resubmission_count' => $from === $form::STATUS_RETURNED ? $form->resubmission_count + 1 : $form->resubmission_count,
         ]);
         $this->reviewers($form)->each->notify(new ReportWorkflowNotification(strtoupper($type), $form, $to));
+        if (config('spms.target_assistance.enabled') && ! $form->commitmentPlan) {
+            DB::afterCommit(fn () => app(TargetConflictReview::class)->scan($form->fresh(), $request->user(), true, true));
+        }
 
         return back()->with('status', strtoupper($type).' submitted for review.');
     }

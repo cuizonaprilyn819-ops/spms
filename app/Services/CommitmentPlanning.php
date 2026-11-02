@@ -262,7 +262,7 @@ class CommitmentPlanning
         return [...$this->allocation->suggest((float) $parent->quantity, $drivers, $parent->whole_numbers), 'drivers' => $drivers];
     }
 
-    private function reviewedShares(PerformanceTarget $source, ?int $exceptPlan = null): float
+    public function reviewedShares(PerformanceTarget $source, ?int $exceptPlan = null): float
     {
         $ids = [$source->id];
         $old = $source;
@@ -297,6 +297,9 @@ class CommitmentPlanning
             app(PcrCompliance::class)->recordSubmission($plan->report, 'commitment');
             $this->event($plan, $actor, 'Commitments submitted');
             $plan->reviewer->notify(new PlanningNotification($plan, 'Commitments are ready for your review.'));
+            if (config('spms.target_assistance.enabled')) {
+                DB::afterCommit(fn () => app(TargetConflictReview::class)->scan($plan->fresh(), $actor, true, true));
+            }
         });
     }
 
@@ -320,6 +323,7 @@ class CommitmentPlanning
                 $this->fail('Record the named PMT review and university approval evidence first.');
             }
             $awaitingParent = $plan->parent_id && $plan->parent->state !== 'approved';
+            app(TargetConflictReview::class)->assertApproval($plan, $actor);
             if ($plan->targets->groupBy('root_target_id')->contains(fn ($lines) => $lines->count() > 1)) {
                 $this->fail('Keep one target line per OPCR source lineage in each plan.');
             }

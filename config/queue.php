@@ -30,6 +30,14 @@ return [
     */
 
     'connections' => [
+        'target-assistance' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => 'jobs',
+            'queue' => 'target-assistance',
+            'retry_after' => 300,
+            'after_commit' => true,
+        ],
 
         'sync' => [
             'driver' => 'sync',

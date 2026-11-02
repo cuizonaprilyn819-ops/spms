@@ -24,6 +24,7 @@ const paths = {
 
 export function actionForLabel(text) {
     const label = text.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (/^(rephrase with ai|use suggestion|try again|keep original|check target conflicts|record reviewer response|record manual conflict review)/.test(label)) return /rephrase|try again/.test(label) ? 'suggest' : (/keep original/.test(label) ? 'back' : 'check');
     if (/^(delete|remove)\b/.test(label)) return 'delete';
     if (/^(reject|revoke)\b/.test(label)) return 'reject';
     if (/^(reset password|request password|change password|reset your password)\b/.test(label)) return 'key';
