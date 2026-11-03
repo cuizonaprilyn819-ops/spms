@@ -18,7 +18,7 @@ class TargetDuplicationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $director;
+    private User $planner;
 
     private EvaluationCycle $cycle;
 
@@ -27,7 +27,7 @@ class TargetDuplicationTest extends TestCase
         parent::setUp();
         $this->seed(RoleSeeder::class);
         Storage::fake('local');
-        $this->director = User::factory()->create()->assignRole('Campus Director');
+        $this->planner = User::factory()->create()->assignRole('Planning Officer');
         $this->cycle = EvaluationCycle::create(['year' => 2028, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
     }
 
@@ -41,9 +41,9 @@ class TargetDuplicationTest extends TestCase
 
     public function test_identical_reuploads_reuse_the_document_and_remove_the_unused_file(): void
     {
-        $this->upload($this->director, $this->cycle, 'original.pdf', 'Same source');
+        $this->upload($this->planner, $this->cycle, 'original.pdf', 'Same source');
         $document = TargetDocument::sole();
-        $this->upload($this->director, $this->cycle, 'renamed.pdf', 'Same source');
+        $this->upload($this->planner, $this->cycle, 'renamed.pdf', 'Same source');
         $this->assertDatabaseCount('target_documents', 1);
         $this->assertCount(1, Storage::disk('local')->allFiles('target-documents'));
         $this->assertSame($document->path, TargetDocument::sole()->path);
@@ -52,19 +52,19 @@ class TargetDuplicationTest extends TestCase
 
     public function test_changed_content_different_owners_and_different_periods_remain_separate(): void
     {
-        $this->upload($this->director, $this->cycle, 'source.pdf', 'Same source');
-        $this->upload($this->director, $this->cycle, 'source.pdf', 'Revised source');
-        $other = User::factory()->create()->assignRole('Campus Director');
+        $this->upload($this->planner, $this->cycle, 'source.pdf', 'Same source');
+        $this->upload($this->planner, $this->cycle, 'source.pdf', 'Revised source');
+        $other = User::factory()->create()->assignRole('Planning Officer');
         $this->upload($other, $this->cycle, 'source.pdf', 'Same source');
         $nextCycle = EvaluationCycle::create(['year' => 2029, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
-        $this->upload($this->director, $nextCycle, 'source.pdf', 'Same source');
+        $this->upload($this->planner, $nextCycle, 'source.pdf', 'Same source');
         $this->assertDatabaseCount('target_documents', 4);
         $this->assertCount(4, Storage::disk('local')->allFiles('target-documents'));
     }
 
     public function test_superseded_analysis_cannot_append_drafts_or_overwrite_newer_results(): void
     {
-        $this->upload($this->director, $this->cycle, 'source.pdf', 'Source');
+        $this->upload($this->planner, $this->cycle, 'source.pdf', 'Source');
         $document = TargetDocument::sole();
         $this->mock(TargetDocumentAi::class, function ($mock) use ($document) {
             $mock->shouldReceive('analyze')->once()->andReturnUsing(function () use ($document) {
@@ -75,14 +75,14 @@ class TargetDuplicationTest extends TestCase
                 return ['targets' => [['title' => 'Stale target']], 'summary' => 'Stale result'];
             });
         });
-        $this->actingAs($this->director)->post(route('target-documents.analyze', $document))->assertRedirect();
+        $this->actingAs($this->planner)->post(route('target-documents.analyze', $document))->assertRedirect();
         $this->assertSame('Newer result', $document->fresh()->summary);
         $this->assertSame('Newer target', $document->drafts()->sole()->proposal['title']);
     }
 
     public function test_superseded_analysis_failure_cannot_mark_newer_results_failed(): void
     {
-        $this->upload($this->director, $this->cycle, 'source.pdf', 'Source');
+        $this->upload($this->planner, $this->cycle, 'source.pdf', 'Source');
         $document = TargetDocument::sole();
         $this->mock(TargetDocumentAi::class, function ($mock) use ($document) {
             $mock->shouldReceive('analyze')->once()->andReturnUsing(function () use ($document) {
@@ -90,27 +90,27 @@ class TargetDuplicationTest extends TestCase
                 throw new \RuntimeException('Stale provider failure');
             });
         });
-        $this->actingAs($this->director)->post(route('target-documents.analyze', $document))->assertRedirect();
+        $this->actingAs($this->planner)->post(route('target-documents.analyze', $document))->assertRedirect();
         $this->assertSame('review', $document->fresh()->status);
         $this->assertNull($document->fresh()->error);
     }
 
     public function test_planning_projections_do_not_duplicate_report_targets_in_the_list(): void
     {
-        $this->director->assignRole('Administrator');
+        $this->planner->assignRole('Administrator');
         $source = PerformanceTarget::factoryLike()->create();
         $projection = new OfficeTarget;
         $projection->forceFill([
             'performance_target_id' => $source->id, 'evaluation_cycle_id' => $this->cycle->id,
             'title' => $source->target, 'success_indicator' => $source->success_indicator,
             'target_value' => 100, 'unit_of_measure' => 'requests', 'weight' => 25,
-            'deadline' => '2028-06-30', 'created_by' => $this->director->id,
+            'deadline' => '2028-06-30', 'created_by' => $this->planner->id,
         ])->save();
         $legacy = $projection->replicate();
         $legacy->performance_target_id = null;
         $legacy->title = 'Separate legacy target';
         $legacy->save();
-        $this->actingAs($this->director)->get(route('performance-targets.index'))
+        $this->actingAs($this->planner)->get(route('performance-targets.index'))
             ->assertOk()
             ->assertViewHas('officeTargets', fn ($targets) => $targets->total() === 1 && $targets->first()->is($legacy))
             ->assertViewHas('targets', fn ($targets) => $targets->contains('id', $source->id));

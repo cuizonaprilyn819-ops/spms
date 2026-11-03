@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\EvaluationCycle;
+use App\Models\Office;
 use App\Models\StrategicGoal;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -60,14 +62,14 @@ class StrategicPlanningTest extends TestCase
     public function test_objective_list_supports_multiple_objectives_and_targets(): void
     {
         $this->seed(RoleSeeder::class);
-        $director = User::factory()->create();
-        $director->assignRole('Campus Director');
-        $goal = StrategicGoal::create(['title' => 'HR Development', 'description' => '', 'created_by' => $director->id]);
-        $office = \App\Models\Office::factory()->create();
-        $cycle = \App\Models\EvaluationCycle::create([
+        $planner = User::factory()->create();
+        $planner->assignRole('Planning Officer');
+        $goal = StrategicGoal::create(['title' => 'HR Development', 'description' => '', 'created_by' => $planner->id]);
+        $office = Office::factory()->activeForCampus()->create();
+        $cycle = EvaluationCycle::create([
             'year' => 2026, 'semester' => '2nd Semester', 'status' => 'open',
         ]);
-        $this->actingAs($director);
+        $this->actingAs($planner);
         foreach (['Develop employee skills', 'Improve personnel records'] as $title) {
             $this->post(route('strategic-objectives.store', $goal), compact('title'))
                 ->assertRedirect(route('strategic-objectives.create', $goal));
@@ -92,8 +94,9 @@ class StrategicPlanningTest extends TestCase
         foreach ($objectives as $objective) {
             $page->assertSee(route('office-targets.create', ['strategic_objective_id' => $objective->id]), false);
             $this->get(route('office-targets.create', ['strategic_objective_id' => $objective->id]))
-                ->assertOk()->assertViewHas('preselectedObjectiveId', $objective->id);
+                ->assertRedirect(route('target-documents.index'));
         }
+        $this->get(route('target-documents.index'))->assertOk()->assertSee('Upload a target planning document');
         $otherDirector = User::factory()->create();
         $otherDirector->assignRole('Campus Director');
         $this->actingAs($otherDirector)->get(route('strategic-objectives.create', $goal))->assertForbidden();

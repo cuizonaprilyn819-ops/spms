@@ -2,7 +2,7 @@
     <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Analyze and Review Targets</h2></x-slot>
     <div class="mx-auto max-w-5xl space-y-5 px-4 py-8">
         <a href="{{ route('target-documents.index') }}" class="text-sm font-semibold text-spms-navy">← Your documents</a>
-        @if(session('status'))<p role="status" class="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">{{ session('status') }}</p>@endif
+        @if(session('status'))<p role="status" class="spms-alert rounded-lg bg-blue-50 p-4 text-sm text-blue-900" data-tone="info">{{ session('status') }}</p>@endif
         <section class="rounded-xl border border-gray-200 bg-white p-6">
             <h1 class="break-all text-xl font-bold">{{ $document->original_name }}</h1>
             <form method="POST" action="{{ route('target-documents.destroy', $document) }}" class="mt-3" x-data @submit="if (!window.confirm('Delete this document and its extracted drafts? Previously assigned targets will be kept.')) $event.preventDefault()">
@@ -12,7 +12,7 @@
             </form>
             <a href="{{ route('target-documents.download', $document) }}" class="mt-2 inline-block text-sm font-semibold text-spms-navy">Download original document</a>
             @if($errors->any())<div role="alert" class="mt-3 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
-            @if($document->error)<p role="alert" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ $document->error }}</p>@endif
+            @if($document->error)<p role="alert" class="spms-alert mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" data-tone="danger">{{ $document->error }}</p>@endif
             @if($document->status !== 'review')
                 <form method="POST" action="{{ route('target-documents.analyze', $document) }}" class="mt-5" x-data="{ busy: false }" @submit="busy = true">
                     @csrf
@@ -57,6 +57,6 @@
         </details>
         @endforeach
         <x-workflow-audit :subject="$document" />
-        @if($document->status === 'review' && $document->drafts->isEmpty())<p class="rounded-lg bg-amber-50 p-5 text-sm">No targets were extracted. Check the analysis notes and upload a clearer or smaller document.</p>@endif
+        @if($document->status === 'review' && $document->drafts->isEmpty())<p class="spms-alert rounded-lg bg-amber-50 p-5 text-sm" data-tone="warning">No targets were extracted. Check the analysis notes and upload a clearer or smaller document.</p>@endif
     </div>
 </x-app-layout>

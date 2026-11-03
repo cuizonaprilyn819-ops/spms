@@ -7,11 +7,24 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Codex slash commands
+
+The [command guide](docs/CODEX_COMMANDS.md) carries over the user's Doc-Ease slash commands for SPMS. Use `/help` to see the catalog. Repository instructions default `/serve_update` to `ON` for reviewed GitHub publishing; live deployment requires a separately verified SPMS release path.
+
 ## Commitment planning
 
 The optional [commitment planning workflow](docs/commitment-planning.md) adds reviewed OPCR → DPCR → UPCR → IPCR target cascading, office/role relevance, workload-based quantity suggestions, upward proposals, evidence and separate final performance review. Apply its additive migration and configure a new evaluation period before activation; existing periods retain their workflow.
 
 ## SPMS database setup
+
+Start a configured local installation with `.\serve.ps1`. See the
+[local development guide](docs/ops/local-development.md) for the persistent
+PostgreSQL runtime and restart instructions.
+
+Initialize the [2025-2028 evaluation periods](docs/ops/evaluation-periods.md) with
+`php artisan spms:prepare-periods --set-current` after migration. The initial current
+period is July-December 2026. Subsequent setup without `--set-current` preserves
+the administrator's selected period and existing records.
 
 New installations use PostgreSQL. Follow [PostgreSQL setup and cutover](docs/postgresql-setup.md)
 before running `composer setup`. Existing MySQL installations must transfer and

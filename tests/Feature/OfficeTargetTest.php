@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\EvaluationCycle;
 use App\Models\Office;
 use App\Models\OfficeTarget;
-use App\Models\EvaluationCycle;
-use App\Models\User;
 use App\Models\StrategicGoal;
+use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -91,11 +91,13 @@ class OfficeTargetTest extends TestCase
             ->assertOk()->assertViewHas('offices', fn ($offices) => $offices->contains($secondReceivingOffice));
     }
 
-    public function test_office_head_only_sees_targets_assigned_to_their_office(): void
+    public function test_supervisor_only_sees_targets_assigned_to_their_office(): void
     {
         $this->seed(RoleSeeder::class);
-        $office = Office::factory()->create(); $otherOffice = Office::factory()->create();
-        $head = User::factory()->create(['office_id' => $office->id]); $head->assignRole('Office Head');
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $head = User::factory()->create(['office_id' => $office->id]);
+        $head->assignRole('Supervisor');
         $creator = User::factory()->create();
         $assigned = OfficeTarget::create(['title' => 'Assigned Target', 'success_indicator' => 'Measured', 'target_value' => 1, 'unit_of_measure' => 'report', 'weight' => 10, 'deadline' => '2026-12-31', 'priority' => 'medium', 'created_by' => $creator->id]);
         $assigned->offices()->attach($office);
@@ -110,14 +112,14 @@ class OfficeTargetTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $director = User::factory()->create();
-        $director->assignRole('Campus Director');
+        $director->assignRole('Planning Officer');
 
         $this->actingAs($director)->get(route('performance-targets.create'))
             ->assertRedirect(route('office-targets.create'));
 
         $this->actingAs($director)->get(route('office-targets.create'))
             ->assertRedirect(route('target-documents.index'));
-        $this->get(route('target-documents.index'))->assertOk()->assertSee('Upload the Main Campus document');
+        $this->get(route('target-documents.index'))->assertOk()->assertSee('Upload a target planning document');
     }
 
     public function test_administrator_add_target_action_also_opens_office_assignment_form(): void
@@ -173,12 +175,12 @@ class OfficeTargetTest extends TestCase
         $this->assertDatabaseHas('office_target_office', ['office_target_id' => $target->id, 'office_id' => $secondOffice->id, 'allocated_target_value' => 2]);
     }
 
-    public function test_office_head_cannot_edit_an_office_target(): void
+    public function test_supervisor_cannot_edit_an_office_target(): void
     {
         $this->seed(RoleSeeder::class);
         $office = Office::factory()->create();
         $head = User::factory()->create(['office_id' => $office->id]);
-        $head->assignRole('Office Head');
+        $head->assignRole('Supervisor');
         $creator = User::factory()->create();
         $target = OfficeTarget::create([
             'title' => 'Managed Target', 'success_indicator' => 'Measured', 'target_value' => 1,

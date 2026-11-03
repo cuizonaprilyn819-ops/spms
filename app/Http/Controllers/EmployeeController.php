@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Office;
 use App\Models\PositionTitle;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
@@ -104,6 +106,10 @@ class EmployeeController extends Controller
                 ->with('status', 'You cannot delete your own account while logged in.');
         }
 
+        if ($employee->hasRetainedArchiveRecords()) {
+            return redirect()->route('employees.index')->with('status', 'This account is linked to retained PCR history or a sign-in identity and cannot be deleted.');
+        }
+
         $employee->delete();
 
         return redirect()
@@ -112,18 +118,23 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return array{offices: \Illuminate\Database\Eloquent\Collection<int, Office>, positionTitles: \Illuminate\Database\Eloquent\Collection<int, PositionTitle>, roles: \Illuminate\Database\Eloquent\Collection<int, Role>}
+     * @return array{offices: Collection<int, Office>, positionTitles: Collection<int, PositionTitle>, roles: Collection<int, Role>}
      */
     private function formData(?User $employee = null): array
     {
         $assignableRoles = $this->assignableRoles($employee);
 
         return [
-            'offices' => Office::forCampus()->orderBy('name')->get(),
+            'offices' => Office::query()->where(function ($query) use ($employee) {
+                $query->where(fn ($active) => $active->forCampus());
+                if ($employee?->office_id) {
+                    $query->orWhere('id', $employee->office_id);
+                }
+            })->orderBy('name')->get(),
             'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
             'roles' => Role::query()
                 ->whereIn('name', $assignableRoles)
-                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Supervisor' THEN 2 ELSE 3 END")
+                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Planning Officer' THEN 2 WHEN 'Supervisor' THEN 3 ELSE 4 END")
                 ->get(),
         ];
     }
@@ -133,6 +144,11 @@ class EmployeeController extends Controller
      */
     private function validatedData(Request $request, ?User $employee = null): array
     {
+        $officeIds = Office::forCampus()->pluck('id')->all();
+        if ($employee?->office_id) {
+            $officeIds[] = $employee->office_id;
+        }
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -143,7 +159,7 @@ class EmployeeController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($employee),
             ],
-            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->where('campus', config('hinunangan.campus_id'))],
+            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereIn('id', $officeIds)],
             'position_title_id' => [
                 'nullable',
                 'integer',
@@ -186,7 +202,7 @@ class EmployeeController extends Controller
     {
         $position = isset($data['position_title_id']) ? PositionTitle::find($data['position_title_id']) : null;
         if ($position && in_array(strtolower($position->title), ['office head', 'department head'], true) && $data['role'] !== 'Supervisor') {
-            throw \Illuminate\Validation\ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
+            throw ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
         }
     }
 }

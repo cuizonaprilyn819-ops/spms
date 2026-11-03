@@ -1,10 +1,15 @@
 import './bootstrap';
+import '../css/semantic-ui.css';
+import '../css/target-assistance.css';
+import { installTargetAssistance } from './target-assistance';
 
 import Alpine from 'alpinejs';
 import { installBrowserApi } from './browser-api';
 import { installDashboardRefresh } from './dashboard-refresh';
 import { aiChat } from './ai-chat';
 import { installWorkspaceUi } from './workspace-ui';
+import { installActionButtons } from './action-buttons';
+import { installWorkspacePages } from './workspace-pages';
 
 installWorkspaceUi();
 
@@ -48,3 +53,6 @@ Alpine.data('searchableSelect', (options, initialValue = '') => ({
 Alpine.start();
 installBrowserApi(Alpine);
 installDashboardRefresh(Alpine);
+installActionButtons();
+installWorkspacePages();
+installTargetAssistance();

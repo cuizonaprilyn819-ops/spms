@@ -16,9 +16,9 @@
                     </div>
 
                     <div>
-                        <x-input-label for="semester" :value="__('Semester')" />
+                        <x-input-label for="semester" :value="__('Quarter')" />
                         <select id="semester" name="semester" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" required>
-                            <option value="">Select semester</option>
+                            <option value="">Select quarter</option>
                             @foreach ($semesters as $semester)
                                 <option value="{{ $semester }}" @selected(old('semester') === $semester)>{{ App\Models\EvaluationCycle::semesterLabel($semester) }}</option>
                             @endforeach

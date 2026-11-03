@@ -159,7 +159,7 @@ class DashboardTest extends TestCase
 
     public function test_each_personnel_role_can_open_its_dashboard(): void
     {
-        foreach (['Campus Director', 'Supervisor', 'HR Head', 'HR', 'HRM Office II', 'Employee'] as $roleName) {
+        foreach (['Campus Director', 'Planning Officer', 'Supervisor', 'HR Head', 'HR', 'HRM Office II', 'Employee'] as $roleName) {
             Role::firstOrCreate(['name' => $roleName]);
             $user = User::factory()->create();
             $user->assignRole($roleName);

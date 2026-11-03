@@ -17,6 +17,7 @@
                 </div>
             @endif
 
+            <x-report-lineage :report="$dpcr" type="dpcr" />
             <x-report-workflow :report="$dpcr" type="dpcr" />
             <x-report-attachments :report="$dpcr" type="dpcr" />
             <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -28,9 +29,9 @@
                     </div>
                     <div class="flex items-center gap-3">
                         @if ($dpcr->isApproved())
-                            <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
+                            <span class="spms-badge rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Approved</span>
                         @else
-                            <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Draft</span>
+                            <span class="spms-badge rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" data-tone="warning">Draft</span>
                         @endif
                     </div>
                 </div>

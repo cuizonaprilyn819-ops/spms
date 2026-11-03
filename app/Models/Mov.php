@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Storage;
 
 class Mov extends Model
 {
-    public function analysis() { return $this->morphOne(EvidenceAnalysis::class, 'evidence'); }
+    public function analysis()
+    {
+        return $this->morphOne(EvidenceAnalysis::class, 'evidence');
+    }
 
     protected $fillable = [
         'performance_target_id',

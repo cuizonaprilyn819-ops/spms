@@ -7,6 +7,9 @@ use App\Http\Controllers\DpcrController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\EvaluationCycleController;
+use App\Http\Controllers\EvidenceAnalysisController;
+use App\Http\Controllers\GuidedTargetController;
+use App\Http\Controllers\HistoricalPcrController;
 use App\Http\Controllers\HrHeadRatingController;
 use App\Http\Controllers\IpcrController;
 use App\Http\Controllers\MovController;
@@ -15,6 +18,7 @@ use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OfficeTargetController;
 use App\Http\Controllers\OpcrController;
 use App\Http\Controllers\PerformanceTargetController;
+use App\Http\Controllers\PlanningCampusController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportAttachmentController;
 use App\Http\Controllers\ReportController;
@@ -31,9 +35,37 @@ Route::pattern('office_target', '[0-9]+');
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::post('evidence/{type}/{id}/analyze', [\App\Http\Controllers\EvidenceAnalysisController::class, 'analyze'])->middleware('throttle:5,1')->name('evidence.analyze');
-    Route::put('evidence/{type}/{id}/statement', [\App\Http\Controllers\EvidenceAnalysisController::class, 'update'])->name('evidence.statement');
+Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class])->group(function () {
+    Route::post('target-assistance/preview', [\App\Http\Controllers\TargetAssistanceController::class, 'preview'])->middleware('throttle:10,1')->name('target-assistance.preview');
+    Route::get('target-conflicts', [\App\Http\Controllers\TargetConflictController::class, 'index'])->name('target-conflicts.index');
+    Route::post('target-conflicts/scans', [\App\Http\Controllers\TargetConflictController::class, 'scan'])->middleware('throttle:5,1')->name('target-conflicts.scan');
+    Route::get('target-conflicts/scans/{scan}', [\App\Http\Controllers\TargetConflictController::class, 'show'])->name('target-conflicts.show');
+    Route::post('target-conflicts/scans/{scan}/dispositions', [\App\Http\Controllers\TargetConflictController::class, 'disposition'])->name('target-conflicts.disposition');
+    Route::get('planning-campuses', [PlanningCampusController::class, 'index'])->name('planning.campuses');
+    Route::post('planning-campuses', [PlanningCampusController::class, 'campus'])->name('planning.campus-store');
+    Route::post('planning-campuses/offices', [PlanningCampusController::class, 'office'])->name('planning.campus-office');
+    Route::post('planning-campuses/offices/{office}', [PlanningCampusController::class, 'classify'])->name('planning.campus-classify');
+    Route::post('planning-campuses/grants', [PlanningCampusController::class, 'grant'])->name('planning.grant');
+    Route::delete('planning-campuses/grants/{grant}', [PlanningCampusController::class, 'revoke'])->name('planning.grant-revoke');
+    Route::post('planning-campuses/activate/{cycle}', [PlanningCampusController::class, 'activate'])->name('planning.campus-activate');
+    Route::get('planning/{plan}/scope/new', [GuidedTargetController::class, 'create'])->name('planning.scope-create');
+    Route::post('planning/{plan}/scope', [GuidedTargetController::class, 'store'])->name('planning.scope-store');
+    Route::get('planning-scope-drafts/{scopeDraft}', [GuidedTargetController::class, 'show'])->name('planning.scope-show');
+    Route::post('planning-scope-drafts/{scopeDraft}/confirm', [GuidedTargetController::class, 'confirm'])->name('planning.scope-confirm');
+    Route::post('planning-scope-drafts/{scopeDraft}/suggest', [GuidedTargetController::class, 'suggest'])->middleware('throttle:10,1')->name('planning.scope-suggest');
+    Route::get('historical-pcrs', [HistoricalPcrController::class, 'index'])->name('historical-pcrs.index');
+    Route::get('historical-pcrs/create', [HistoricalPcrController::class, 'create'])->name('historical-pcrs.create');
+    Route::post('historical-pcrs', [HistoricalPcrController::class, 'store'])->middleware('throttle:5,1')->name('historical-pcrs.store');
+    Route::get('historical-pcrs/{historicalPcr}', [HistoricalPcrController::class, 'show'])->name('historical-pcrs.show');
+    Route::get('historical-pcrs/{historicalPcr}/edit', [HistoricalPcrController::class, 'edit'])->name('historical-pcrs.edit');
+    Route::put('historical-pcrs/{historicalPcr}', [HistoricalPcrController::class, 'update'])->name('historical-pcrs.update');
+    Route::post('historical-pcrs/{historicalPcr}/verify', [HistoricalPcrController::class, 'verify'])->name('historical-pcrs.verify');
+    Route::post('historical-pcrs/{historicalPcr}/corrections', [HistoricalPcrController::class, 'correction'])->name('historical-pcrs.correction');
+    Route::get('historical-pcrs/{historicalPcr}/original', [HistoricalPcrController::class, 'original'])->name('historical-pcrs.original');
+    Route::get('historical-pcrs/{historicalPcr}/pages/{page}', [HistoricalPcrController::class, 'page'])->whereNumber('page')->name('historical-pcrs.page');
+    Route::get('historical-pcrs/{historicalPcr}/export/{format}', [HistoricalPcrController::class, 'export'])->where('format', 'docx|xlsx|pdf')->name('historical-pcrs.export');
+    Route::post('evidence/{type}/{id}/analyze', [EvidenceAnalysisController::class, 'analyze'])->middleware('throttle:5,1')->name('evidence.analyze');
+    Route::put('evidence/{type}/{id}/statement', [EvidenceAnalysisController::class, 'update'])->name('evidence.statement');
 
     Route::get('planning', [CommitmentPlanningController::class, 'index'])->name('planning.index');
     Route::post('movs/questions', [MovController::class, 'questions'])->middleware('throttle:10,1')->name('movs.questions');
@@ -64,7 +96,7 @@ Route::middleware('auth')->group(function () {
     Route::post('planning/{plan}/suggest', [CommitmentPlanningController::class, 'suggest'])->middleware('throttle:5,1')->name('planning.suggest');
     Route::post('planning/{plan}/actions/{action}', [CommitmentPlanningController::class, 'transition'])->name('planning.transition');
     Route::get('planning/{plan}/{format}', [CommitmentPlanningController::class, 'export'])->where('format', 'pdf|excel')->name('planning.export');
-    Route::middleware('role:Administrator|Planning Officer|Campus Director')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer')->group(function () {
         Route::get('target-documents', [TargetDocumentController::class, 'index'])->name('target-documents.index');
         Route::post('target-documents', [TargetDocumentController::class, 'store'])->middleware('throttle:10,1')->name('target-documents.store');
         Route::get('target-documents/{document}', [TargetDocumentController::class, 'show'])->name('target-documents.show');

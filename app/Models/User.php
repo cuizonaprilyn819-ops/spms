@@ -30,7 +30,7 @@ class User extends Authenticatable
 
     public function usesMyReports(): bool
     {
-        return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor']);
+        return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Planning Officer', 'Supervisor']);
     }
 
     public function reportAssignees(): Builder
@@ -81,12 +81,27 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_demo' => 'boolean',
         ];
     }
 
     public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);
+    }
+
+    public function identities(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserIdentity::class);
+    }
+
+    public function hasRetainedArchiveRecords(): bool
+    {
+        return HistoricalPcr::where('owner_id', $this->id)->orWhere('imported_by', $this->id)->exists()
+            || HistoricalPcrParticipant::where('user_id', $this->id)->exists()
+            || HistoricalPcrRevision::where('created_by', $this->id)->orWhere('verified_by', $this->id)->exists()
+            || HistoricalPcrCorrection::where('requested_by', $this->id)->exists()
+            || $this->identities()->exists();
     }
 
     public function positionTitle(): BelongsTo

@@ -17,7 +17,9 @@
                 </div>
             @endif
 
+            <x-report-lineage :report="$ipcr" type="ipcr" />
             <x-report-workflow :report="$ipcr" type="ipcr" />
+            <x-report-attachments :report="$ipcr" type="ipcr" />
             @if($ipcr->office_target_id)
                 <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                     <a href="{{ route('office-targets.show', $ipcr->office_target_id) }}#target-movs" class="font-semibold text-spms-navy underline">View Target MOV</a>
@@ -35,9 +37,9 @@
                     </div>
                     <div class="flex items-center gap-3">
                         @if ($ipcr->isApproved())
-                            <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approved</span>
+                            <span class="spms-badge rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Approved</span>
                         @else
-                            <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ ucfirst(str_replace('_', ' ', $ipcr->status)) }}</span>
+                            <span class="spms-badge rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" data-tone="warning">{{ ucfirst(str_replace('_', ' ', $ipcr->status)) }}</span>
                         @endif
                     </div>
                 </div>

@@ -3,16 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\EvaluationCycle;
+use App\Models\Ipcr;
 use App\Models\Office;
 use App\Models\OfficeTarget;
 use App\Models\PerformanceTarget;
 use App\Models\StrategicObjective;
 use App\Models\User;
 use App\Models\WorkflowAudit;
-use App\Services\TargetDocumentAi;
 use App\Notifications\EmployeeTargetAssignedNotification;
 use App\Services\CommitmentPlanning;
 use App\Services\PlanningOrganization;
+use App\Services\TargetDocumentAi;
+use App\Services\TargetHierarchy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,12 +30,21 @@ class OfficeTargetController extends Controller
     {
         $query = OfficeTarget::with(['evaluationCycle', 'offices', 'createdBy'])->latest();
         if (! $request->user()->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
-            $managed = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($request->user());
+            $managed = app(TargetHierarchy::class)->managedOfficeIds($request->user());
             $query->where(fn ($q) => $q->whereHas('offices', fn ($office) => $office->whereIn('offices.id', $managed))
                 ->orWhereHas('assignedEmployees', fn ($person) => $person->whereKey($request->user()->id)));
         }
 
-        return view('office-targets.index', ['targets' => $query->paginate(10)]);
+        $officeIds = app(PlanningOrganization::class)->accessibleOfficeIds($request->user());
+        $targets = $query->paginate(10)->through(function ($target) use ($officeIds) {
+            if ($target->evaluationCycle?->multi_campus_enabled) {
+                $target->setRelation('offices', $target->offices->whereIn('id', $officeIds)->values());
+            }
+
+            return $target;
+        });
+
+        return view('office-targets.index', compact('targets'));
     }
 
     public function create(Request $request): RedirectResponse
@@ -81,9 +92,10 @@ class OfficeTargetController extends Controller
             $cycle->validateSchedule($data);
             $target = OfficeTarget::create([...$data, 'file_path' => $file?->store('office-targets'), 'original_name' => $file?->getClientOriginalName(), 'created_by' => $request->user()->id]);
             $target->offices()->sync($this->withBriefings($officeAllocations, $briefings));
-            app(\App\Services\TargetHierarchy::class)->linkAvailableUpcrs($target);
+            app(TargetHierarchy::class)->linkAvailableUpcrs($target);
             WorkflowAudit::record($target, 'Office target created and allocated', null, $this->snapshot($target));
             $target->notifyAssignedSupervisors($officeIds);
+
             return $target;
         });
 
@@ -171,15 +183,19 @@ class OfficeTargetController extends Controller
                 }
                 $locked->update($data);
                 $locked->offices()->sync($this->withBriefings($officeAllocations, $briefings));
-                app(\App\Services\TargetHierarchy::class)->linkAvailableUpcrs($locked);
+                app(TargetHierarchy::class)->linkAvailableUpcrs($locked);
                 WorkflowAudit::record($locked, 'CD edited target details and office allocations', $before, $this->snapshot($locked));
                 $locked->notifyAssignedSupervisors($officeIds, true);
             });
         } catch (\Throwable $exception) {
-            if ($file) Storage::disk('local')->delete($data['file_path']);
+            if ($file) {
+                Storage::disk('local')->delete($data['file_path']);
+            }
             throw $exception;
         }
-        if ($file && $previousPath) Storage::disk('local')->delete($previousPath);
+        if ($file && $previousPath) {
+            Storage::disk('local')->delete($previousPath);
+        }
 
         return redirect()->route('office-targets.show', $officeTarget)->with('status', 'Office target updated successfully.');
     }
@@ -194,7 +210,7 @@ class OfficeTargetController extends Controller
 
     private function authorizeAccess(Request $request, OfficeTarget $target): void
     {
-        abort_unless(app(\App\Services\TargetHierarchy::class)->canView($request->user(), $target), 403);
+        abort_unless(app(TargetHierarchy::class)->canView($request->user(), $target), 403);
     }
 
     public function assignEmployees(Request $request, OfficeTarget $officeTarget): RedirectResponse
@@ -274,22 +290,27 @@ class OfficeTargetController extends Controller
     {
         $this->authorizeAccess($request, $officeTarget);
         $data = $request->validate(['office_id' => ['required', 'integer'], 'upcr_id' => ['required', 'integer']]);
-        $hierarchy = app(\App\Services\TargetHierarchy::class);
+        $hierarchy = app(TargetHierarchy::class);
         abort_unless($request->user()->hasAnyRole(['Administrator', 'Planning Officer']) || in_array($data['office_id'], $hierarchy->managedOfficeIds($request->user())), 403);
         DB::transaction(function () use ($officeTarget, $data, $hierarchy) {
             OfficeTarget::whereKey($officeTarget->id)->lockForUpdate()->firstOrFail();
             abort_unless($officeTarget->evaluationCycle?->isOpen(), 422, 'The evaluation period is closed.');
             $office = $officeTarget->offices()->whereKey($data['office_id'])->firstOrFail();
             $upcr = $hierarchy->eligibleUpcrs($officeTarget, $office)->whereKey($data['upcr_id'])->first();
-            if (! $upcr) throw ValidationException::withMessages(['upcr_id' => 'Choose a UPCR belonging to this office and evaluation period within its reporting hierarchy.']);
-            $existing = \App\Models\Ipcr::where('office_target_id', $officeTarget->id)->whereHas('employee', fn ($q) => $q->where('office_id', $office->id))->get();
+            if (! $upcr) {
+                throw ValidationException::withMessages(['upcr_id' => 'Choose a UPCR belonging to this office and evaluation period within its reporting hierarchy.']);
+            }
+            $existing = Ipcr::where('office_target_id', $officeTarget->id)->whereHas('employee', fn ($q) => $q->where('office_id', $office->id))->get();
             abort_if($existing->contains(fn ($ipcr) => $ipcr->upcr_id && (int) $ipcr->upcr_id !== $upcr->id), 422, 'An IPCR already references a different UPCR. Preserve that report history.');
             $officeTarget->offices()->updateExistingPivot($office->id, ['upcr_id' => $upcr->id]);
             foreach ($existing as $ipcr) {
-                if (! $ipcr->upcr_id && in_array($ipcr->status, ['draft', 'returned'])) $ipcr->update(['upcr_id' => $upcr->id]);
+                if (! $ipcr->upcr_id && in_array($ipcr->status, ['draft', 'returned'])) {
+                    $ipcr->update(['upcr_id' => $upcr->id]);
+                }
             }
             WorkflowAudit::record($officeTarget, 'Office UPCR hierarchy linked', ['office_id' => $office->id, 'upcr_id' => $office->pivot->upcr_id], ['office_id' => $office->id, 'upcr_id' => $upcr->id]);
         });
+
         return back()->with('status', 'Target linked to the office UPCR. Individual assignments remain under the same office hierarchy.');
     }
 
@@ -344,7 +365,9 @@ class OfficeTargetController extends Controller
 
     private function prepareBriefings(array $data, array $allocations, bool $required = false): array
     {
-        if (! config('spms.ai.enabled') && ! $required) return [];
+        if (! config('spms.ai.enabled') && ! $required) {
+            return [];
+        }
         set_time_limit(180);
         try {
             return app(TargetDocumentAi::class)->briefings($data, collect($allocations)->map(fn ($pivot) => $pivot['allocated_target_value'])->all());
@@ -358,6 +381,7 @@ class OfficeTargetController extends Controller
         foreach ($allocations as $officeId => &$pivot) {
             $pivot['ai_briefing'] = isset($briefings[$officeId]) ? json_encode($briefings[$officeId], JSON_THROW_ON_ERROR) : null;
         }
+
         return $allocations;
     }
 

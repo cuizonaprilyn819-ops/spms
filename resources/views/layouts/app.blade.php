@@ -22,14 +22,12 @@
         <div class="spms-workspace min-h-screen md:flex">
             @include('layouts.navigation')
 
-            <div class="min-w-0 flex-1">
+            <div class="spms-content min-w-0 flex-1">
                 <header class="spms-topbar">
-                    <a href="{{ route('dashboard') }}" class="spms-breadcrumb" aria-label="Back to dashboard">
-                        <span>SLSU SPMS</span><span aria-hidden="true">›</span>
-                        <strong>{{ ucwords(str_replace('-', ' ', explode('.', preg_replace('/^api\./', '', request()->route()->getName() ?? 'dashboard'))[0])) }}</strong>
-                    </a>
-                    <x-account-menu />
+                    <div class="spms-university"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 21h18M5 21V3h14v18M9 7h1M14 7h1M9 11h1M14 11h1M10 21v-5h4v5"/></svg><span>Southern Leyte State University</span></div>
+                    <div class="spms-topbar-tools"><x-period-reference /><x-account-menu /></div>
                 </header>
+                <div class="spms-page-trail"><x-workspace-breadcrumb /></div>
                 <!-- Page Heading -->
                 @isset($header)
                     <header class="spms-page-heading">
@@ -42,7 +40,9 @@
                 <!-- Page Content -->
                 <main id="main-content" tabindex="-1">
                     {{ $slot }}
+                    <x-target-assistance />
                 </main>
+                <footer class="spms-workspace-footer"><span>SLSU SPMS</span><span>Institution-wide performance management</span></footer>
             </div>
         </div>
         @auth

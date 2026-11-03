@@ -18,9 +18,9 @@ class TargetWithoutStrategyTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $director = User::factory()->create();
-        $director->assignRole('Campus Director');
-        $office = Office::factory()->create();
-        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::FIRST_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
+        $director->assignRole('Planning Officer');
+        $office = Office::factory()->create(['campus' => config('hinunangan.campus_id'), 'is_active' => true]);
+        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::SECOND_SEMESTER, 'status' => EvaluationCycle::STATUS_OPEN]);
         $this->actingAs($director)->get(route('office-targets.create'))->assertRedirect(route('target-documents.index'));
         $this->get(route('target-documents.index'))->assertOk()
             ->assertDontSee('Strategic Alignment')->assertDontSee('Create a goal and objective first');

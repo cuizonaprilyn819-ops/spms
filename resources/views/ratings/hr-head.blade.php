@@ -8,21 +8,21 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#dce6f4] bg-white px-5 py-4 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-spms-line bg-white px-5 py-4 shadow-sm">
                 <div>
                     <p class="text-xs font-bold uppercase tracking-widest text-spms-navy">University wide</p>
                     <p class="mt-1 text-sm text-gray-600">{{ $evaluations->total() }} {{ \Illuminate\Support\Str::plural('target evaluation', $evaluations->total()) }} · {{ $ratedIpcrCount }} rated {{ \Illuminate\Support\Str::plural('IPCR', $ratedIpcrCount) }} · {{ $unratedIpcrCount }} approved without scores</p>
                 </div>
-                <form method="GET" action="{{ route('ratings.index') }}" class="flex items-center gap-2">
+                <form method="GET" action="{{ route('ratings.index') }}" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <label for="role" class="text-sm font-semibold text-spms-ink">Show</label>
-                    <select id="role" name="role" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm text-spms-ink focus:border-spms-navy focus:ring-spms-navy">
+                    <select id="role" name="role" onchange="this.form.submit()" class="min-w-0 max-w-full rounded-lg border-gray-300 text-sm text-spms-ink focus:border-spms-navy focus:ring-spms-navy">
                         <option value="" @selected(!$role)>Employees and supervisors</option>
                         <option value="Employee" @selected($role === 'Employee')>Employees</option>
                         <option value="Supervisor" @selected($role === 'Supervisor')>Supervisors</option>
                     </select>
                     <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Apply</button>
                 </form>
-                <a href="{{ route('ratings.pdf', $role ? ['role' => $role] : []) }}" class="rounded-lg border border-spms-navy px-4 py-2 text-sm font-semibold text-spms-navy hover:bg-[#eaf2fc]">Export ratings PDF</a>
+                <a href="{{ route('ratings.pdf', $role ? ['role' => $role] : []) }}" class="rounded-lg border border-spms-navy px-4 py-2 text-sm font-semibold text-spms-navy hover:bg-spms-tint">Export ratings PDF</a>
             </div>
 
             <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="evaluation-ratings-heading">
@@ -92,7 +92,7 @@
                                     </td>
                                     <td class="px-6 py-4 text-gray-700">{{ $ipcr->title }}</td>
                                     <td class="whitespace-nowrap px-6 py-4 text-gray-700">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->quality_rating, 2) }} / {{ number_format((float) $ipcr->efficiency_rating, 2) }} / {{ number_format((float) $ipcr->timeliness_rating, 2) }}@else<span class="text-gray-400">—</span>@endif</td>
-                                    <td class="px-6 py-4 font-bold text-spms-navy">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->average_rating, 2) }}@else<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Not rated</span>@endif</td>
+                                    <td class="px-6 py-4 font-bold text-spms-navy">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->average_rating, 2) }}@else<span class="spms-badge rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800" data-tone="warning">Not rated</span>@endif</td>
                                     <td class="px-6 py-4 text-gray-600">{{ $ipcr->approvedBy?->name ?? 'Unknown' }}</td>
                                     <td class="px-6 py-4 text-right"><a class="font-semibold text-spms-navy hover:underline" href="{{ route('ipcrs.show', $ipcr) }}">View</a></td>
                                 </tr>

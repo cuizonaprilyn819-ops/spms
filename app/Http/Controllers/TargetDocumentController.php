@@ -8,10 +8,14 @@ use App\Models\Office;
 use App\Models\OfficeTarget;
 use App\Models\TargetDocument;
 use App\Models\TargetDocumentDraft;
+use App\Models\TargetScopeDraft;
+use App\Models\User;
 use App\Models\WorkflowAudit;
+use App\Notifications\EmployeeTargetAssignedNotification;
 use App\Services\CommitmentPlanning;
 use App\Services\PlanningOrganization;
 use App\Services\TargetDocumentAi;
+use App\Services\TargetHierarchy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,8 +27,12 @@ class TargetDocumentController extends Controller
 {
     public function index(Request $request)
     {
+        $documents = $request->user()->hasRole('Administrator')
+            ? TargetDocument::latest()->paginate(10)
+            : TargetDocument::where('created_by', $request->user()->id)->latest()->paginate(10);
+
         return view('target-documents.index', [
-            'documents' => TargetDocument::where('created_by', $request->user()->id)->latest()->paginate(10),
+            'documents' => $documents,
             'cycles' => EvaluationCycle::where('status', EvaluationCycle::STATUS_OPEN)->orderByDesc('year')->get(),
         ]);
     }
@@ -49,6 +57,7 @@ class TargetDocumentController extends Controller
             $document = DB::transaction(function () use ($request, $data, $file, $path, $mime, $hash) {
                 $cycle = EvaluationCycle::whereKey($data['evaluation_cycle_id'])->lockForUpdate()->firstOrFail();
                 abort_unless($cycle->isOpen(), 422, 'The evaluation period has closed.');
+
                 // Serialize uploads for a period, including simultaneous retries.
                 return TargetDocument::firstOrCreate([
                     'created_by' => $request->user()->id,
@@ -84,6 +93,7 @@ class TargetDocumentController extends Controller
             if ($locked->status === 'analyzing' && $locked->updated_at->gt(now()->subMinutes(10))) {
                 throw ValidationException::withMessages(['document' => 'Wait for document analysis to finish before deleting this file.']);
             }
+            abort_if(TargetScopeDraft::whereIn('document_draft_id', $locked->drafts()->pluck('id'))->exists(), 422, 'This document is referenced by a private or confirmed OPCR scope draft. Preserve its source record.');
             if (Storage::disk('local')->exists($locked->path) && ! Storage::disk('local')->delete($locked->path)) {
                 throw ValidationException::withMessages(['document' => 'The file could not be deleted. Please try again.']);
             }
@@ -142,14 +152,18 @@ class TargetDocumentController extends Controller
         $token = (string) Str::uuid();
         $claimed = TargetDocument::whereKey($document->id)->where('status', 'review')
             ->update(['status' => 'analyzing', 'analysis_token' => $token, 'error' => null, 'updated_at' => now()]);
-        if (! $claimed) return back()->withErrors(['analysis' => 'Wait for analysis to finish before re-reading the hierarchy.']);
+        if (! $claimed) {
+            return back()->withErrors(['analysis' => 'Wait for analysis to finish before re-reading the hierarchy.']);
+        }
         set_time_limit(300);
         try {
             $drafts = $document->drafts()->orderBy('id')->get();
             $result = $ai->hierarchy($document, $drafts->pluck('proposal')->all());
             DB::transaction(function () use ($document, $drafts, $result, $token) {
                 $locked = TargetDocument::whereKey($document->id)->lockForUpdate()->firstOrFail();
-                if ($locked->analysis_token !== $token || $locked->status !== 'analyzing') return;
+                if ($locked->analysis_token !== $token || $locked->status !== 'analyzing') {
+                    return;
+                }
                 $before = [];
                 $after = [];
                 foreach ($result['mappings'] as $mapping) {
@@ -165,6 +179,7 @@ class TargetDocumentController extends Controller
             TargetDocument::whereKey($document->id)->where('analysis_token', $token)
                 ->update(['status' => 'review', 'analysis_token' => null, 'error' => $exception->getMessage()]);
         }
+
         return redirect()->route('target-documents.show', $document)->with('status', 'Program/outcome re-read finished. Check the grouping and any source-reading notes below.');
     }
 
@@ -203,7 +218,7 @@ class TargetDocumentController extends Controller
     {
         $this->authorizeDocument($request, $draft->document);
         if ($draft->document->evaluationCycle?->planning_enabled) {
-            return view('planning.import', ['draft' => $draft, 'plans' => CommitmentPlan::where('evaluation_cycle_id', $draft->document->evaluation_cycle_id)->where('level', 'opcr')->get()->filter(fn ($p) => app(PlanningOrganization::class)->canPrepare($request->user(), $p))]);
+            return view('planning.import', ['draft' => $draft, 'plans' => CommitmentPlan::where('evaluation_cycle_id', $draft->document->evaluation_cycle_id)->where('level', 'opcr')->whereNull('parent_id')->get()->filter(fn ($p) => app(PlanningOrganization::class)->canPrepare($request->user(), $p))]);
         }
 
         return view('target-documents.review', [
@@ -251,7 +266,7 @@ class TargetDocumentController extends Controller
         $employeeAllocations = [];
         if (($data['assignment_type'] ?? 'office') === 'individual') {
             $requested = collect($data['employee_allocations'] ?? [])->filter(fn ($v) => $v !== null);
-            $people = \App\Models\User::whereIn('id', $requested->keys())->whereIn('office_id', array_keys($allocations))->get();
+            $people = User::whereIn('id', $requested->keys())->whereIn('office_id', array_keys($allocations))->get();
             if ($requested->isEmpty() || $people->count() !== $requested->count()) {
                 throw ValidationException::withMessages(['employee_allocations' => 'Select registered individuals belonging to the selected offices.']);
             }
@@ -261,7 +276,9 @@ class TargetDocumentController extends Controller
                     throw ValidationException::withMessages(['employee_allocations' => 'Individual quantities must equal the allocation for each selected office.']);
                 }
             }
-            foreach ($people as $person) $employeeAllocations[$person->id] = ['allocated_target_value' => $requested[$person->id], 'assigned_by' => $request->user()->id];
+            foreach ($people as $person) {
+                $employeeAllocations[$person->id] = ['allocated_target_value' => $requested[$person->id], 'assigned_by' => $request->user()->id];
+            }
         }
         unset($data['office_ids'], $data['allocations'], $data['confirmed'], $data['assignment_type'], $data['employee_allocations']);
         if (! EvaluationCycle::whereKey($draft->document->evaluation_cycle_id)->where('status', EvaluationCycle::STATUS_OPEN)->exists()) {
@@ -302,9 +319,11 @@ class TargetDocumentController extends Controller
                 $pivots[$officeId] = ['allocated_target_value' => $allocation, 'ai_briefing' => json_encode($briefings[$officeId], JSON_THROW_ON_ERROR)];
             }
             $target->offices()->sync($pivots);
-            app(\App\Services\TargetHierarchy::class)->linkAvailableUpcrs($target);
+            app(TargetHierarchy::class)->linkAvailableUpcrs($target);
             $target->assignedEmployees()->sync($employeeAllocations);
-            foreach ($target->assignedEmployees as $person) $person->notify(new \App\Notifications\EmployeeTargetAssignedNotification($target, $request->user()->name));
+            foreach ($target->assignedEmployees as $person) {
+                $person->notify(new EmployeeTargetAssignedNotification($target, $request->user()->name));
+            }
             $locked->update(['office_target_id' => $target->id]);
             WorkflowAudit::record($target, 'Source proposal reviewed and target assignments confirmed', ['ai_proposal' => $locked->proposal], ['target' => $target->toArray(), 'allocations' => $allocations, 'allocation_percentages' => collect($allocations)->map(fn ($quantity) => round($quantity / $target->target_value * 100, 2))->all(), 'briefings' => $briefings, 'source_document_id' => $draft->document->id]);
             $target->notifyAssignedSupervisors(array_keys($allocations));
@@ -317,6 +336,6 @@ class TargetDocumentController extends Controller
 
     private function authorizeDocument(Request $request, TargetDocument $document): void
     {
-        abort_unless($document->created_by === $request->user()->id, 403);
+        abort_unless($request->user()->hasRole('Administrator') || $document->created_by === $request->user()->id, 403);
     }
 }

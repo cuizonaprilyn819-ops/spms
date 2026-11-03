@@ -9,7 +9,7 @@
 @endif
 @php($pcrCycle = app(\App\Services\PcrCompliance::class)->cycle($report))
 @if($report->commitmentPlan)
-    <div class="rounded border border-blue-200 bg-blue-50 p-4"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
+    <div class="spms-alert rounded border border-blue-200 bg-blue-50 p-4" data-tone="info"><a class="font-semibold underline" href="{{ route('planning.show',$report->commitmentPlan) }}">Open commitment planning and its revision history</a><p>Commitments {{ $report->commitmentPlan->state }} · Final performance report {{ $report->status }}</p></div>
 @endif
 @php($reviewable = in_array($report->status, [$report::STATUS_SUBMITTED, $report::STATUS_RESUBMITTED], true))
 <section class="mt-6 rounded-lg border border-gray-200 bg-white p-5">
@@ -17,7 +17,7 @@
     @if($report->isEditableBy(Auth::id()))
         @php($evidenceIssues = app(\App\Services\ReportEvidence::class)->issues($report))
         @if($evidenceIssues)
-        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><h3 class="font-semibold">MOV required before submission</h3><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($evidenceIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul><p class="mt-2">Upload MOV and complete AI analysis for each target. For multiple partial files, provide a consolidated MOV that demonstrates the full target.</p></div>
+        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><h3 class="font-semibold">MOV required before submission</h3><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($evidenceIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul><p class="mt-2">Select each target, answer its questions, and upload the related MOV files together for AI analysis. The combined evidence must demonstrate the full assigned target.</p></div>
         @endif
     @endif
     @if($errors->has('mov'))<p role="alert" class="mb-4 text-sm text-red-700">{{ $errors->first('mov') }}</p>@endif
@@ -83,7 +83,7 @@
             <ol class="mt-3 space-y-3">@foreach($report->statusHistories as $history)
                 <li class="text-sm"><span class="font-semibold capitalize">{{ str_replace('_', ' ', $history->to_status) }}</span> by {{ $history->actor?->name ?? 'Deleted user' }}
                     <span class="text-gray-500">· {{ $history->created_at->format('M d, Y h:i:s A') }}</span>
-                    @if($history->remarks)<p class="mt-1 rounded bg-amber-50 p-2 text-gray-700">{{ $history->remarks }}</p>@endif
+                    @if($history->remarks)<p class="spms-alert mt-1 rounded bg-amber-50 p-2 text-gray-700" data-tone="warning">{{ $history->remarks }}</p>@endif
                 </li>
             @endforeach</ol>
         </div>

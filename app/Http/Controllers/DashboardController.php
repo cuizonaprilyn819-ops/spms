@@ -167,7 +167,10 @@ class DashboardController extends Controller
         $managedOffices = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user);
         $officeTargets = OfficeTarget::whereNull('performance_target_id');
         if (count($managedOffices) > 0) {
-            $officeTargets->whereHas('offices', fn ($q) => $q->whereIn('offices.id', $managedOffices));
+            $officeTargets->where(function ($query) use ($user, $managedOffices) {
+                $query->whereHas('offices', fn ($q) => $q->whereIn('offices.id', $managedOffices));
+                if ($user->hasRole('Campus Director')) $query->orWhere('created_by', $user->id);
+            });
         } elseif ($user->hasRole('Campus Director')) {
             $officeTargets->where('created_by', $user->id);
         } else {
@@ -176,7 +179,10 @@ class DashboardController extends Controller
         $officeTargetIds = $officeTargets->pluck('id');
         $movQuery = TargetMov::whereIn('office_target_id', $officeTargetIds);
         if (count($managedOffices) > 0) {
-            $movQuery->whereIn('office_id', $managedOffices);
+            $movQuery->where(function ($query) use ($user, $managedOffices) {
+                $query->whereIn('office_id', $managedOffices);
+                if ($user->hasRole('Campus Director')) $query->orWhereHas('target', fn ($q) => $q->where('created_by', $user->id));
+            });
         } elseif (! $user->hasRole('Campus Director')) {
             $movQuery->where('user_id', $user->id);
         }

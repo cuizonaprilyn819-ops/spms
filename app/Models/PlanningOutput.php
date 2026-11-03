@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PlanningOutput extends Model
 {
-    public function analysis() { return $this->morphOne(EvidenceAnalysis::class, 'evidence'); }
+    public function analysis()
+    {
+        return $this->morphOne(EvidenceAnalysis::class, 'evidence');
+    }
 
     protected $guarded = [];
 

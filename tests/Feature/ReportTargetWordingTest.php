@@ -57,6 +57,22 @@ class ReportTargetWordingTest extends TestCase
         app(TargetDocumentAi::class)->reportWording(['strategic_program' => null, 'program_outcome' => null, 'quantity' => 2, 'unit_of_measure' => 'articles']);
     }
 
+    public function test_adviser_wording_preview_supports_program_and_outcome_without_overwriting_source(): void
+    {
+        extract($this->fixture());
+        config(['spms.target_assistance.enabled' => true]);
+        $this->mock(\App\Services\AiAssistant::class, fn ($mock) => $mock->shouldReceive('draft')->twice()->andReturn('Improve university visibility'));
+        $values = ['title' => $ipcr->title, 'strategic_program' => 'University communications', 'program_outcome' => 'Better public visibility'];
+        foreach (['strategic_program', 'program_outcome'] as $field) {
+            $this->actingAs($user)->postJson(route('target-assistance.preview'), [
+                'action' => route('report-workflow.update', ['ipcr', $ipcr]), 'values' => $values, 'field' => $field,
+            ])->assertOk()->assertSee('Improve university visibility');
+        }
+        $this->assertNull($ipcr->fresh()->target_context);
+        $this->assertSame('SPOTLIGHT', app(ReportTargetContext::class)->source($ipcr)['strategic_program']);
+        $this->assertDatabaseCount('target_assistances', 2);
+    }
+
     public function test_new_ipcr_from_an_assigned_target_is_already_paraphrased(): void
     {
         extract($this->fixture());

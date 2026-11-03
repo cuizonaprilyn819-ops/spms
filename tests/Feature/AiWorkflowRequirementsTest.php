@@ -99,7 +99,7 @@ class AiWorkflowRequirementsTest extends TestCase
 
     public function test_ai_catalogue_and_schedule_use_only_campus_six_and_referenced_period(): void
     {
-        $director = User::factory()->create()->assignRole('Campus Director');
+        $director = User::factory()->create()->assignRole('Planning Officer');
         $office = Office::factory()->create(['campus' => 6, 'is_active' => true]);
         $other = Office::factory()->create(['campus' => 2, 'is_active' => true]);
         $cycle = $this->cycle();

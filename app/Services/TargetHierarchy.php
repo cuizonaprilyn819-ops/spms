@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\{Office, OfficeTarget, Upcr, User};
+use App\Models\Office;
+use App\Models\OfficeTarget;
+use App\Models\PerformanceTarget;
+use App\Models\Upcr;
+use App\Models\User;
 
 class TargetHierarchy
 {
@@ -16,13 +20,23 @@ class TargetHierarchy
             $frontier = Office::where('campus', $user->office->campus)->whereIn('parent_office_id', $frontier)->whereNotIn('id', $ids)->pluck('id')->all();
             $ids = array_merge($ids, $frontier);
         }
+
         return $ids;
     }
 
     public function canView(User $user, OfficeTarget $target): bool
     {
-        if ($user->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) return true;
-        if ($target->offices()->whereIn('offices.id', $this->managedOfficeIds($user))->exists()) return true;
+        if ($target->performance_target_id && $target->evaluationCycle?->multi_campus_enabled) {
+            return PerformanceTarget::where('root_target_id', $target->performance_target_id)
+                ->whereIn('commitment_plan_id', app(PlanningOrganization::class)->visiblePlanIds($user))->exists();
+        }
+        if ($user->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
+            return true;
+        }
+        if ($target->offices()->whereIn('offices.id', $this->managedOfficeIds($user))->exists()) {
+            return true;
+        }
+
         return $target->assignedEmployees()->whereKey($user->id)->exists();
     }
 
@@ -30,8 +44,11 @@ class TargetHierarchy
     {
         $ids = [];
         foreach (Office::whereIn('id', $officeIds)->get() as $office) {
-            foreach (app(PlanningOrganization::class)->ancestors($office) as $id) $ids[$id] = $id;
+            foreach (app(PlanningOrganization::class)->ancestors($office) as $id) {
+                $ids[$id] = $id;
+            }
         }
+
         return array_values($ids);
     }
 
@@ -47,6 +64,7 @@ class TargetHierarchy
     public function eligibleUpcrs(OfficeTarget $target, Office $office)
     {
         $ancestors = app(PlanningOrganization::class)->ancestors($office);
+
         return Upcr::whereDoesntHave('commitmentPlan')
             ->whereHas('employee', fn ($q) => $q->where('office_id', $office->id))
             ->whereHas('dpcr', fn ($q) => $q->whereHas('employee', fn ($person) => $person->whereIn('office_id', $ancestors)))
@@ -58,11 +76,15 @@ class TargetHierarchy
     public function linkAvailableUpcrs(OfficeTarget $target): void
     {
         foreach ($target->offices()->get() as $office) {
-            if ($office->pivot->upcr_id) continue;
+            if ($office->pivot->upcr_id) {
+                continue;
+            }
             $candidates = $this->eligibleUpcrs($target, $office)->get();
             $approved = $candidates->where('status', Upcr::STATUS_APPROVED);
             $choice = $approved->count() === 1 ? $approved->first() : ($candidates->count() === 1 ? $candidates->first() : null);
-            if ($choice) $target->offices()->updateExistingPivot($office->id, ['upcr_id' => $choice->id]);
+            if ($choice) {
+                $target->offices()->updateExistingPivot($office->id, ['upcr_id' => $choice->id]);
+            }
         }
         $target->unsetRelation('offices');
     }
@@ -73,14 +95,19 @@ class TargetHierarchy
         $upcr = null;
         if ($office) {
             $query = $this->eligibleUpcrs($target, $office);
-            if ($office->pivot->upcr_id) $upcr = $query->whereKey($office->pivot->upcr_id)->first();
-            else {
+            if ($office->pivot->upcr_id) {
+                $upcr = $query->whereKey($office->pivot->upcr_id)->first();
+            } else {
                 $choices = $query->get();
                 $approved = $choices->where('status', Upcr::STATUS_APPROVED);
-                if ($approved->count() === 1) $upcr = $approved->first();
-                elseif ($choices->count() === 1) $upcr = $choices->first();
+                if ($approved->count() === 1) {
+                    $upcr = $approved->first();
+                } elseif ($choices->count() === 1) {
+                    $upcr = $choices->first();
+                }
             }
         }
+
         return $upcr;
     }
 }

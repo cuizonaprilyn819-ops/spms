@@ -1,18 +1,18 @@
 <x-app-layout>
     <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Target Planning Documents</h2></x-slot>
     <div class="mx-auto max-w-5xl space-y-6 px-4 py-8">
-        @if(session('status'))<p role="status" class="rounded-lg bg-green-50 p-4 text-sm text-green-800">{{ session('status') }}</p>@endif
+        @if(session('status'))<p role="status" class="spms-alert rounded-lg bg-green-50 p-4 text-sm text-green-800" data-tone="success">{{ session('status') }}</p>@endif
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-spms-navy">1. Upload → 2. Analyze → 3. Review → 4. Assign</p>
             <h1 class="mt-3 text-2xl font-bold">Upload a target planning document</h1>
             <p class="mt-2 text-sm text-gray-600">AI will identify targets and suggest offices. You choose what to assign. CD-only targets remain visible for your review and cannot be assigned to offices.</p>
-            @if($errors->any())<div role="alert" class="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+            @if($errors->any())<div role="alert" class="spms-alert mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
             <form method="POST" action="{{ route('target-documents.store') }}" enctype="multipart/form-data" class="mt-6 space-y-4" x-data="{ busy: false }" @submit="busy = true">
                 @csrf
                 <div><label for="document-cycle" class="block text-sm font-semibold">Evaluation period</label>
                     <select id="document-cycle" name="evaluation_cycle_id" required class="mt-1 w-full rounded-lg border-gray-300">
                         <option value="">Select an open period</option>
-                        @foreach($cycles as $cycle)<option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id') == $cycle->id)>{{ $cycle->label }}</option>@endforeach
+                        @foreach($cycles as $cycle)<option value="{{ $cycle->id }}" @selected(old('evaluation_cycle_id', $cycles->first()?->id) == $cycle->id)>{{ $cycle->label }}</option>@endforeach
                     </select>
                 </div>
                 @if($cycles->isEmpty())<p class="text-sm text-amber-800">Ask the administrator to open an evaluation period before uploading.</p>@endif

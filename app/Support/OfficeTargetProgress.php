@@ -15,7 +15,10 @@ class OfficeTargetProgress
         $director = $user->hasRole('Campus Director');
         $query = OfficeTarget::whereNull('performance_target_id');
         if ($head) {
-            $query->whereHas('offices', fn ($q) => $q->whereIn('offices.id', $managed));
+            $query->where(function ($q) use ($managed, $director, $user) {
+                $q->whereHas('offices', fn ($offices) => $offices->whereIn('offices.id', $managed));
+                if ($director) $q->orWhere('created_by', $user->id);
+            });
         } elseif ($director) {
             $query->where('created_by', $user->id);
         } elseif (! $user->hasAnyRole(['Administrator', 'Planning Officer'])) {
@@ -23,16 +26,16 @@ class OfficeTargetProgress
         }
         $personal = ! $head && ! $director && ! $user->hasAnyRole(['Administrator', 'Planning Officer']);
 
-        return $query->with(['offices', 'assignedEmployees' => function ($q) use ($head, $personal, $user, $managed) {
-            if ($head) {
-                $q->whereIn('users.office_id', $managed);
-            } elseif ($personal) {
+        return $query->with(['offices', 'assignedEmployees' => function ($q) use ($personal, $user) {
+            if ($personal) {
                 $q->whereKey($user->id);
             }
-        }])->orderBy('deadline')->get()->map(function ($target) use ($head, $personal, $user, $managed) {
+        }])->orderBy('deadline')->get()->map(function ($target) use ($head, $director, $personal, $user, $managed) {
+            $scopedHead = $head && ! ($director && (int) $target->created_by === $user->id);
             $people = $target->assignedEmployees->filter(fn ($person) => $target->offices->contains('id', $person->office_id));
+            if ($scopedHead) $people = $people->whereIn('office_id', $managed);
             $required = $personal ? $people->first()?->pivot->allocated_target_value
-                : ($head ? $target->offices->whereIn('id', $managed)->sum(fn ($office) => (float) $office->pivot->allocated_target_value) : $target->target_value);
+                : ($scopedHead ? $target->offices->whereIn('id', $managed)->sum(fn ($office) => (float) $office->pivot->allocated_target_value) : $target->target_value);
             $known = $required !== null && (float) $required > 0;
             $done = $people->sum(fn ($person) => $person->pivot->allocated_target_value === null ? 0
                 : (float) ($person->pivot->completed_value ?? ($person->pivot->completed_at ? $person->pivot->allocated_target_value : 0)));

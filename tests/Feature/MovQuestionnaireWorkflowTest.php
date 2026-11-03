@@ -45,6 +45,7 @@ class MovQuestionnaireWorkflowTest extends TestCase
     public function test_questions_answers_and_multiple_files_are_analyzed_together_and_summarized_separately(): void
     {
         [$user, $target] = $this->fixture();
+        config(['spms.target_assistance.enabled' => true]);
         Http::fakeSequence()->push($this->response($this->questions()))->push($this->response($this->findings(true)));
         $start = $this->post(route('movs.questions'), ['target_ref' => 'office:'.$target->id])->assertSessionHasNoErrors()->assertRedirect();
         parse_str(parse_url($start->headers->get('Location'), PHP_URL_QUERY), $query);

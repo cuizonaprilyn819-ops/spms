@@ -121,7 +121,7 @@ class OpcrManagementTest extends TestCase
         $this->assertDatabaseCount('opcrs', 1);
     }
 
-    public function test_office_heads_only_see_targets_assigned_to_their_office(): void
+    public function test_supervisors_only_see_opcrs_for_their_office(): void
     {
         $this->seed(RoleSeeder::class);
 

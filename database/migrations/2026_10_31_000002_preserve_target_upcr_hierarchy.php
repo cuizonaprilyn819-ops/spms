@@ -2,7 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\{DB, Schema};
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -23,10 +24,12 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (DB::table('ipcrs')->whereNotNull('upcr_id')->groupBy('upcr_id', 'employee_id')->havingRaw('COUNT(*) > 1')->exists()) {
+        if (DB::table('ipcrs')->select('upcr_id', 'employee_id')->whereNotNull('upcr_id')->groupBy('upcr_id', 'employee_id')->havingRaw('COUNT(*) > 1')->exists()) {
             throw new RuntimeException('Cannot restore the old IPCR uniqueness rule while multiple target IPCRs share a UPCR. No report records have been removed.');
         }
-        if (in_array(DB::getDriverName(), ['pgsql', 'sqlite'])) DB::statement('DROP INDEX IF EXISTS ipcrs_manual_upcr_employee_unique');
+        if (in_array(DB::getDriverName(), ['pgsql', 'sqlite'])) {
+            DB::statement('DROP INDEX IF EXISTS ipcrs_manual_upcr_employee_unique');
+        }
         Schema::table('ipcrs', function (Blueprint $table) {
             $table->dropIndex(['upcr_id', 'employee_id']);
             $table->unique(['upcr_id', 'employee_id']);

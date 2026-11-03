@@ -41,7 +41,7 @@ class EvaluationCycleController extends Controller
                 Rule::unique('evaluation_cycles', 'semester')
                     ->where('year', $request->integer('year')),
             ],
-        ]);
+        ], [], ['semester' => 'quarter']);
 
         foreach (['pcr_creation_closes_at', 'pcr_submission_due_at'] as $field) {
             if (! empty($data[$field])) $data[$field] = \Illuminate\Support\Carbon::parse($data[$field])->endOfDay();

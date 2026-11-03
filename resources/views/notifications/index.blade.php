@@ -18,7 +18,7 @@
     <div class="py-8">
         <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             @if (session('status'))
-                <div class="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                <div class="spms-alert mb-5" data-tone="success" role="status">
                     {{ session('status') }}
                 </div>
             @endif
@@ -43,7 +43,7 @@
                                     <form method="POST" action="{{ route('notifications.read', $notification) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b4276]">
+                                        <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-spms-navy-hover">
                                             Open
                                         </button>
                                     </form>

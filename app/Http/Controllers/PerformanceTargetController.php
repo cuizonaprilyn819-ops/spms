@@ -21,7 +21,7 @@ class PerformanceTargetController extends Controller
         $officeTargets = OfficeTarget::with('createdBy')->whereNull('performance_target_id');
         if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
             $officeTargets->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0));
-        } elseif ($user->hasRole('Campus Director')) {
+        } elseif ($user->hasAnyRole(['Campus Director', 'Planning Officer'])) {
             $officeTargets->where('created_by', $user->id);
         } elseif (! $user->hasRole('Administrator')) {
             $officeTargets->whereHas('assignedEmployees', fn ($q) => $q->whereKey($user->id));

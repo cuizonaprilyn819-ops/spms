@@ -3,12 +3,27 @@
 namespace App\Models;
 
 use App\Notifications\TargetAssignedNotification;
+use App\Services\PlanningOrganization;
+use App\Services\TargetHierarchy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class OfficeTarget extends Model
 {
+    protected static function booted(): void
+    {
+        static::addGlobalScope('campusPlanningAccess', function ($query) {
+            $user = auth()->user();
+            if (! $user || $user->hasRole('Administrator')) {
+                return;
+            }
+            $visible = app(PlanningOrganization::class)->visiblePlanIds($user);
+            $query->where(fn ($q) => $q->whereDoesntHave('evaluationCycle', fn ($c) => $c->where('multi_campus_enabled', true))
+                ->orWhereIn('performance_target_id', PerformanceTarget::whereIn('commitment_plan_id', $visible)->select('root_target_id')));
+        });
+    }
+
     public function performanceTarget()
     {
         return $this->belongsTo(PerformanceTarget::class);
@@ -37,7 +52,7 @@ class OfficeTarget extends Model
 
     public function notifyAssignedSupervisors(array $officeIds, bool $updated = false): void
     {
-        $officeIds = app(\App\Services\TargetHierarchy::class)->reportingOfficeIds($officeIds);
+        $officeIds = app(TargetHierarchy::class)->reportingOfficeIds($officeIds);
         $headIds = Office::whereIn('id', $officeIds)->whereNotNull('head_id')->pluck('head_id');
         User::query()->where(function ($query) use ($officeIds, $headIds) {
             $query->where(fn ($q) => $q->whereIn('office_id', $officeIds)->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head', 'Campus Director'])))

@@ -50,6 +50,10 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        if ($user->hasRetainedArchiveRecords()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['password' => 'This account is linked to retained PCR history or a sign-in identity and cannot be deleted.'])->errorBag('userDeletion');
+        }
+
         Auth::logout();
 
         $user->delete();

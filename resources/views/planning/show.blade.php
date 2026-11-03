@@ -2,8 +2,9 @@
 <x-slot name="header"><div class="flex flex-wrap items-center justify-between gap-3"><div><h1 class="text-2xl font-bold">{{ strtoupper($plan->level) }} · {{ $plan->office->name }}</h1><p class="text-sm text-gray-600">@if($plan->employee){{ $plan->employee->name }} · @endif{{ $plan->cycle->label }} · Revision {{ $plan->revision }}</p></div><a class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="{{ route('planning.index') }}">All plans</a></div></x-slot>
 <div class="planning-page mx-auto max-w-7xl space-y-6 p-6">
 @include('planning.messages')
+<x-plan-lineage :plan="$plan" />
 @if($plan->state !== 'approved')<x-pcr-compliance :report="$plan->report" :type="$plan->level" />@endif
-<div class="flex flex-wrap items-center justify-between gap-3"><nav class="spms-plan-path" aria-label="Target reporting levels">@foreach(['opcr','dpcr','upcr','ipcr'] as $level)<span @if($plan->level===$level) aria-current="step" @endif>{{ strtoupper($level) }}</span>@unless($loop->last)<span aria-hidden="true">→</span>@endunless @endforeach</nav><x-planning-status :state="$plan->state" /></div>
+<div class="flex flex-wrap items-center justify-between gap-3"><nav class="spms-plan-path" aria-label="Target reporting levels">@foreach(($plan->cycle->multi_campus_enabled ? ['university'=>'University OPCR','opcr'=>'Campus OPCR','dpcr'=>'DPCR','upcr'=>'UPCR','ipcr'=>'IPCR'] : ['opcr'=>'OPCR','dpcr'=>'DPCR','upcr'=>'UPCR','ipcr'=>'IPCR']) as $level=>$levelLabel)<span @if(($plan->level==='opcr' && !$plan->parent_id && $plan->cycle->multi_campus_enabled ? 'university' : $plan->level)===$level) aria-current="step" @endif>{{ $levelLabel }}</span>@unless($loop->last)<span aria-hidden="true">→</span>@endunless @endforeach</nav><x-planning-status :state="$plan->state" /></div>
 <nav class="spms-section-nav" aria-label="Plan sections"><a href="#responsibility" aria-current="location">Commitments</a><a href="#plan-targets">Targets</a>@if($plan->state==='approved')<a href="#performance-review">Final review</a>@endif<a href="#planning-history">History</a></nav>
 <section id="responsibility" class="planning-card"><div class="flex flex-wrap justify-between gap-3"><div><h2>Commitments and responsibility</h2><p class="text-sm text-slate-600">Reviewer: {{ $plan->reviewer->name }}. Planning approval is separate from final performance review.</p>
 @if($plan->parent)<a href="{{ route('planning.show',$plan->parent) }}" class="text-blue-700 underline">Parent: {{ strtoupper($plan->parent->level) }} #{{ $plan->parent_id }}</a>
@@ -17,7 +18,7 @@
 @csrf<label><input type="checkbox" name="confirmed" value="1" required> I discussed and agree with these commitments.</label><button>Record my agreement</button></form>
 @endif
 @if($plan->state==='endorsed')
-<p class="mt-4 rounded bg-blue-50 p-3">Reviewed and awaiting parent approval. This revision is not yet confirmed; previous approved shares remain reserved.</p>
+<p class="spms-alert mt-4 rounded bg-blue-50 p-3" data-tone="info">Reviewed and awaiting parent approval. This revision is not yet confirmed; previous approved shares remain reserved.</p>
 @if(auth()->id()===$plan->reviewer_id)
 <form class="planning-form" method="post" action="{{ route('planning.transition',[$plan,'return']) }}">@csrf<label>Correction needed<textarea name="reason" required></textarea></label><button class="is-secondary">Return the reviewed draft</button></form>
 @endif
@@ -53,9 +54,8 @@
 @empty<p>No parent targets are available yet.</p>
 @endforelse</section>
 @endif
-@if($canManage && $plan->state==='draft' && $plan->level==='opcr')<details class="planning-card"><summary>Add an OPCR target</summary><form class="planning-form" method="post" action="{{ route('planning.target',$plan) }}">
-@csrf
-@include('planning.target-fields')<button>Save target draft</button></form><p class="mt-4"><a class="text-blue-700 underline" href="{{ route('target-documents.index') }}">Or extract drafts from a planning document</a></p></details>
+@if($canManage && $plan->state==='draft' && !$plan->parent_id)<details class="planning-card"><summary>Add an OPCR target</summary><p class="mt-3"><a class="spms-button spms-button-primary inline-flex" href="{{ route('planning.scope-create',$plan) }}">Set target and responsibility</a></p><p class="mt-2 text-sm text-slate-600">Confirm coverage, departments, and whether the quantity is combined or per department.</p>@foreach($scopeDrafts as $scopeDraft)<p class="mt-3"><a class="text-blue-700 underline" href="{{ route('planning.scope-show',$scopeDraft) }}">Resume private draft: {{ $scopeDraft->payload['target'] }}</a></p>@endforeach
+@hasanyrole('Administrator|Planning Officer')<p class="mt-4"><a class="text-blue-700 underline" href="{{ route('target-documents.index') }}">Or extract drafts from a planning document</a></p>@endhasanyrole</details>
 @endif
 <div id="plan-targets" class="pt-1"><h2 class="text-lg font-semibold">Targets and supporting work</h2><p class="mt-1 text-sm text-slate-500">Review each commitment, its allocation, and the evidence recorded against it.</p></div>
 @forelse($lines as $lineRow)
@@ -63,18 +63,21 @@
 @php($s=$lineRow['summary'])<section class="planning-card"><h2>#{{ $t->id }} · {{ $t->target }}</h2><p>{{ $t->success_indicator }}</p><p class="mt-2 text-sm text-gray-600">Root OPCR target #{{ $t->root_target_id }}
 @if($t->parent_target_id) · Parent target #{{ $t->parent_target_id }} · Source revision {{ $t->source_revision }}
 @endif</p>
-@if($t->needs_reconciliation)<p class="mt-3 rounded bg-amber-50 p-3 text-amber-900">The parent changed. Open an amendment and reconcile this line against the new source before approval or reporting.</p>
+@if($t->needs_reconciliation)<p class="spms-alert mt-3 rounded bg-amber-50 p-3 text-amber-900" data-tone="warning">The parent changed. Open an amendment and reconcile this line against the new source before approval or reporting.</p>
 @endif
 <div class="spms-plan-metrics my-4 grid gap-px sm:grid-cols-4">
-@foreach(['Committed'=>$t->quantity.' '.$t->unit,'Reported'=>$s['reported'] ?? 'Unavailable','Validated'=>$s['validated'] ?? 'Unavailable','Unallocated'=>$s['unallocated'] ?? 'Not applicable'] as $label=>$value)<div class="rounded bg-gray-50 p-3"><p class="text-sm text-gray-600">{{ $label }}</p><p class="text-xl font-semibold">{{ $value }}</p></div>
-@endforeach</div><p>Quality / timeliness: {{ $t->standards }} · Deadline {{ $t->deadline->format('M d, Y') }} · Rating weight {{ $t->weight }}%</p><p>Source: {{ $t->source_evidence }}</p>
+@foreach(['Committed'=>$t->quantity.' '.$t->unit,'Reported'=>$s['reported'] ?? 'Unavailable','Validated'=>$s['validated'] ?? 'Unavailable','Unallocated'=>$s['unallocated'] ?? 'Not applicable'] as $label=>$value)<div data-metric="{{ strtolower($label) }}" class="rounded bg-gray-50 p-3"><p class="text-sm text-gray-600">{{ $label }}</p><p class="text-xl font-semibold">{{ $value }}</p></div>
+@endforeach</div><p>Quality / timeliness: {{ $t->standards }} · Deadline {{ $t->deadline->format('M d, Y') }} · Rating weight {{ $t->weight }}%</p><p>Source: {{ $t->source_evidence }}</p>@if($t->scope_metadata)<p class="spms-alert mt-3" data-tone="primary">Coverage: {{ ucfirst($t->scope_metadata['coverage']) }} · Quantity basis: {{ $t->scope_metadata['quantity_basis']==='total' ? 'Combined total' : 'Per department' }} · Entered: {{ $t->scope_metadata['entered_quantity'] }} {{ $t->unit }}<br>{{ $t->scope_metadata['matching_reason'] }}</p>@endif
+@if($t->measurement==='count')<x-semantic-progress :value="$s['validated'] ?? 0" :max="$t->quantity" label="Validated accomplishment" tone="success" />@endif
 @if($s['extra']>0)<p class="mt-2 text-amber-800">Additional output: {{ $s['extra'] }}. Original commitment unchanged; validate the supporting work separately.</p>
 @endif
 @if($canManage && $plan->state==='draft')<details class="mt-4"><summary>Edit / reconcile draft target</summary><form class="planning-form" method="post" action="{{ route('planning.target-update',$t) }}">
 @csrf
-@if($plan->level==='opcr')
-@include('planning.target-fields',['line'=>$t])
+@if(!$plan->parent_id)
+@include('planning.target-fields',['line'=>$t,'scopePayload'=>$t->scope_metadata ? ['quantity'=>$t->scope_metadata['entered_quantity']] : []])
+@if($t->scope_metadata)@include('planning.scope-fields',['scope'=>$t->scope_metadata])@endif
 @else
+<label>Local target wording<input name="local_target" maxlength="255" value="{{ $t->target }}"></label>
 <label>Current parent target<select name="source_target_id">
 @foreach($sources->where('eligible',true) as $src)<option value="{{ $src['target']->id }}"
 @selected($t->parent_target_id===$src['target']->id)>#{{ $src['target']->id }} {{ $src['target']->target }}</option>

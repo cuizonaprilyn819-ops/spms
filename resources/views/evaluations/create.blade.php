@@ -56,13 +56,13 @@
                     </div>
 
                     <div class="grid gap-6 sm:grid-cols-2">
-                        <div class="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                        <div class="spms-alert rounded-lg border border-blue-100 bg-blue-50 p-4" data-tone="info">
                             <p class="text-xs font-bold uppercase text-gray-500">Average Rating (A)</p>
                             <p class="mt-2 text-3xl font-bold text-spms-navy" x-text="average()">0.00</p>
                             <p class="mt-1 text-xs text-gray-500">Formula: (Q + E + T) / 3</p>
                         </div>
 
-                        <div class="rounded-lg border border-green-100 bg-green-50 p-4">
+                        <div class="spms-alert rounded-lg border border-green-100 bg-green-50 p-4" data-tone="success">
                             <p class="text-xs font-bold uppercase text-gray-500">Weighted Rating</p>
                             <p class="mt-2 text-3xl font-bold text-spms-green" x-text="computed()">0.00</p>
                             <p class="mt-1 text-xs text-gray-500">Formula: A x target weight / 100</p>

@@ -3,9 +3,9 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Evaluation Period Management') }}</h2>
-                <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which semester is open for evaluation.</p>
+                <p class="mt-1 text-sm text-gray-500">Create SPMS evaluation periods and control which quarter is open for evaluation.</p>
             </div>
-            <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+            <a href="{{ route('evaluation-cycles.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create Period
             </a>
         </div>
@@ -18,17 +18,17 @@
                     {{ session('status') }}
                 </div>
             @endif
-            @if($errors->any())<div role="alert" class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
-            @unless(app(\App\Services\PcrReminders::class)->emailAvailable())<p class="mb-4 rounded-lg bg-amber-50 p-4 text-sm">Outgoing reminder email is not enabled. Contact the administrator to configure email delivery. In-app reminders are available when the scheduler runs.</p>@endunless
+            @if($errors->any())<div role="alert" class="spms-alert mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700" data-tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+            @unless(app(\App\Services\PcrReminders::class)->emailAvailable())<p class="spms-alert mb-4 rounded-lg bg-amber-50 p-4 text-sm" data-tone="warning">Outgoing reminder email is not enabled. Contact the administrator to configure email delivery. In-app reminders are available when the scheduler runs.</p>@endunless
 
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table data-workspace-table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-spms-surface">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Period</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Year</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Semester</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Quarter</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold uppercase text-gray-500">Actions</th>
                             </tr>
@@ -41,9 +41,9 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ App\Models\EvaluationCycle::semesterLabel($cycle->semester) }}</td>
                                     <td class="px-6 py-4">
                                         @if ($cycle->isOpen())
-                                            <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Open</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700" data-tone="success">Open</span>
                                         @else
-                                            <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">Closed</span>
+                                            <span class="spms-badge inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600" data-tone="neutral">Closed</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4">

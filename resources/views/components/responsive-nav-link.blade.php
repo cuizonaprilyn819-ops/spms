@@ -12,6 +12,8 @@ $icon = match ($section) {
     'movs' => 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
     'reports', 'target-documents' => 'M4 3h16v18H4zM8 7h8M8 11h8M8 15h5',
     'planning' => 'M12 3v6M5 15v-3h14v3M3 15h4v6H3zM10 3h4M10 15h4v6h-4zM17 15h4v6h-4zM12 12v3',
+    'historical-pcrs' => 'M3 3h18v5H3zM5 8v13h14V8M9 12h6',
+    'strategic-goals' => 'M4 22V3M4 3h14l-3 5 3 5H4',
     default => 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
 };
 $classes = ($active ?? false)

@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Dpcr;
 use App\Models\Ipcr;
+use App\Models\Office;
 use App\Models\Opcr;
 use App\Models\Upcr;
 use App\Models\User;
 use App\Notifications\ReportWorkflowNotification;
 use App\Services\CommitmentPlanning;
+use App\Services\PcrCompliance;
 use App\Services\PlanningOrganization;
+use App\Services\TargetConflictReview;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +88,7 @@ class ReportWorkflowController extends Controller
     {
         $form = $this->report($type, $report);
         if ($plan = $form->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canView($request->user(), $plan), 403);
             abort_unless(app(PlanningOrganization::class)->canPrepare($request->user(), $plan), 403);
             abort_unless($plan->state === 'approved' && ! $plan->targets()->where('needs_reconciliation', true)->exists(), 422, 'Approve and reconcile commitments before submitting the performance report.');
         }
@@ -96,6 +100,9 @@ class ReportWorkflowController extends Controller
             'resubmission_count' => $from === $form::STATUS_RETURNED ? $form->resubmission_count + 1 : $form->resubmission_count,
         ]);
         $this->reviewers($form)->each->notify(new ReportWorkflowNotification(strtoupper($type), $form, $to));
+        if (config('spms.target_assistance.enabled') && ! $form->commitmentPlan) {
+            DB::afterCommit(fn () => app(TargetConflictReview::class)->scan($form->fresh(), $request->user(), true, true));
+        }
 
         return back()->with('status', strtoupper($type).' submitted for review.');
     }
@@ -124,7 +131,7 @@ class ReportWorkflowController extends Controller
         }
         abort_unless(in_array($form->status, [$form::STATUS_SUBMITTED, $form::STATUS_RESUBMITTED], true), 422);
         $ratings = [];
-        $pcrCycle = app(\App\Services\PcrCompliance::class)->cycle($form);
+        $pcrCycle = app(PcrCompliance::class)->cycle($form);
         if ($form instanceof Ipcr && ($form->office_target_id || $pcrCycle?->pcr_submission_due_at)) {
             abort_if((int) $form->employee_id === (int) $request->user()->id, 403, 'You cannot rate your own IPCR.');
             $ratings = $request->validate([
@@ -170,7 +177,9 @@ class ReportWorkflowController extends Controller
             $from = $current->status;
             $form->setRawAttributes($current->getAttributes(), true);
             $form->update(['status' => $to, ...$extra]);
-            if (in_array($to, ['submitted', 'resubmitted'])) app(\App\Services\PcrCompliance::class)->recordSubmission($form);
+            if (in_array($to, ['submitted', 'resubmitted'])) {
+                app(PcrCompliance::class)->recordSubmission($form);
+            }
             $form->statusHistories()->create(['from_status' => $from, 'to_status' => $to, 'remarks' => $remarks, 'acted_by' => $actor]);
         });
     }
@@ -180,6 +189,7 @@ class ReportWorkflowController extends Controller
         $user = $request->user();
         abort_if((int) $form->prepared_by === $user->id || (int) $form->employee_id === $user->id, 403, 'You cannot review your own report.');
         if ($plan = $form->commitmentPlan) {
+            abort_unless(app(PlanningOrganization::class)->canView($user, $plan), 403);
             abort_unless(($user->hasRole('Planning Officer') || $plan->reviewer_id === $user->id) && $plan->prepared_by !== $user->id && $plan->employee_id !== $user->id, 403);
             abort_unless($plan->state === 'approved' && ! $plan->targets()->where('needs_reconciliation', true)->exists(), 422, 'Commitments need approval or reconciliation.');
 
@@ -187,7 +197,7 @@ class ReportWorkflowController extends Controller
         }
         abort_unless($user->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor']), 403);
         if ($user->hasRole('Supervisor')) {
-            $office = \App\Models\Office::find($this->officeId($form));
+            $office = Office::find($this->officeId($form));
             $reviewOfficeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
             abort_unless($user->office_id && (int) $user->office_id === (int) $reviewOfficeId, 403);
         }
@@ -198,7 +208,7 @@ class ReportWorkflowController extends Controller
 
     private function reviewers(Model $form)
     {
-        $office = \App\Models\Office::find($this->officeId($form));
+        $office = Office::find($this->officeId($form));
         $officeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
         $reportingOfficeIds = $office ? app(PlanningOrganization::class)->ancestors($office) : [];
         $reportingHeadIds = \App\Models\Office::whereIn('id', $reportingOfficeIds)->whereNotNull('head_id')->pluck('head_id')->all();
@@ -210,7 +220,7 @@ class ReportWorkflowController extends Controller
                 ->where(fn ($offices) => $offices->whereIn('office_id', $reportingOfficeIds)->orWhereIn('id', $reportingHeadIds)));
             $query->orWhereHas('roles', fn ($r) => $r->whereIn('name', ['HR Head', 'Planning Officer']));
             if ($assignedReviewerId) $query->orWhere('users.id', $assignedReviewerId);
-        })->get();
+        })->get()->filter(fn ($person) => ! $form->commitmentPlan || app(PlanningOrganization::class)->canView($person, $form->commitmentPlan));
     }
 
     private function officeId(Model $form): ?int

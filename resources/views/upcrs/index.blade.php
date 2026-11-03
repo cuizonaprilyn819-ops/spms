@@ -5,7 +5,7 @@
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('UPCR Management') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">Create and view UPCR records linked to DPCR commitments.</p>
             </div>
-            @hasanyrole('Supervisor|HR|HR Head|Planning Officer')<a href="{{ route('upcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276] focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+            @hasanyrole('Supervisor|HR|HR Head|Planning Officer')<a href="{{ route('upcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create UPCR
             </a>@endhasanyrole
         </div>
@@ -21,7 +21,7 @@
 
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table data-workspace-table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-spms-surface">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">UPCR</th>

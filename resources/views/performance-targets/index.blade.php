@@ -14,8 +14,8 @@
             <div class="flex flex-wrap items-center gap-3">
             @if(auth()->user()->canProposeOfficeTarget())<a href="{{ route('office-target-proposals.create') }}" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Add office target</a>@endif
             <a href="{{ route('office-target-proposals.index') }}" class="text-sm font-semibold underline">{{ auth()->user()->hasAnyRole(['Planning Officer','Administrator']) ? 'Review office target proposals' : 'My target proposals' }}</a>
-            @hasanyrole('Administrator|Campus Director|Planning Officer')
-                <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276]">Upload Main Campus Document</a>
+            @hasanyrole('Administrator|Planning Officer')
+                <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover">Upload Main Campus Document</a>
             @endhasanyrole
             </div>
         </div>
@@ -49,7 +49,7 @@
             <h3 class="mb-3 text-lg font-bold text-spms-ink">Report Performance Targets</h3>
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table data-workspace-table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-spms-surface">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase text-gray-500">Target</th>
@@ -71,7 +71,7 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <span class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy">{{ $typeLabels[$target->targetable_type] ?? 'Form' }}</span>
+                                        <span class="spms-badge inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-spms-navy" data-tone="info">{{ $typeLabels[$target->targetable_type] ?? 'Form' }}</span>
                                         <p class="mt-2 text-sm text-gray-600">{{ $target->targetable?->title ?? 'Deleted form' }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-sm leading-6 text-gray-600">{{ $target->success_indicator }}</td>

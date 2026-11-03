@@ -11,11 +11,11 @@
 
                     @if($sourceTarget)
                         <input type="hidden" name="office_target_id" value="{{ $sourceTarget->id }}">
-                        <p class="rounded-lg bg-blue-50 p-4 text-sm">Preparing an IPCR from your assigned target: {{ $sourceTarget->title }}</p>
+                        <p class="spms-alert rounded-lg bg-blue-50 p-4 text-sm" data-tone="info">Preparing an IPCR from your assigned target: {{ $sourceTarget->title }}</p>
                         <p class="text-sm">Office: {{ auth()->user()->office?->name }} → UPCR: {{ $sourceUpcr?->title ?? 'Pending office UPCR link' }} → {{ auth()->user()->name }} (IPCR)</p>
                     @else
                     @if($upcrs->isEmpty())
-                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No approved UPCR is available for your office. Your Supervisor must submit and obtain approval for the UPCR first.</div>
+                        <div class="spms-alert rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" data-tone="warning">No approved UPCR is available for your office. Your Supervisor must submit and obtain approval for the UPCR first.</div>
                     @endif
 
                     <div>

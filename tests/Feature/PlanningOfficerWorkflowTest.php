@@ -13,6 +13,21 @@ class PlanningOfficerWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_only_administrators_can_grant_the_planning_officer_role(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $hr = User::factory()->create();
+        $hr->assignRole('HR');
+        $admin = User::factory()->create();
+        $admin->assignRole('Administrator');
+        $data = ['name' => 'Synthetic planner', 'email' => 'synthetic-planner@example.test',
+            'role' => 'Planning Officer', 'password' => 'SyntheticPassword123', 'password_confirmation' => 'SyntheticPassword123'];
+        $this->actingAs($hr)->post(route('employees.store'), $data)->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => $data['email']]);
+        $this->actingAs($admin)->post(route('employees.store'), $data)->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertTrue(User::where('email', $data['email'])->sole()->hasRole('Planning Officer'));
+    }
+
     public function test_planning_officer_opens_period_and_replaces_its_chairperson_with_history(): void
     {
         $this->seed(RoleSeeder::class);

@@ -1,0 +1,26 @@
+<x-app-layout>
+<x-slot name="header"><h1 class="text-2xl font-bold">Target conflict review #{{ $scan->id }}</h1><p class="text-sm text-slate-600">{{ ucfirst(str_replace('-',' ',$scan->subject_kind)) }} #{{ $scan->subject_id }} · {{ $scan->published ? 'Shared for review' : 'Private draft check' }}</p></x-slot>
+<div class="planning-page mx-auto max-w-6xl space-y-5 p-6">
+<a class="text-violet-700 underline" href="{{ route('target-conflicts.index') }}">All target conflict checks</a>
+@if($errors->any())<x-semantic-alert tone="danger">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</x-semantic-alert>@endif
+@if(session('status'))<x-semantic-alert tone="success">{{ session('status') }}</x-semantic-alert>@endif
+<section class="planning-card"><h2 class="font-semibold">Check status</h2><p class="mt-2">{{ $current ? ucfirst(str_replace('-',' ',$scan->status)) : 'Outdated — source records or access changed' }}</p><p class="mt-2 text-sm text-slate-600">Compared {{ count($scan->coverage) }} permitted record(s) from the same period. Application rules verify quantities and relationships. AI suggestions require human review; a completed scan is not a guarantee that every possible conflict was found.</p>
+@if($scan->failure)<p class="mt-3 text-amber-900">{{ $scan->failure }}</p>@endif
+@if($scan->status==='pending' && $current)<p class="mt-3 text-cyan-800" role="status">The background check is processing. Refresh to see its result.</p><a class="mt-3 inline-block underline" href="{{ route('target-conflicts.show',$scan) }}">Refresh result</a>@endif
+<form method="post" action="{{ route('target-conflicts.scan') }}" class="mt-4">@csrf<input type="hidden" name="kind" value="{{ $scan->subject_kind }}"><input type="hidden" name="id" value="{{ $scan->subject_id }}"><button class="is-secondary">{{ $current && $scan->status==='completed' ? 'Check current targets' : 'Retry conflict check' }}</button></form>
+</section>
+@if($restrictedCount)<x-semantic-alert tone="warning">{{ $restrictedCount }} finding(s) include restricted records. Their details are withheld. An authorized reviewer with access to all affected records must coordinate the review.</x-semantic-alert>@endif
+@forelse($findings as $finding)
+<article class="planning-card space-y-3"><div class="flex flex-wrap items-center gap-3"><span class="rounded px-3 py-1 text-sm {{ $finding->source==='ai' ? 'bg-violet-100 text-violet-900' : ($finding->blocking ? 'bg-red-100 text-red-900' : 'bg-amber-100 text-amber-900') }}">{{ $finding->source==='ai' ? 'Possible conflict — human review required' : ($finding->blocking ? 'Verified application rule violation' : 'Needs information') }}</span><span class="text-sm">{{ ucfirst(str_replace('-',' ',$finding->status)) }}</span></div>
+<h2 class="text-lg font-semibold">{{ $finding->title }}</h2><p class="whitespace-pre-line">{{ $finding->explanation }}</p><p><strong>Recommended next step:</strong> {{ $finding->recommendation }}</p><p class="text-sm text-slate-500">References: {{ implode(', ',$finding->references) ?: 'Current report context' }}</p>
+@foreach($finding->dispositions()->with('user')->orderBy('id')->get() as $decision)<div class="border-t border-slate-200 pt-3 text-sm"><strong>{{ $decision->user->name }} · {{ ucfirst(str_replace('-',' ',$decision->decision)) }}</strong><p class="whitespace-pre-line">{{ $decision->reason }}</p><time>{{ $decision->created_at->format('M d, Y H:i') }}</time></div>@endforeach
+@if($canReview && $current)
+<form method="post" action="{{ route('target-conflicts.disposition',$scan) }}" class="planning-form border-t border-slate-200 pt-3">@csrf<input type="hidden" name="finding_id" value="{{ $finding->id }}"><label>Reviewer response<select name="decision"><option value="correction-required">Correction required</option>@unless($finding->blocking)<option value="addressed">Addressed</option><option value="dismissed">Dismissed with reason</option>@endunless</select></label><label>Reason or correction made<textarea name="reason" minlength="10" maxlength="4000" required></textarea></label><button>Record reviewer response</button></form>
+@endif
+</article>
+@empty
+<p class="planning-card">{{ $scan->status==='completed' && $current ? 'No findings were returned for the permitted records checked.' : 'No visible findings yet. Pending or failed AI checks must not be interpreted as a clean result.' }}</p>
+@endforelse
+@if($canReview && $current && in_array($scan->status,['failed','rules-only'],true))<section class="planning-card"><h2 class="font-semibold">Record a manual conflict review</h2><p class="mt-2">Explain which records you compared and how you checked quantities, deadlines, duties, and possible duplication. Application rule violations still require correction.</p><form method="post" action="{{ route('target-conflicts.disposition',$scan) }}" class="planning-form mt-4">@csrf<input type="hidden" name="decision" value="manual-review"><label>Manual review notes<textarea name="reason" minlength="10" maxlength="4000" required></textarea></label><button>Record manual conflict review</button></form></section>@endif
+@foreach($scan->dispositions()->whereNull('conflict_id')->with('user')->get() as $decision)<p class="planning-card text-sm"><strong>Manual review · {{ $decision->user->name }}</strong><br>{{ $decision->reason }}</p>@endforeach
+</div></x-app-layout>
