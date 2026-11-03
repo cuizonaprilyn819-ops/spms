@@ -59,6 +59,9 @@ class CommitmentPlanning
 
     public function createPlan(User $actor, EvaluationCycle $cycle, Office $office, string $level, ?CommitmentPlan $parent, ?User $employee = null, ?string $reason = null): CommitmentPlan
     {
+        if ($level !== 'ipcr' && ! $actor->hasAnyRole(['Administrator', 'Planning Officer'])) {
+            abort_unless($level === $actor->organizationalReportType(), 403, 'Prepare the organizational report assigned to your role and office level.');
+        }
         return DB::transaction(function () use ($actor, $cycle, $office, $level, $parent, $employee, $reason) {
             $cycle = EvaluationCycle::whereKey($cycle->id)->lockForUpdate()->firstOrFail();
             if (! $cycle->planning_enabled || ! $cycle->isOpen()) {

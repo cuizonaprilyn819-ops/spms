@@ -87,13 +87,14 @@ class ReportController extends Controller
     {
         $user = request()->user();
         $types = [];
-        if ($user->hasRole('Campus Director')) {
+        $organizationalType = $user->organizationalReportType();
+        if ($organizationalType === 'opcr') {
             $types['opcr'] = 'Office Performance Commitment and Review';
         }
-        if ($user->hasAnyRole(['Supervisor', 'HR Head'])) {
+        if ($organizationalType === 'dpcr') {
             $types['dpcr'] = 'Division Performance Commitment and Review';
         }
-        if ($user->hasRole('Supervisor')) {
+        if ($organizationalType === 'upcr') {
             $types['upcr'] = 'Unit Performance Commitment and Review';
         }
         $types['ipcr'] = 'Individual Performance Commitment and Review';
@@ -151,6 +152,26 @@ class ReportController extends Controller
         ]);
     }
 
+    public function word(string $type): Response
+    {
+        return $this->wordDownload($type);
+    }
+
+    public function finishedWord(string $type, int $report): Response
+    {
+        return $this->wordDownload($type, $report);
+    }
+
+    private function wordDownload(string $type, ?int $finishedId = null): Response
+    {
+        $report = $this->reportData($type, true, $finishedId);
+        return response(app(\App\Services\WordReport::class)->generate($report), 200, [
+            'Content-Type' => \App\Services\WordReport::MIME,
+            'Content-Disposition' => 'attachment; filename="'.$this->filename($type, 'docx', $finishedId).'"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     /**
      * @return array{type: string, title: string, generatedAt: Carbon, headers: array<int, string>, rows: array<int, array<int, string>>, forms: array<int, array<string, mixed>>, formHeaders: array<int, string>}
      */
@@ -182,7 +203,7 @@ class ReportController extends Controller
         ReportGeneration::create([
             'generated_by' => request()->user()->id,
             'report_type' => $type,
-            'format' => $export ? (request()->routeIs('reports.*.pdf', 'reports.pdf') ? 'pdf' : 'excel') : 'preview',
+            'format' => ! $export ? 'preview' : (request()->routeIs('reports.word', 'reports.finished.word') ? 'word' : (request()->routeIs('reports.*.pdf', 'reports.pdf') ? 'pdf' : 'excel')),
             'record_ids' => $records->pluck('id')->values()->all(),
             'snapshot' => $data,
             'ip_address' => request()->ip(),
@@ -343,6 +364,9 @@ class ReportController extends Controller
 
         return [
             'heading' => $this->formHeading($type),
+            'strategic_program' => app(\App\Services\ReportTargetContext::class)->display($record)['strategic_program'] ?? null,
+            'program_outcome' => app(\App\Services\ReportTargetContext::class)->display($record)['program_outcome'] ?? null,
+            'success_indicators' => $record->success_indicators,
             'commitment' => $this->commitmentStatement($type, $record),
             'prepared_name' => (string) ($record->preparedBy?->name ?? $this->employeeLabel($type, $record)),
             'prepared_position' => $this->preparedPosition($type, $record),

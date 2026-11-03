@@ -14,10 +14,11 @@ test('preserves subdirectory deployment paths', () => {
 });
 
 test('leaves authentication, external links, files and unrelated paths to the browser', () => {
-    for (const path of ['/login', '/logout', '/password', '/target-movs/1/preview', '/movs/1/download', '/reports/ipcr/pdf', '/reports/ipcr/excel', 'https://external.test/offices']) {
+    for (const path of ['/login', '/logout', '/password', '/target-movs/1/preview', '/movs/1/download', '/reports/ipcr/pdf', '/reports/ipcr/excel', '/reports/ipcr/word', '/reports/finished/ipcr/1/word', '/reports/ipcr/word?download=1', 'https://external.test/offices']) {
         assert.equal(apiTarget(new URL(path, 'https://spms.test').href, 'https://spms.test'), null);
     }
     assert.equal(apiTarget('https://spms.test/other/offices', 'https://spms.test/spms'), null);
+    assert.equal(apiTarget('https://spms.test/spms/reports/ipcr/word', 'https://spms.test/spms'), null);
 });
 
 function formHarness(t, response) {

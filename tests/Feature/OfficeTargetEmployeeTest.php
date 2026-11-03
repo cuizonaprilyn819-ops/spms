@@ -10,6 +10,7 @@ class OfficeTargetEmployeeTest extends TestCase
     use RefreshDatabase;
     public function test_only_assigned_office_supervisor_can_assign_employees(): void
     {
+        config(['spms.ai.enabled' => false]);
         $this->seed(\Database\Seeders\RoleSeeder::class);
         $office = Office::factory()->create();
         $supervisor = User::factory()->create(['office_id' => $office->id]);
@@ -104,7 +105,7 @@ class OfficeTargetEmployeeTest extends TestCase
         $this->actingAs($supervisor)->patch($completionUrl)->assertForbidden();
         $this->actingAs($employee);
         $files = [];
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < 21; $i++) {
             $files[] = \Illuminate\Http\UploadedFile::fake()->create('proof'.$i.'.pdf', 10, 'application/pdf');
         }
         $this->post($upload, ['accomplishment' => 'Too many files', 'files' => $files])->assertSessionHasErrors('files');

@@ -42,7 +42,7 @@ class AiWorkflowRequirementsTest extends TestCase
             'original_name' => 'attendance.pdf', 'mime_type' => 'application/pdf', 'extension' => 'pdf', 'file_size' => 20, 'uploaded_by' => $employee->id]);
         Storage::disk('public')->put('attendance.pdf', '%PDF-synthetic-test-evidence');
         Http::fake(['api.openai.com/*' => Http::response($this->response(['summary' => 'Signed attendance for one workshop.',
-            'statement' => 'Conducted one workshop attended by 30 BSIT students.', 'supported' => true,
+            'statement' => 'Conducted one workshop attended by 30 BSIT students.', 'supported' => true, 'satisfies_target' => true, 'target_assessment' => 'The evidence demonstrates the target.',
             'source_excerpts' => ['Page 1: Workshop attendance - 30 BSIT students.'], 'limitations' => 'No assessment results provided.']))]);
         config(['spms.ai.statement_template' => 'Completed [action] for [quantity] [beneficiaries] on [date].']);
         $this->actingAs($employee)->post(route('evidence.analyze', ['mov', $mov->id]))->assertRedirect();
@@ -73,7 +73,7 @@ class AiWorkflowRequirementsTest extends TestCase
             'details' => 'Workshop reported', 'quantity' => 1, 'evidence' => ['path' => 'workshop.pdf', 'name' => 'workshop.pdf'], 'submitted_by' => $employee->id]);
         Storage::disk('local')->put('workshop.pdf', 'synthetic PDF');
         Http::fake(['api.openai.com/*' => Http::response($this->response(['summary' => 'Workshop evidence.', 'statement' => 'Delivered one BSIT workshop.',
-            'supported' => true, 'source_excerpts' => ['Page 1: Workshop delivered.'], 'limitations' => '']))]);
+            'supported' => true, 'satisfies_target' => true, 'target_assessment' => 'The evidence demonstrates the target.', 'source_excerpts' => ['Page 1: Workshop delivered.'], 'limitations' => '']))]);
         $this->actingAs($employee)->post(route('evidence.analyze', ['target-mov', $mov->id]))->assertRedirect();
         $this->get(route('reports.show', 'ipcr'))->assertOk()->assertSee('Delivered one BSIT workshop.');
         $this->post(route('evidence.analyze', ['planning-output', $output->id]))->assertRedirect();
@@ -87,7 +87,7 @@ class AiWorkflowRequirementsTest extends TestCase
         $employee = User::factory()->create()->assignRole('Employee');
         $mov = Mov::create(['title' => 'Unreadable', 'file_path' => 'scan.jpg', 'original_name' => 'scan.jpg', 'mime_type' => 'image/jpeg', 'extension' => 'jpg', 'file_size' => 10, 'uploaded_by' => $employee->id]);
         Storage::disk('public')->put('scan.jpg', 'synthetic');
-        Http::fakeSequence()->push($this->response(['summary' => 'Unreadable scan.', 'statement' => 'Must be discarded.', 'supported' => false, 'source_excerpts' => [], 'limitations' => 'Text cannot be read.']))->push([], 503);
+        Http::fakeSequence()->push($this->response(['summary' => 'Unreadable scan.', 'statement' => 'Must be discarded.', 'supported' => false, 'satisfies_target' => false, 'target_assessment' => 'The target cannot be verified.', 'source_excerpts' => [], 'limitations' => 'Text cannot be read.']))->push([], 503);
         $this->actingAs($employee)->post(route('evidence.analyze', ['mov', $mov->id]))->assertRedirect();
         $this->assertNull($mov->fresh()->analysis->statement);
         Http::assertSent(fn ($request) => isset($request['input'][0]['content'][0]['image_url']));

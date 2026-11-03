@@ -10,6 +10,7 @@ use Tests\TestCase;
 class ReportCorrectionWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\CreatesSupportedReportMov;
 
     public function test_employee_can_correct_and_resubmit_a_report_returned_by_their_supervisor(): void
     {
@@ -20,10 +21,14 @@ class ReportCorrectionWorkflowTest extends TestCase
         $supervisor = User::factory()->create(['office_id' => $office->id]);
         $supervisor->assignRole('Supervisor');
         $ipcr = Ipcr::factoryLike()->create(['employee' => $employee, 'prepared_by_user' => $employee]);
+        $this->addSupportedReportMov($ipcr);
 
         $this->actingAs($employee)->get(route('ipcrs.show', $ipcr))->assertOk()->assertSee('Submit for review');
         $this->actingAs($employee)->patch(route('report-workflow.submit', ['ipcr', $ipcr]))->assertRedirect();
         $this->assertSame(Ipcr::STATUS_SUBMITTED, $ipcr->fresh()->status);
+        $this->actingAs($supervisor)->get(route('ipcrs.show', $ipcr))->assertOk()
+            ->assertSee('<details id="return-corrections-ipcr-'.$ipcr->id.'"', false)
+            ->assertSee('Required corrections')->assertDontSee('x-show="returning"', false);
 
         $this->actingAs($supervisor)->patch(route('report-workflow.return', ['ipcr', $ipcr]), [
             'remarks' => 'Attach the missing accomplishment details.',

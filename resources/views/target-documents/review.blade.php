@@ -10,6 +10,7 @@
             <p class="mt-2 text-sm text-gray-600">{{ $proposal['classification_reason'] }}</p>
             <blockquote class="mt-4 whitespace-pre-line border-l-4 border-blue-200 pl-4 text-sm">{{ $proposal['source_excerpt'] }}</blockquote>
         </section>
+        <x-target-weight-summary :document="$draft->document" />
         @if($draft->office_target_id)
             <p class="rounded-xl bg-green-50 p-6">This target is already assigned. <a class="font-bold underline" href="{{ route('office-targets.show', $draft->office_target_id) }}">View assignment</a></p>
         @elseif($proposal['cd_only'])
@@ -46,7 +47,9 @@
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div><label for="review-value" class="text-sm font-semibold">Total quantity</label><input id="review-value" x-model.number="targetValue" name="target_value" type="number" min="0.01" step="0.01" required value="{{ old('target_value', $proposal['target_value']) }}" class="mt-1 w-full rounded-lg border-gray-300"/></div>
                     <div><label for="review-unit" class="text-sm font-semibold">Unit of measure</label><input id="review-unit" name="unit_of_measure" maxlength="100" required value="{{ old('unit_of_measure', $proposal['unit_of_measure']) }}" class="mt-1 w-full rounded-lg border-gray-300"/></div>
-                    <div><label for="review-weight" class="text-sm font-semibold">Weight (%)</label><input id="review-weight" name="weight" type="number" min="0.01" max="100" step="0.01" required value="{{ old('weight', $proposal['weight']) }}" class="mt-1 w-full rounded-lg border-gray-300"/></div>
+                    <div><label for="review-weight" class="text-sm font-semibold">Weight (%)</label><input id="review-weight" name="weight" type="number" min="0.01" max="100" step="0.01" required @readonly(isset($proposal['weight_budget'])) value="{{ old('weight', $proposal['weight']) }}" class="mt-1 w-full rounded-lg border-gray-300"/></div>
+                    @if(isset($proposal['weight_budget']))<p class="sm:col-span-3 text-sm">Budget: {{ $proposal['weight_budget']['label'] }} — {{ $proposal['weight_budget']['budget'] }}% of the report. This target uses {{ $proposal['weight'] }}% of the report.</p>@endif
+                    @if($proposal['weight_warnings'] ?? null)<p role="alert" class="sm:col-span-3 whitespace-pre-line text-sm text-amber-800">Source conflicts to review before confirmation: {{ $proposal['weight_warnings'] }}</p>@endif
                     @if($proposal['weight_reason'] ?? null)<p class="sm:col-span-3 text-xs text-blue-800">AI weight basis: {{ $proposal['weight_reason'] }}</p>@endif
                     <div><label for="review-priority" class="text-sm font-semibold">Priority</label><select id="review-priority" name="priority" class="mt-1 w-full rounded-lg border-gray-300">@foreach(App\Models\OfficeTarget::PRIORITIES as $priority)<option @selected(old('priority', 'medium') === $priority) value="{{ $priority }}">{{ ucfirst($priority) }}</option>@endforeach</select></div>
                 </div>
@@ -75,7 +78,7 @@
                     </div>
                 </fieldset>
                 <div><label for="review-instructions" class="text-sm font-semibold">Additional instructions</label><textarea id="review-instructions" name="instructions" maxlength="5000" rows="3" class="mt-1 w-full rounded-lg border-gray-300">{{ old('instructions') }}</textarea></div>
-                <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="confirmed" value="1" required class="mt-1 rounded border-gray-300"/>I reviewed the source, target details, and office allocations. Assign this target and send office-specific AI briefings to the office heads.</label>
+                <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="confirmed" value="1" required class="mt-1 rounded border-gray-300"/>I reviewed the source, target details, proposed weight budgets, source conflicts, and office allocations. Assign this target and send office-specific AI briefings to the office heads.</label>
                 <p x-show="feedback" x-text="feedback" role="alert" aria-live="polite" class="text-sm font-semibold text-red-700"></p>
                 <button type="submit" :disabled="busy" class="rounded-lg bg-spms-navy px-5 py-3 text-sm font-semibold text-white disabled:opacity-50" x-text="busy ? 'Preparing office briefings and assigning…' : 'Confirm and assign to offices'">Confirm and assign to offices</button>
                 <p class="text-xs text-gray-500">AI will summarize the work and suggest self-assignment or delegation. The supervisor makes the final decision. Confirmed assignments, allocations, weights, and the evaluation period are recorded in the audit log.</p>

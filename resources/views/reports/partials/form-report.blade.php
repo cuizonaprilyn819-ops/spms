@@ -4,6 +4,9 @@
             <div class="text-center">
                 <h3 class="text-base font-bold uppercase text-spms-ink">{{ $form['heading'] }}</h3>
                 <p class="mx-auto mt-3 max-w-5xl text-sm leading-6 text-gray-700">{{ $form['commitment'] }}</p>
+                @if($form['strategic_program'] ?? null)<p class="mt-3 text-left text-sm"><strong>Strategic Program:</strong> {{ $form['strategic_program'] }}</p>@endif
+                @if($form['program_outcome'] ?? null)<p class="mt-2 text-left text-sm"><strong>Program Outcome:</strong> {{ $form['program_outcome'] }}</p>@endif
+                @if(empty($form['rows']) && ($form['success_indicators'] ?? null))<p class="mt-2 text-left text-sm"><strong>Success Indicators:</strong> {{ $form['success_indicators'] }}</p>@endif
             </div>
 
             <div class="mt-5 grid gap-4 md:grid-cols-2">

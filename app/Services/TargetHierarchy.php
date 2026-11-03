@@ -9,7 +9,7 @@ class TargetHierarchy
     /** A head sees their own office and its descendants, without duplicating allocations. */
     public function managedOfficeIds(User $user): array
     {
-        if (! $user->office_id || (! $user->hasAnyRole(['Supervisor', 'HR Head']) && (int) $user->office?->head_id !== $user->id)) return [];
+        if (! $user->office_id || (! $user->hasAnyRole(['Supervisor', 'HR Head', 'Campus Director']) && (int) $user->office?->head_id !== $user->id)) return [];
         $ids = [(int) $user->office_id];
         $frontier = $ids;
         while ($frontier) {
@@ -33,6 +33,15 @@ class TargetHierarchy
             foreach (app(PlanningOrganization::class)->ancestors($office) as $id) $ids[$id] = $id;
         }
         return array_values($ids);
+    }
+
+    public function reportingHeads(array $officeIds)
+    {
+        $ids = $this->reportingOfficeIds($officeIds);
+        $heads = Office::whereIn('id', $ids)->whereNotNull('head_id')->pluck('head_id');
+        return User::where(fn ($query) => $query->where(fn ($roles) => $roles->whereIn('office_id', $ids)
+            ->whereHas('roles', fn ($r) => $r->whereIn('name', ['Supervisor', 'HR Head', 'Campus Director'])))
+            ->orWhereIn('id', $heads))->get();
     }
 
     public function eligibleUpcrs(OfficeTarget $target, Office $office)

@@ -14,40 +14,23 @@ class OpcrManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_office_heads_can_create_opcrs_for_open_cycles(): void
+    public function test_campus_director_prepares_opcr_and_ipcr_and_cannot_prepare_dpcr_or_upcr(): void
     {
         $this->seed(RoleSeeder::class);
-
-        $user = User::factory()->create();
-        $user->assignRole('Office Head');
-        $office = Office::factory()->create();
-        $cycle = EvaluationCycle::create([
-            'year' => 2025,
-            'semester' => EvaluationCycle::FIRST_SEMESTER,
-            'status' => EvaluationCycle::STATUS_OPEN,
-            'opened_at' => now(),
-        ]);
-
-        $response = $this
-            ->actingAs($user)
-            ->post(route('opcrs.store'), [
-                'evaluation_cycle_id' => $cycle->id,
-                'office_id' => $office->id,
-                'title' => '2025 Planning OPCR',
-                'success_indicators' => 'Approved plans submitted on time.',
-                'targets' => 'Submit 100% of required reports.',
-            ]);
-
-        $opcr = Opcr::firstOrFail();
-
-        $response->assertRedirect(route('opcrs.show', $opcr));
-
-        $this->assertDatabaseHas('opcrs', [
-            'office_id' => $office->id,
-            'evaluation_cycle_id' => $cycle->id,
-            'status' => Opcr::STATUS_DRAFT,
-            'prepared_by' => $user->id,
-        ]);
+        $office = Office::factory()->create(['campus' => 6, 'is_active' => true]);
+        $user = User::factory()->create(['office_id' => $office->id])->assignRole('Campus Director');
+        $cycle = EvaluationCycle::create(['year' => 2026, 'semester' => EvaluationCycle::SECOND_SEMESTER, 'status' => 'open']);
+        $this->actingAs($user)->get(route('opcrs.create'))->assertOk();
+        $this->get(route('reports.index'))->assertOk()->assertSee('Prepare OPCR')->assertSee('Prepare IPCR')->assertDontSee('Prepare DPCR')->assertDontSee('Prepare UPCR');
+        $this->assertSame(['ipcr', 'opcr'], app(\App\Services\PcrCompliance::class)->requiredReports($user));
+        foreach (['dpcrs','upcrs'] as $resource) {
+            $this->get(route($resource.'.create'))->assertForbidden();
+            $this->post(route($resource.'.store'), [])->assertForbidden();
+        }
+        $this->post(route('opcrs.store'), ['office_id' => $office->id, 'evaluation_cycle_id' => $cycle->id, 'title' => 'Campus OPCR'])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame($user->id, Opcr::sole()->prepared_by);
+        $other = Office::factory()->create(['campus' => 6, 'is_active' => true]);
+        $this->post(route('opcrs.store'), ['office_id' => $other->id, 'evaluation_cycle_id' => $cycle->id, 'title' => 'Another office'])->assertForbidden();
     }
 
     public function test_users_can_view_opcrs(): void
@@ -104,13 +87,14 @@ class OpcrManagementTest extends TestCase
         $this->assertSame(Opcr::STATUS_DRAFT, $opcr->fresh()->status);
     }
 
-    public function test_opcr_is_unique_per_office_and_cycle(): void
+    public function test_opcr_is_unique_per_office_and_period(): void
     {
         $this->seed(RoleSeeder::class);
 
         $user = User::factory()->create();
-        $user->assignRole('Office Head');
-        $office = Office::factory()->create();
+        $user->assignRole('Campus Director');
+        $office = Office::factory()->create(['campus' => 6, 'is_active' => true]);
+        $user->update(['office_id' => $office->id]);
         $cycle = EvaluationCycle::create([
             'year' => 2025,
             'semester' => EvaluationCycle::FIRST_SEMESTER,
@@ -134,6 +118,7 @@ class OpcrManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('office_id');
+        $this->assertDatabaseCount('opcrs', 1);
     }
 
     public function test_office_heads_only_see_targets_assigned_to_their_office(): void
@@ -143,7 +128,7 @@ class OpcrManagementTest extends TestCase
         $office = Office::factory()->create();
         $otherOffice = Office::factory()->create();
         $head = User::factory()->create(['office_id' => $office->id]);
-        $head->assignRole('Office Head');
+        $head->assignRole('Supervisor');
         $assigned = Opcr::factoryLike()->create(['office' => $office, 'title' => 'Assigned Office OPCR']);
         $notAssigned = Opcr::factoryLike()->create([
             'office' => $otherOffice,

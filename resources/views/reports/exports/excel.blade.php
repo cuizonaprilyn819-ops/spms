@@ -37,6 +37,9 @@
             <tr>
                 <td colspan="{{ count($formHeaders) }}">{{ $form['commitment'] }}</td>
             </tr>
+            <tr><td colspan="{{ count($formHeaders) }}">Strategic Program: {{ $form['strategic_program'] ?? '' }}</td></tr>
+            <tr><td colspan="{{ count($formHeaders) }}">Program Outcome: {{ $form['program_outcome'] ?? '' }}</td></tr>
+            @if(empty($form['rows']) && ($form['success_indicators'] ?? null))<tr><td colspan="{{ count($formHeaders) }}">Success Indicators: {{ $form['success_indicators'] }}</td></tr>@endif
             <tr>
                 <td colspan="{{ count($formHeaders) }}">Prepared By: {{ $form['prepared_name'] }} - {{ $form['prepared_position'] }}</td>
             </tr>

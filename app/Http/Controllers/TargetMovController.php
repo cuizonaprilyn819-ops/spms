@@ -48,13 +48,19 @@ class TargetMovController extends Controller
         $data = $request->validate([
             'accomplishment' => ['required', 'string', 'max:5000'],
             'completed_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
-            'files' => ['required', 'array', 'min:1', 'max:5'],
+            'files' => ['required', 'array', 'min:1', 'max:'.\App\Support\MovUpload::MAX_FILES],
             'files.*' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
+        \App\Support\MovUpload::checkTotal($request->file('files'));
+        $context = app(\App\Services\MovQuestions::class)->submission($request, 'office:'.$officeTarget->id);
+        if ($context && ! $officeTarget->assignedEmployees()->whereKey($user->id)->first()->pivot->completed_at) {
+            $request->validate(['completed_value' => ['required', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2']]);
+        }
+        if ($context && isset($data['completed_value'])) $context['reported_completed_value'] = $data['completed_value'];
         $paths = [];
         $uploaded = [];
         try {
-            DB::transaction(function () use ($officeTarget, $user, $data, $request, &$paths, &$uploaded) {
+            DB::transaction(function () use ($officeTarget, $user, $data, $request, $context, &$paths, &$uploaded) {
                 OfficeTarget::whereKey($officeTarget->id)->lockForUpdate()->firstOrFail();
                 $assignment = DB::table('office_target_employee')->where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->lockForUpdate()->firstOrFail();
                 if (isset($data['completed_value'])) {
@@ -72,16 +78,16 @@ class TargetMovController extends Controller
                     $paths[] = $path;
                     $mov = TargetMov::create(['office_target_id' => $officeTarget->id, 'user_id' => $user->id,
                         'office_id' => $user->office_id, 'accomplishment' => $data['accomplishment'],
-                        'path' => $path, 'original_name' => $file->getClientOriginalName()]);
+                        'path' => $path, 'original_name' => $file->getClientOriginalName(), 'submission_context' => $context]);
                 }
                 $uploaded = TargetMov::whereIn('path', $paths)->get()->all();
-                $recipients = User::where('office_id', $user->office_id)
-                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))
-                    ->get();
+                $recipients = app(\App\Services\TargetHierarchy::class)->reportingHeads([$user->office_id]);
+                $recipients->push($user);
                 if ($officeTarget->createdBy?->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                     $recipients->push($officeTarget->createdBy);
                 }
-                $recipients->unique('id')->each(fn ($recipient) => $recipient->notify(new TargetMovSubmittedNotification($mov)));
+                $movIds = array_map(fn ($file) => $file->id, $uploaded);
+                $recipients->unique('id')->each(fn ($recipient) => $recipient->notify(new TargetMovSubmittedNotification($mov, $movIds)));
             });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($paths);
@@ -89,8 +95,8 @@ class TargetMovController extends Controller
         }
 
         if (config('spms.ai.enabled')) {
-            set_time_limit(600);
-            foreach ($uploaded as $evidence) app(\App\Services\EvidenceAi::class)->analyze($evidence);
+            set_time_limit(max(600, count($uploaded) * 100));
+            foreach ($context ? [$uploaded[0]] : $uploaded as $evidence) app(\App\Services\EvidenceAi::class)->analyze($evidence);
         }
 
         return back()->with('mov_status', 'MOV submitted successfully. Your office heads and assigning Campus Director have been notified.');

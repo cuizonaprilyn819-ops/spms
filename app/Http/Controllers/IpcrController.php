@@ -73,6 +73,20 @@ class IpcrController extends Controller
                 $hierarchy->linkAvailableUpcrs($target);
                 $upcr = $hierarchy->findUpcr($target, $request->user());
                 $ipcr = Ipcr::firstOrCreate(['office_target_id' => $target->id, 'employee_id' => $request->user()->id], [...$data, 'upcr_id' => $upcr?->id, 'prepared_by' => $request->user()->id, 'status' => Ipcr::STATUS_DRAFT]);
+                if ($ipcr->wasRecentlyCreated) {
+                    $source = app(\App\Services\ReportTargetContext::class)->source($ipcr);
+                    $context = [...$source, 'source' => $source];
+                    if (config('spms.ai.enabled') && config('spms.ai.api_key')) {
+                        try {
+                            $wording = app(\App\Services\TargetDocumentAi::class)->reportWording($source);
+                        } catch (\RuntimeException $exception) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['paraphrase' => $exception->getMessage()]);
+                        }
+                        $context = [...$context, ...$wording, 'paraphrased_at' => now()->toIso8601String()];
+                        $ipcr->fill(['success_indicators' => $wording['success_indicators'], 'targets' => $wording['success_indicators']]);
+                    }
+                    $ipcr->forceFill(['target_context' => json_encode($context, JSON_THROW_ON_ERROR)])->save();
+                }
                 if ($upcr && ! $ipcr->upcr_id && $ipcr->isEditableBy($request->user()->id)) $ipcr->update(['upcr_id' => $upcr?->id]);
                 return $ipcr;
             });

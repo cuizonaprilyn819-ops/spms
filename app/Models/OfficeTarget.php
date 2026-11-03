@@ -40,7 +40,7 @@ class OfficeTarget extends Model
         $officeIds = app(\App\Services\TargetHierarchy::class)->reportingOfficeIds($officeIds);
         $headIds = Office::whereIn('id', $officeIds)->whereNotNull('head_id')->pluck('head_id');
         User::query()->where(function ($query) use ($officeIds, $headIds) {
-            $query->where(fn ($q) => $q->whereIn('office_id', $officeIds)->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head'])))
+            $query->where(fn ($q) => $q->whereIn('office_id', $officeIds)->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head', 'Campus Director'])))
                 ->orWhereIn('id', $headIds);
         })
             ->each(function (User $supervisor) use ($updated): void {

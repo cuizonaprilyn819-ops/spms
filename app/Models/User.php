@@ -13,6 +13,21 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+    public function canProposeOfficeTarget(): bool
+    {
+        return $this->office && $this->office->is_active && (int) $this->office->campus === (int) config('hinunangan.campus_id')
+            && ($this->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer', 'Campus Director']) || (int) $this->office->head_id === $this->id);
+    }
+
+    public function organizationalReportType(): ?string
+    {
+        if ($this->hasRole('Campus Director')) return 'opcr';
+        if (! $this->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer', 'Campus Director'])) return null;
+        if ($this->office?->planning_level === 'unit') return 'upcr';
+        if (in_array($this->office?->planning_level, ['office', 'division'], true)) return 'dpcr';
+        return $this->office_id && Office::where('parent_office_id', $this->office_id)->exists() ? 'dpcr' : 'upcr';
+    }
+
     public function usesMyReports(): bool
     {
         return $this->hasRole('Employee') && ! $this->hasAnyRole(['Administrator', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor']);

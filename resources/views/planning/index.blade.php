@@ -6,7 +6,7 @@
     $dutiesPeople = $people->filter(fn($person) => auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) || $person->office?->head_id===auth()->id());
     $planOffices = $offices->filter(fn($office) => auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) || $office->head_id===auth()->id() || $office->id===auth()->user()->office_id);
     $levelByOffice = ['office'=>'opcr','division'=>'dpcr','unit'=>'upcr'];
-    $planLevels = auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) ? collect(['opcr','dpcr','upcr','ipcr']) : $planOffices->where('head_id',auth()->id())->pluck('planning_level')->map(fn($level) => $levelByOffice[$level] ?? null)->filter()->push('ipcr')->unique();
+    $planLevels = auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']) ? collect(['opcr','dpcr','upcr','ipcr']) : collect([auth()->user()->organizationalReportType(), 'ipcr'])->filter()->unique();
     $defaultLevel = $planLevels->first();
 @endphp
 <nav class="spms-section-nav" aria-label="Planning sections"><a href="#plans" aria-current="location">Plans</a><a href="#new-plan">Create a plan</a><a href="#proposals">Upward proposals</a>@if($dutiesPeople->isNotEmpty() || auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']))<a href="#office-setup">Duties &amp; office setup</a>@endif</nav>

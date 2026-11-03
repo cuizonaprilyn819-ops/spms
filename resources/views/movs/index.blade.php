@@ -1,10 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="text-xl font-bold text-spms-ink">Means of Verification (MOV)</h2>
-        <p class="mt-1 text-sm text-gray-500">Files submitted for assigned targets. Open a target to submit additional evidence.</p>
+        <p class="mt-1 text-sm text-gray-500">Choose Upload MOV, select your target, then upload its supporting evidence.</p>
     </x-slot>
     <div class="py-8">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            @if(session('status'))<p role="status" class="mb-4 rounded-lg bg-blue-50 p-4 text-sm">{{ session('status') }}</p>@endif
             <section class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex items-center justify-between gap-4">
                     <h3 class="text-lg font-bold text-spms-ink">My Report Evidence</h3>
@@ -13,7 +14,7 @@
                 @forelse($reportMovs as $reportMov)
                     <div class="border-b border-gray-100 py-4">
                         <a href="{{ route('movs.show', $reportMov) }}" class="font-semibold text-spms-navy underline">{{ $reportMov->title }}</a>
-                        <p class="mt-1 text-sm text-gray-600">{{ $reportMov->performanceTarget?->target ?? 'General evidence' }} · {{ $reportMov->created_at->format('M d, Y') }}</p>
+                        <p class="mt-1 text-sm text-gray-600">{{ $reportMov->original_name }} · {{ $reportMov->performanceTarget?->target ?? 'General evidence' }} · {{ $reportMov->created_at->format('M d, Y') }}</p>
                     </div>
                 @empty
                     <p class="py-4 text-sm text-gray-500">No report evidence uploaded yet.</p>

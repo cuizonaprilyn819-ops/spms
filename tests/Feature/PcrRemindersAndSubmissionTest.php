@@ -14,6 +14,7 @@ use Tests\TestCase;
 class PcrRemindersAndSubmissionTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\CreatesSupportedReportMov;
 
     protected function tearDown(): void
     {
@@ -79,6 +80,7 @@ class PcrRemindersAndSubmissionTest extends TestCase
         Notification::fake();
         $upcr = Upcr::create(['dpcr_id' => $dpcr->id, 'employee_id' => $head->id, 'title' => 'CISA UPCR', 'prepared_by' => $head->id, 'status' => 'approved']);
         $ipcr = Ipcr::create(['upcr_id' => $upcr->id, 'employee_id' => $staff->id, 'prepared_by' => $staff->id, 'title' => 'Staff IPCR', 'status' => 'draft']);
+        $this->addSupportedReportMov($ipcr);
         Carbon::setTestNow('2026-11-03 12:00:00');
         app(PcrReminders::class)->send();
         Notification::assertSentTo($staff, PcrCreationReminder::class, fn ($notice) => str_contains($notice->details['title'], 'submission'));
@@ -102,6 +104,7 @@ class PcrRemindersAndSubmissionTest extends TestCase
         Notification::fake();
         $upcr = Upcr::create(['dpcr_id' => $dpcr->id, 'employee_id' => $head->id, 'title' => 'CISA UPCR', 'prepared_by' => $head->id, 'status' => 'approved']);
         $ipcr = Ipcr::create(['upcr_id' => $upcr->id, 'employee_id' => $staff->id, 'prepared_by' => $staff->id, 'title' => 'Late staff IPCR', 'status' => 'draft']);
+        $this->addSupportedReportMov($ipcr);
         Carbon::setTestNow('2026-11-06 09:00:00');
         $this->actingAs($staff)->patch(route('report-workflow.submit', ['ipcr', $ipcr]))->assertRedirect();
         $this->assertTrue($ipcr->submissionRecord()->sole()->isLate());
@@ -120,6 +123,7 @@ class PcrRemindersAndSubmissionTest extends TestCase
         $this->actingAs($staff)->post(route('ipcrs.store'), ['office_target_id' => $target->id, 'title' => 'New late IPCR', 'success_indicators' => 'One maintenance'])->assertSessionHasErrors('evaluation_cycle_id');
         $this->assertDatabaseCount('ipcrs', 0);
         $ipcr = Ipcr::create(['office_target_id' => $target->id, 'employee_id' => $staff->id, 'prepared_by' => $staff->id, 'title' => 'Existing draft', 'status' => 'draft']);
+        $this->addSupportedReportMov($ipcr);
         $this->patch(route('report-workflow.submit', ['ipcr', $ipcr]))->assertRedirect();
         $this->assertTrue($ipcr->submissionRecord()->sole()->isLate());
     }
@@ -194,6 +198,7 @@ class PcrRemindersAndSubmissionTest extends TestCase
         $upcr = Upcr::create(['dpcr_id' => $dpcr->id, 'employee_id' => $head->id, 'title' => 'UPCR', 'prepared_by' => $head->id, 'status' => 'draft']);
         $ipcr = Ipcr::create(['upcr_id' => $upcr->id, 'employee_id' => $staff->id, 'prepared_by' => $staff->id, 'title' => 'IPCR', 'status' => 'draft']);
         foreach (['opcr' => $opcr, 'dpcr' => $dpcr, 'upcr' => $upcr, 'ipcr' => $ipcr] as $type => $report) {
+            $this->addSupportedReportMov($report);
             $this->actingAs($type === 'ipcr' ? $staff : $head)->patch(route('report-workflow.submit', [$type, $report]))->assertRedirect();
             $record = $report->submissionRecord()->sole();
             $this->assertEquals($cycle->id, $record->evaluation_cycle_id);

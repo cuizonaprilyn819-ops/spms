@@ -9,6 +9,7 @@
                 @if($canExport)
                 <a href="{{ $archiveId ? route('reports.finished.pdf', [$type, $archiveId]) : route('reports.pdf', $type) }}" class="rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2b4276]">Export PDF</a>
                 <a href="{{ $archiveId ? route('reports.finished.excel', [$type, $archiveId]) : route('reports.excel', $type) }}" class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Export Excel</a>
+                <a download href="{{ $archiveId ? route('reports.finished.word', [$type, $archiveId]) : route('reports.word', $type) }}" class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Export Word (.docx)</a>
                 @endif
                 <p class="text-xs text-gray-500">Generate anytime. Unrecorded accomplishments remain blank. Each generation is logged.</p>
             </div>

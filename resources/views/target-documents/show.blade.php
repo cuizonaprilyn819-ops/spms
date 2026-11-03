@@ -22,6 +22,11 @@
                 </form>
             @else
                 @if($document->drafts->isNotEmpty())
+                <form method="POST" action="{{ route('target-documents.weights', $document) }}" class="mt-5" x-data="{ busy: false }" @submit="busy = true">
+                    @csrf
+                    <button type="submit" :disabled="busy" class="rounded-lg border border-blue-300 px-4 py-2 text-sm font-semibold text-spms-navy disabled:opacity-50" x-text="busy ? 'Reading source budgets and dividing weights…' : 'AI divide target weights'">AI divide target weights</button>
+                    <p class="mt-2 text-xs text-gray-600">Before any assignment/import, divide the 100% report budget among targets using section, objective and program budgets. Review recommendations and source conflicts before confirming each assignment. Quantities and units are preserved.</p>
+                </form>
                 <form method="POST" action="{{ route('target-documents.hierarchy', $document) }}" class="mt-5" x-data="{ busy: false }" @submit="busy = true">
                     @csrf
                     <button type="submit" :disabled="busy" class="rounded-lg border border-blue-300 px-4 py-2 text-sm font-semibold text-spms-navy disabled:opacity-50" x-text="busy ? 'Re-reading source table…' : 'Re-read programs and outcomes'">Re-read programs and outcomes</button>
@@ -33,6 +38,7 @@
                 <p class="mt-4 text-xs text-gray-500">AI suggestions require review. Check the original document for missing targets and incorrect details. Supply missing quantities and weights before assignment. Target duration follows the evaluation period automatically.</p>
             @endif
         </section>
+        @if($document->drafts->isNotEmpty())<x-target-weight-summary :document="$document" />@endif
         @foreach($document->drafts->groupBy(fn ($d) => $d->proposal['program'] ?? 'Program not identified — check source') as $program => $programDrafts)
         <details class="rounded-xl border bg-white p-6"><summary class="cursor-pointer text-lg font-bold">{{ $program }}</summary>
             @foreach($programDrafts->groupBy(fn ($d) => $d->proposal['program_outcome'] ?? 'Outcome not identified — check source') as $outcome => $outcomeDrafts)
@@ -40,6 +46,8 @@
                 @foreach($outcomeDrafts as $draft)
                 <article class="mt-4 border-t pt-4"><h3 class="font-bold">{{ $draft->proposal['title'] }}</h3>
                     <p class="mt-2 text-sm">{{ $draft->proposal['success_indicator'] }}</p>
+                    <p class="mt-2 text-sm font-semibold">Weight: {{ isset($draft->proposal['weight']) ? number_format($draft->proposal['weight'], 2).'%' : 'Needs review' }} · Measure: {{ $draft->proposal['target_value'] ?? 'Quantity needs review' }} {{ $draft->proposal['unit_of_measure'] ?? 'Unit needs review' }}</p>
+                    @if($draft->proposal['weight_reason'] ?? null)<p class="mt-1 text-xs text-gray-600">Weight basis: {{ $draft->proposal['weight_reason'] }}</p>@endif
                     <blockquote class="mt-3 border-l-4 pl-4 text-sm">{{ $draft->proposal['source_excerpt'] }}</blockquote>
                     <a href="{{ route('target-drafts.review', $draft) }}" class="mt-3 inline-block rounded-lg border px-4 py-2 font-semibold">{{ $draft->office_target_id ? 'View assignment' : 'Assign' }}</a>
                 </article>

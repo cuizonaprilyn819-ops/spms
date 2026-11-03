@@ -6,7 +6,8 @@ class TargetMov extends Model
 {
     public function analysis() { return $this->morphOne(EvidenceAnalysis::class, 'evidence'); }
 
-    protected $fillable = ['office_target_id', 'user_id', 'office_id', 'accomplishment', 'path', 'original_name'];
+    protected $fillable = ['office_target_id', 'user_id', 'office_id', 'accomplishment', 'path', 'original_name', 'submission_context'];
+    protected function casts(): array { return ['submission_context' => 'array']; }
     public function employee() { return $this->belongsTo(User::class, 'user_id'); }
     public function target() { return $this->belongsTo(OfficeTarget::class, 'office_target_id'); }
 }

@@ -24,12 +24,7 @@ class PcrCompliance
     public function requiredReports(User $user): array
     {
         $types = ['ipcr'];
-        $isHead = $user->office && ($user->office->head_id ? (int) $user->office->head_id === $user->id : $user->hasAnyRole(['Supervisor', 'HR Head']));
-        if ($user->hasRole('Campus Director')) $types[] = 'opcr';
-        elseif ($isHead) {
-            $department = $user->office->planning_level === 'division' || \App\Models\Office::where('parent_office_id', $user->office_id)->exists();
-            $types[] = $department ? 'dpcr' : 'upcr';
-        }
+        if ($user->office && ($organizationalType = $user->organizationalReportType())) $types[] = $organizationalType;
         return $types;
     }
 

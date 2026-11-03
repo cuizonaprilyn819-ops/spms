@@ -35,7 +35,7 @@ class UpcrController extends Controller
 
     public function create(): View
     {
-        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR Head']) && request()->user()->office_id, 403);
+        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && request()->user()->office_id, 403);
 
         return view('upcrs.create', [
             'dpcrs' => Dpcr::with(['opcr.evaluationCycle', 'opcr.office', 'employee'])
@@ -49,7 +49,7 @@ class UpcrController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR Head']) && $request->user()->office_id, 403);
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && $request->user()->office_id, 403);
         $data = $request->validate([
             'dpcr_id' => ['required', 'integer', Rule::exists('dpcrs', 'id')],
             'employee_id' => ['required', 'integer', Rule::exists('users', 'id')],
@@ -93,7 +93,7 @@ class UpcrController extends Controller
         }
 
         $viewer = request()->user();
-        if ($viewer->hasAnyRole(['Supervisor', 'HR Head']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
+        if ($viewer->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
             abort_unless(in_array((int) $upcr->employee?->office_id, app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer)), 403);
         }
         return view('upcrs.show', [

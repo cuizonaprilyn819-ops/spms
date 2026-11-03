@@ -14,6 +14,12 @@ class MovUploadTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['spms.ai.enabled' => false]);
+    }
+
     #[DataProvider('acceptedMovFiles')]
     public function test_users_can_upload_supported_mov_files(string $filename, string $mimeType): void
     {
@@ -26,6 +32,7 @@ class MovUploadTest extends TestCase
         $response = $this
             ->actingAs($user)
             ->post(route('movs.store'), [
+                'performance_target_id' => $this->uploadTarget($user)->id,
                 'title' => 'Quarterly MOV',
                 'description' => 'Evidence for submitted accomplishment.',
                 'file' => UploadedFile::fake()->create($filename, 256, $mimeType),
@@ -54,6 +61,7 @@ class MovUploadTest extends TestCase
         $this
             ->actingAs($user)
             ->post(route('movs.store'), [
+                'performance_target_id' => $this->uploadTarget($user)->id,
                 'title' => 'Monitoring Photo',
                 'file' => UploadedFile::fake()->create('monitoring.jpg', 256, 'image/jpeg'),
             ]);
@@ -83,6 +91,12 @@ class MovUploadTest extends TestCase
 
         $response->assertSessionHasErrors('file');
         $this->assertDatabaseCount('movs', 0);
+    }
+
+    private function uploadTarget(User $user)
+    {
+        $report = \App\Models\Ipcr::factoryLike()->create(['employee' => $user, 'prepared_by_user' => $user]);
+        return \App\Models\PerformanceTarget::factoryLike()->create(['targetable' => $report]);
     }
 
     public static function acceptedMovFiles(): array

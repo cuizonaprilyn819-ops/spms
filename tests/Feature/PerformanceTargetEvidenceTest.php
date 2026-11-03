@@ -17,11 +17,13 @@ class PerformanceTargetEvidenceTest extends TestCase
 
     public function test_evidence_is_linked_to_the_selected_target_and_visible_in_the_workflow(): void
     {
+        config(['spms.ai.enabled' => false]);
         $storage = Storage::fake('public');
         $this->seed(RoleSeeder::class);
         $user = User::factory()->create();
         $user->assignRole('Employee');
-        $target = PerformanceTarget::factoryLike()->create();
+        $ipcr = \App\Models\Ipcr::factoryLike()->create(['employee' => $user, 'prepared_by_user' => $user]);
+        $target = PerformanceTarget::factoryLike()->create(['targetable' => $ipcr]);
         $this->actingAs($user)->get(route('movs.create', ['performance_target_id' => $target->id]))
             ->assertOk()->assertSee($target->target);
         $this->post(route('movs.store'), [

@@ -20,7 +20,10 @@ class Mov extends Model
         'extension',
         'file_size',
         'uploaded_by',
+        'submission_context',
     ];
+
+    protected function casts(): array { return ['submission_context' => 'array']; }
 
     public function uploadedBy(): BelongsTo
     {

@@ -29,6 +29,10 @@
             <p class="mt-2 text-xs text-gray-500">Reports your completion to your supervisor and the assigning Campus Director.</p>
         </form>
     @endif
+    @if(config('spms.ai.enabled'))
+    <form method="POST" action="{{ route('movs.questions') }}" class="mt-4">@csrf<input type="hidden" name="target_ref" value="office:{{ $target->id }}"><button class="inline-flex rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Answer AI questions and upload MOV</button></form>
+    <p class="mt-2 text-xs text-gray-600">Answer questions for this target, attach your files, then review the AI evidence assessment and summary.</p>
+    @else
     <form method="POST" action="{{ route('target-movs.store', $target) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
         @csrf
         @if($assignment->pivot->allocated_target_value !== null && !$assignment->pivot->completed_at)
@@ -41,14 +45,15 @@
         <textarea id="accomplishment" name="accomplishment" rows="3" required maxlength="5000" class="block w-full rounded-lg border-gray-300" placeholder="Describe the work completed for this target.">{{ old('accomplishment') }}</textarea>
         <x-input-error :messages="$errors->get('accomplishment')" />
         <x-input-label for="mov-file" value="Supporting File" />
-        <input id="mov-file" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png" required class="block w-full text-sm" onchange="this.setCustomValidity(this.files.length > 5 ? 'Select a maximum of 5 files or images.' : ''); this.reportValidity();">
-        <p class="text-xs text-gray-500">Up to 5 PDF, JPG, JPEG, or PNG files per submission. Maximum 10 MB per file. Save Word or Excel documents as PDF before uploading.</p>
+        <input id="mov-file" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png" required class="block w-full text-sm" onchange="this.setCustomValidity(this.files.length > 20 ? 'Select a maximum of 20 files or images.' : Array.from(this.files).reduce((sum, file) => sum + file.size, 0) > 35 * 1024 * 1024 ? 'Select up to 35 MB per batch.' : ''); this.reportValidity();">
+        <p class="text-xs text-gray-500">Up to 20 PDF, JPG, JPEG, or PNG files per submission. Maximum 10 MB per file and 35 MB per batch. Save Word or Excel documents as PDF before uploading.</p>
         <x-input-error :messages="$errors->get('files')" />
         @foreach ($errors->get('files.*') as $fileErrors)
             <x-input-error :messages="$fileErrors" />
         @endforeach
         <x-primary-button>Submit MOV</x-primary-button>
     </form>
+    @endif
     @endif
     @php
         $movs = \App\Models\TargetMov::with('employee')->where('office_target_id', $target->id)

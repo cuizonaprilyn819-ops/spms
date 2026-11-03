@@ -15,7 +15,7 @@
 @selected($line?->whole_numbers !== false)>Whole outputs</option><option value="0"
 @selected($line?->whole_numbers === false)>Two decimal places</option></select></label>
     <label>Deadline<input type="date" name="deadline" required value="{{ old('deadline',$line?->deadline?->format('Y-m-d') ?? ($prefill['deadline'] ?? '')) }}"></label>
-    <label>Rating weight (%)<input name="weight" type="number" min="0" max="100" step="0.01" required value="{{ old('weight',$line?->weight ?? ($prefill['weight'] ?? 0)) }}"></label>
+    <label>Rating weight (%)<input name="weight" type="number" min="0" max="100" step="0.01" required @readonly(isset($prefill['weight_budget'])) value="{{ old('weight',$line?->weight ?? ($prefill['weight'] ?? 0)) }}"></label>
 </div>
 <label>Quality and timeliness standards<textarea name="standards" required>{{ old('standards',$line?->standards) }}</textarea></label>
 <label>Source and supporting passage<textarea name="source_evidence" required>{{ old('source_evidence',$line?->source_evidence ?? ($prefill['source_excerpt'] ?? '')) }}</textarea></label>

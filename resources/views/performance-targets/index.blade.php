@@ -11,9 +11,13 @@
                     @endhasanyrole
                 </p>
             </div>
-            @hasanyrole('Administrator|Campus Director')
+            <div class="flex flex-wrap items-center gap-3">
+            @if(auth()->user()->canProposeOfficeTarget())<a href="{{ route('office-target-proposals.create') }}" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Add office target</a>@endif
+            <a href="{{ route('office-target-proposals.index') }}" class="text-sm font-semibold underline">{{ auth()->user()->hasAnyRole(['Planning Officer','Administrator']) ? 'Review office target proposals' : 'My target proposals' }}</a>
+            @hasanyrole('Administrator|Campus Director|Planning Officer')
                 <a href="{{ route('office-targets.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2b4276]">Upload Main Campus Document</a>
             @endhasanyrole
+            </div>
         </div>
     </x-slot>
 

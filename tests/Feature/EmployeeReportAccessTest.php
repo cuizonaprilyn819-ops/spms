@@ -45,10 +45,11 @@ class EmployeeReportAccessTest extends TestCase
 
         foreach ([
             'Employee' => ['IPCR'],
-            'HR' => ['IPCR'],
+            'HR' => ['UPCR', 'IPCR'],
             'Campus Director' => ['OPCR', 'IPCR'],
-            'HR Head' => ['DPCR', 'IPCR'],
-            'Supervisor' => ['DPCR', 'UPCR', 'IPCR'],
+            'HR Head' => ['UPCR', 'IPCR'],
+            'Supervisor' => ['UPCR', 'IPCR'],
+            'Planning Officer' => ['UPCR', 'IPCR'],
         ] as $role => $types) {
             $user = User::factory()->create(['office_id' => $office->id]);
             $user->assignRole($role);

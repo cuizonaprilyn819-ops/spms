@@ -49,6 +49,9 @@
         <div class="page-break"></div>
         <div class="center form-title">{{ $form['heading'] }}</div>
         <p class="commitment">{{ $form['commitment'] }}</p>
+        @if($form['strategic_program'] ?? null)<p><strong>Strategic Program:</strong> {{ $form['strategic_program'] }}</p>@endif
+        @if($form['program_outcome'] ?? null)<p><strong>Program Outcome:</strong> {{ $form['program_outcome'] }}</p>@endif
+        @if(empty($form['rows']) && ($form['success_indicators'] ?? null))<p><strong>Success Indicators:</strong> {{ $form['success_indicators'] }}</p>@endif
 
         <table class="signature">
             <tr>

@@ -58,7 +58,7 @@ class CommitmentPlanningController extends Controller
         $parents = CommitmentPlan::with('office')->get()->filter(fn ($p) => $this->planning->organization->canView($request->user(), $p) || ($request->user()->office && in_array($p->office_id, [$request->user()->office_id, $request->user()->office->parent_office_id], true)));
         $people = User::with('office')->orderBy('name')->get()->filter(fn ($u) => $request->user()->hasRole('Administrator') || $u->id === $request->user()->id || $u->office?->head_id === $request->user()->id);
 
-        return view('planning.index', ['plans' => $plans, 'parentPlans' => $parents, 'cycles' => EvaluationCycle::orderByDesc('year')->get(), 'offices' => $offices, 'people' => $people, 'proposals' => TargetProposal::latest()->get()->filter(fn ($p) => $p->submitted_by === $request->user()->id || $this->planning->organization->isOwner($request->user(), Office::findOrFail($p->review_office_id)))]);
+        return view('planning.index', ['plans' => $plans, 'parentPlans' => $parents, 'cycles' => EvaluationCycle::orderByDesc('year')->get(), 'offices' => $offices, 'people' => $people, 'proposals' => TargetProposal::whereNull('proposal->kind')->latest()->get()->filter(fn ($p) => $p->submitted_by === $request->user()->id || $this->planning->organization->isOwner($request->user(), Office::findOrFail($p->review_office_id)))]);
     }
 
     public function organization(Request $r, Office $office)
@@ -462,6 +462,7 @@ class CommitmentPlanningController extends Controller
 
     public function resubmitProposal(Request $r, TargetProposal $proposal)
     {
+        abort_if(($proposal->proposal['kind'] ?? '') === 'office_target', 422, 'Use Office target proposals to review or revise this target.');
         abort_unless($proposal->submitted_by === $r->user()->id && $proposal->state === 'returned', 403);
         abort_unless(EvaluationCycle::findOrFail($proposal->evaluation_cycle_id)->isOpen(), 422);
         $data = $this->targetData($r);
@@ -481,7 +482,12 @@ class CommitmentPlanningController extends Controller
         $data = $this->targetData($r);
         $data['source_evidence'] = 'Document #'.$draft->document->id.' / draft #'.$draft->id.': '.$draft->proposal['source_excerpt'];
         DB::transaction(function () use ($r, $plan, $draft, $data) {
+            $document = \App\Models\TargetDocument::whereKey($draft->target_document_id)->lockForUpdate()->firstOrFail();
+            abort_unless($document->status === 'review', 422, 'Wait for document analysis to finish.');
             $draft = TargetDocumentDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
+            if (isset($draft->proposal['weight_budget']) && abs($data['weight'] - $draft->proposal['weight']) > 0.0001) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['weight' => 'Use the distributed weight to preserve the document budgets.']);
+            }
             abort_if($draft->performance_target_id, 422, 'This extracted target has already been imported.');
             $t = $this->planning->addTarget($plan, $r->user(), $data);
             $draft->forceFill(['performance_target_id' => $t->id])->save();
@@ -516,6 +522,7 @@ class CommitmentPlanningController extends Controller
 
     public function reviewProposal(Request $r, TargetProposal $proposal)
     {
+        abort_if(($proposal->proposal['kind'] ?? '') === 'office_target', 422, 'Use Office target proposals to review or revise this target.');
         $d = $r->validate(['decision' => ['required', Rule::in(['forward', 'reject', 'return', 'materialize'])], 'review_notes' => ['required', 'string', 'max:5000'], 'root_plan_id' => ['nullable', Rule::exists('commitment_plans', 'id')]]);
         DB::transaction(function () use ($proposal, $r, $d) {
             $proposal = TargetProposal::whereKey($proposal->id)->lockForUpdate()->firstOrFail();

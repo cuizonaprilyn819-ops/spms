@@ -25,7 +25,8 @@ class ReportWorkflowController extends Controller
         $form = $this->report($type, $report);
         abort_unless($form->isEditableBy($request->user()->id), 403);
 
-        return view('reports.edit', compact('form', 'type'));
+        $targetContext = app(\App\Services\ReportTargetContext::class)->display($form);
+        return view('reports.edit', compact('form', 'type', 'targetContext'));
     }
 
     public function update(Request $request, string $type, int $report): RedirectResponse
@@ -33,13 +34,51 @@ class ReportWorkflowController extends Controller
         $form = $this->report($type, $report);
         abort_if($form->commitmentPlan, 422, 'Edit commitments through Commitment Planning; approved revisions are preserved.');
         abort_unless($form->isEditableBy($request->user()->id), 403);
-        $form->update($request->validate([
+        $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'strategic_program' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'program_outcome' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'success_indicators' => ['nullable', 'string', 'max:5000'],
             'targets' => ['nullable', 'string', 'max:5000'],
-        ]));
+        ]);
+        DB::transaction(function () use ($form, $data, $request) {
+            $locked = $form->newQuery()->whereKey($form->id)->lockForUpdate()->firstOrFail();
+            abort_unless($locked->isEditableBy($request->user()->id), 403);
+            $context = app(\App\Services\ReportTargetContext::class)->display($locked);
+            $source = app(\App\Services\ReportTargetContext::class)->source($locked);
+            foreach (['strategic_program', 'program_outcome'] as $field) if (array_key_exists($field, $data)) $context[$field] = $data[$field];
+            $before = $locked->toArray();
+            $locked->fill(collect($data)->except(['strategic_program', 'program_outcome'])->all());
+            $locked->forceFill(['target_context' => json_encode([...$context, 'source' => $source], JSON_THROW_ON_ERROR)])->save();
+            \App\Models\WorkflowAudit::record($locked, 'Report target wording reviewed and edited', $before, $locked->toArray());
+        });
 
         return back()->with('status', strtoupper($type).' changes saved.');
+    }
+
+    public function paraphrase(Request $request, string $type, int $report, \App\Services\TargetDocumentAi $ai): RedirectResponse
+    {
+        $form = $this->report($type, $report);
+        abort_if($form->commitmentPlan, 422, 'Edit commitments through Commitment Planning.');
+        abort_unless($form->isEditableBy($request->user()->id), 403);
+        $source = app(\App\Services\ReportTargetContext::class)->source($form);
+        // Manual reports may supply missing source labels through the edit form first.
+        $context = app(\App\Services\ReportTargetContext::class)->display($form);
+        foreach (['strategic_program', 'program_outcome'] as $field) if (! trim($source[$field] ?? '')) $source[$field] = $context[$field] ?? null;
+        try {
+            $wording = $ai->reportWording($source);
+            DB::transaction(function () use ($form, $source, $wording, $request) {
+                $locked = $form->newQuery()->whereKey($form->id)->lockForUpdate()->firstOrFail();
+                abort_unless($locked->isEditableBy($request->user()->id), 403);
+                abort_if($locked->updated_at->ne($form->updated_at), 409, 'The report changed during AI preparation. Reload and retry.');
+                $before = $locked->toArray();
+                $locked->forceFill(['success_indicators' => $wording['success_indicators'], 'targets' => $wording['success_indicators'], 'target_context' => json_encode([...$wording, 'source' => $source, 'paraphrased_at' => now()->toIso8601String()], JSON_THROW_ON_ERROR)])->save();
+                \App\Models\WorkflowAudit::record($locked, 'AI report wording prepared for review', $before, $locked->toArray());
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors(['paraphrase' => $exception->getMessage()]);
+        }
+        return back()->with('status', 'Program, outcome and success indicator paraphrased. Review all wording against the original source before submission.');
     }
 
     public function submit(Request $request, string $type, int $report): RedirectResponse
@@ -123,6 +162,7 @@ class ReportWorkflowController extends Controller
             $current = $form->newQuery()->whereKey($form->id)->lockForUpdate()->firstOrFail();
             if (in_array($to, ['submitted', 'resubmitted'])) {
                 abort_unless($current->isEditableBy($actor), 403);
+                app(\App\Services\ReportEvidence::class)->ensureReady($current);
                 $extra['submitted_at'] = now();
             } elseif (in_array($to, ['approved', 'returned'])) {
                 abort_unless(in_array($current->status, ['submitted', 'resubmitted']), 422);
@@ -160,14 +200,16 @@ class ReportWorkflowController extends Controller
     {
         $office = \App\Models\Office::find($this->officeId($form));
         $officeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
-        $campus = $form->preparedBy?->office?->campus;
+        $reportingOfficeIds = $office ? app(PlanningOrganization::class)->ancestors($office) : [];
+        $reportingHeadIds = \App\Models\Office::whereIn('id', $reportingOfficeIds)->whereNotNull('head_id')->pluck('head_id')->all();
+        $assignedReviewerId = $form->commitmentPlan?->reviewer_id;
 
-        return User::role(['Supervisor', 'Campus Director', 'HR Head', 'Planning Officer'])->where(function ($query) use ($officeId, $campus): void {
+        return User::query()->whereNotIn('id', array_filter([$form->prepared_by, $form->employee_id]))->where(function ($query) use ($officeId, $reportingOfficeIds, $reportingHeadIds, $assignedReviewerId): void {
             $query->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Supervisor'))->where('office_id', $officeId));
-            if ($campus) {
-                $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))->whereHas('office', fn ($o) => $o->where('campus', $campus)));
-            }
+            $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))
+                ->where(fn ($offices) => $offices->whereIn('office_id', $reportingOfficeIds)->orWhereIn('id', $reportingHeadIds)));
             $query->orWhereHas('roles', fn ($r) => $r->whereIn('name', ['HR Head', 'Planning Officer']));
+            if ($assignedReviewerId) $query->orWhere('users.id', $assignedReviewerId);
         })->get();
     }
 

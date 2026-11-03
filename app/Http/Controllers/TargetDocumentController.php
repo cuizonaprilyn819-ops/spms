@@ -168,6 +168,37 @@ class TargetDocumentController extends Controller
         return redirect()->route('target-documents.show', $document)->with('status', 'Program/outcome re-read finished. Check the grouping and any source-reading notes below.');
     }
 
+    public function divideWeights(Request $request, TargetDocument $document, TargetDocumentAi $ai)
+    {
+        $this->authorizeDocument($request, $document);
+        $token = (string) Str::uuid();
+        $claimed = TargetDocument::whereKey($document->id)->where('status', 'review')
+            ->update(['status' => 'analyzing', 'analysis_token' => $token, 'updated_at' => now()]);
+        if (! $claimed) return back()->withErrors(['weights' => 'Wait for document analysis to finish.']);
+        set_time_limit(300);
+        try {
+            $drafts = $document->drafts()->orderBy('id')->get();
+            if ($drafts->contains(fn ($d) => $d->office_target_id || $d->performance_target_id)) {
+                throw new \RuntimeException('Divide weights before assigning or importing targets. Existing assignments are kept; approved weights cannot be redistributed here.');
+            }
+            $proposals = $ai->weights($document, $drafts->pluck('proposal')->all());
+            DB::transaction(function () use ($document, $drafts, $proposals, $token) {
+                $locked = TargetDocument::whereKey($document->id)->lockForUpdate()->firstOrFail();
+                if ($locked->analysis_token !== $token || $locked->status !== 'analyzing') return;
+                foreach ($drafts as $index => $draft) {
+                    $current = TargetDocumentDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
+                    if ($current->office_target_id || $current->performance_target_id) throw new \RuntimeException('An assignment was created during analysis. No weights were changed.');
+                    $current->update(['proposal' => $proposals[$index]]);
+                }
+                WorkflowAudit::record($locked, 'AI target weights divided for review', $drafts->pluck('proposal')->all(), $proposals);
+                $locked->update(['status' => 'review', 'analysis_token' => null, 'error' => null]);
+            });
+        } catch (\RuntimeException $exception) {
+            TargetDocument::whereKey($document->id)->where('analysis_token', $token)->update(['status' => 'review', 'analysis_token' => null, 'error' => $exception->getMessage()]);
+        }
+        return redirect()->route('target-documents.show', $document)->with('status', 'Weight review finished. Check totals, source conflicts and each target before assignment.');
+    }
+
     public function review(Request $request, TargetDocumentDraft $draft)
     {
         $this->authorizeDocument($request, $draft->document);
@@ -246,9 +277,14 @@ class TargetDocumentController extends Controller
             return back()->withInput()->withErrors(['analysis' => $exception->getMessage()]);
         }
         $targetId = DB::transaction(function () use ($request, $draft, $data, $allocations, $briefings, $employeeAllocations) {
+            $source = TargetDocument::whereKey($draft->target_document_id)->lockForUpdate()->firstOrFail();
+            abort_unless($source->status === 'review', 422, 'Wait for document analysis to finish.');
             $locked = TargetDocumentDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
             if ($locked->office_target_id) {
                 return $locked->office_target_id;
+            }
+            if (isset($locked->proposal['weight_budget']) && abs($data['weight'] - $locked->proposal['weight']) > 0.0001) {
+                throw ValidationException::withMessages(['weight' => 'Use the distributed weight so the document budgets remain balanced. Re-run AI division before assignments to revise the distribution.']);
             }
             $cycle = EvaluationCycle::whereKey($draft->document->evaluation_cycle_id)->lockForUpdate()->firstOrFail();
             if ($cycle->status !== EvaluationCycle::STATUS_OPEN) {

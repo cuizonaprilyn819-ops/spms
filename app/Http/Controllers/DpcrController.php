@@ -32,7 +32,7 @@ class DpcrController extends Controller
 
     public function create(): View
     {
-        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR Head']) && request()->user()->office_id, 403);
+        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && request()->user()->office_id, 403);
         $opcrs = Opcr::with(['evaluationCycle', 'office'])->orderByDesc('created_at');
         $officeId = request()->user()->office_id;
         $opcrs->whereIn('office_id', app(\App\Services\PlanningOrganization::class)->ancestors(request()->user()->office))->where('status', Opcr::STATUS_APPROVED);
@@ -46,7 +46,7 @@ class DpcrController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR Head']) && $request->user()->office_id, 403);
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && $request->user()->office_id, 403);
         $data = $request->validate([
             'opcr_id' => ['required', 'integer', Rule::exists('opcrs', 'id')],
             'employee_id' => ['required', 'integer', Rule::exists('users', 'id')],

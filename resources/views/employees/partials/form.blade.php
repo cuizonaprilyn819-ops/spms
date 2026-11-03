@@ -47,6 +47,9 @@
                 @endforeach
             </select>
             <x-input-error :messages="$errors->get('role')" class="mt-2" />
+            @role('Administrator')
+                <p class="mt-2 text-xs text-gray-500">Planning Officer, HR/HR Head, and Campus Director each allow one account across the entire system. Occupied roles are hidden when adding or assigning another user. To replace a holder, change their role first.</p>
+            @endrole
         </div>
     </div>
 

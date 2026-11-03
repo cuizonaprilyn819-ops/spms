@@ -36,6 +36,11 @@ Route::middleware('auth')->group(function () {
     Route::put('evidence/{type}/{id}/statement', [\App\Http\Controllers\EvidenceAnalysisController::class, 'update'])->name('evidence.statement');
 
     Route::get('planning', [CommitmentPlanningController::class, 'index'])->name('planning.index');
+    Route::post('movs/questions', [MovController::class, 'questions'])->middleware('throttle:10,1')->name('movs.questions');
+    Route::get('office-target-proposals', [\App\Http\Controllers\OfficeTargetProposalController::class, 'index'])->name('office-target-proposals.index');
+    Route::get('office-target-proposals/create', [\App\Http\Controllers\OfficeTargetProposalController::class, 'create'])->name('office-target-proposals.create');
+    Route::post('office-target-proposals', [\App\Http\Controllers\OfficeTargetProposalController::class, 'store'])->name('office-target-proposals.store');
+    Route::post('office-target-proposals/{proposal}/review', [\App\Http\Controllers\OfficeTargetProposalController::class, 'review'])->name('office-target-proposals.review');
     Route::post('planning', [CommitmentPlanningController::class, 'store'])->name('planning.store');
     Route::post('planning/organization/{office}', [CommitmentPlanningController::class, 'organization'])->name('planning.organization');
     Route::post('planning/duties/{person}', [CommitmentPlanningController::class, 'duties'])->name('planning.duties');
@@ -67,6 +72,7 @@ Route::middleware('auth')->group(function () {
         Route::get('target-documents/{document}/download', [TargetDocumentController::class, 'download'])->name('target-documents.download');
         Route::post('target-documents/{document}/analyze', [TargetDocumentController::class, 'analyze'])->middleware('throttle:5,1')->name('target-documents.analyze');
         Route::post('target-documents/{document}/hierarchy', [TargetDocumentController::class, 'repairHierarchy'])->middleware('throttle:5,1')->name('target-documents.hierarchy');
+        Route::post('target-documents/{document}/weights', [TargetDocumentController::class, 'divideWeights'])->middleware('throttle:5,1')->name('target-documents.weights');
         Route::get('target-drafts/{draft}', [TargetDocumentController::class, 'review'])->name('target-drafts.review');
         Route::post('target-drafts/{draft}/assign', [TargetDocumentController::class, 'assign'])->middleware('throttle:10,1')->name('target-drafts.assign');
     });
@@ -76,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Route::get('report-attachments/{attachment}/download', [ReportAttachmentController::class, 'download'])->middleware('role:Supervisor')->name('report-attachments.download');
     Route::get('report-workflow/{type}/{report}/edit', [ReportWorkflowController::class, 'edit'])->name('report-workflow.edit');
     Route::put('report-workflow/{type}/{report}', [ReportWorkflowController::class, 'update'])->name('report-workflow.update');
+    Route::post('report-workflow/{type}/{report}/paraphrase', [ReportWorkflowController::class, 'paraphrase'])->middleware('throttle:5,1')->name('report-workflow.paraphrase');
     Route::patch('report-workflow/{type}/{report}/submit', [ReportWorkflowController::class, 'submit'])->name('report-workflow.submit');
     Route::patch('report-workflow/{type}/{report}/return', [ReportWorkflowController::class, 'returnForCorrection'])->name('report-workflow.return');
     Route::patch('report-workflow/{type}/{report}/approve', [ReportWorkflowController::class, 'approve'])->name('report-workflow.approve');
@@ -139,7 +146,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('dpcrs', DpcrController::class)->only(['index']);
     });
 
-    Route::middleware('role:Supervisor|HR Head')->group(function () {
+    Route::middleware('role:Supervisor|HR|HR Head|Planning Officer')->group(function () {
         Route::resource('dpcrs', DpcrController::class)->only(['create', 'store']);
     });
     Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor')->group(function () {
@@ -151,7 +158,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('upcrs', UpcrController::class)->only(['index'])->middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II');
     });
 
-    Route::middleware('role:Supervisor|HR Head')->group(function () {
+    Route::middleware('role:Supervisor|HR|HR Head|Planning Officer')->group(function () {
         Route::resource('upcrs', UpcrController::class)->only(['create', 'store']);
     });
 
@@ -205,7 +212,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/finished/{type}/{report}', [ReportController::class, 'finished'])->name('reports.finished');
     Route::get('/reports/finished/{type}/{report}/pdf', [ReportController::class, 'finishedPdf'])->name('reports.finished.pdf');
     Route::get('/reports/finished/{type}/{report}/excel', [ReportController::class, 'finishedExcel'])->name('reports.finished.excel');
+    Route::get('/reports/finished/{type}/{report}/word', [ReportController::class, 'finishedWord'])->name('reports.finished.word');
     Route::get('/reports/{type}', [ReportController::class, 'show'])->name('reports.show');
     Route::get('/reports/{type}/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     Route::get('/reports/{type}/excel', [ReportController::class, 'excel'])->name('reports.excel');
+    Route::get('/reports/{type}/word', [ReportController::class, 'word'])->name('reports.word');
 });

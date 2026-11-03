@@ -37,47 +37,113 @@ class MovController extends Controller
         return view('movs.index', compact('movs', 'reportMovs'));
     }
 
-    public function create(): View
+    public function create(): View|RedirectResponse
     {
-        return view('movs.create', ['targets' => PerformanceTarget::with('targetable')->latest()->get()]);
+        $user = request()->user();
+        try {
+            $token = request()->validate(['questionnaire_token' => ['nullable', 'uuid']])['questionnaire_token'] ?? null;
+            $questionnaire = $token ? app(\App\Services\MovQuestions::class)->questionnaire(request(), $token) : null;
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            return redirect()->route('movs.create')->withErrors(['questions' => 'Prepare fresh AI questions for your target before uploading MOV.']);
+        }
+        $progress = null;
+        if ($questionnaire && str_starts_with($questionnaire['target_ref'], 'office:')) {
+            $assignment = \App\Models\OfficeTarget::find(substr($questionnaire['target_ref'], 7))?->assignedEmployees()->whereKey($user->id)->first()?->pivot;
+            if ($assignment && ! $assignment->completed_at) $progress = $assignment;
+        }
+        return view('movs.create', [
+            'progress' => $progress,
+            'questionnaire' => $questionnaire,
+            'questionnaireToken' => $token,
+            'targets' => $this->uploadableReportTargets()->with('targetable')->latest()->get(),
+            'officeTargets' => \App\Models\OfficeTarget::whereNull('performance_target_id')->whereHas('assignedEmployees', fn ($q) => $q->whereKey($user->id)->whereNotNull('office_target_employee.accepted_at'))
+                ->whereHas('offices', fn ($q) => $q->whereKey($user->office_id ?? 0))->with('evaluationCycle')->latest()->get(),
+        ]);
+    }
+
+    public function questions(Request $request, \App\Services\MovQuestions $questions): RedirectResponse
+    {
+        $data = $request->validate(['target_ref' => ['required', 'string', 'regex:/^(office|report):[1-9][0-9]*$/']]);
+        try {
+            $token = $questions->prepare($request, $data['target_ref']);
+        } catch (\Throwable $exception) {
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) throw $exception;
+            return back()->withInput()->withErrors(['questions' => $exception instanceof \RuntimeException ? $exception->getMessage() : 'AI could not prepare questions. Please retry.']);
+        }
+        return redirect()->route('movs.create', ['questionnaire_token' => $token]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'performance_target_id' => ['nullable', 'integer', 'exists:performance_targets,id'],
+            'target_ref' => ['nullable', 'string', 'regex:/^(office|report):[1-9][0-9]*$/'],
+            'performance_target_id' => ['required_without:target_ref', 'nullable', 'integer', 'exists:performance_targets,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'file' => ['required', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg', 'max:10240'],
+            'file' => ['required_without:files', 'nullable', 'prohibits:files', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png', 'max:10240'],
+            'files' => ['required_without:file', 'nullable', 'prohibits:file', 'array', 'min:1', 'max:'.\App\Support\MovUpload::MAX_FILES],
+            'files.*' => ['required', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png', 'max:10240'],
         ]);
+        $files = $request->file('files') ?: [$request->file('file')];
+        \App\Support\MovUpload::checkTotal($files);
 
-        $file = $data['file'];
-        $path = $file->store('movs', 'public');
+        if ($request->filled('target_ref')) {
+            [$kind, $id] = explode(':', $data['target_ref']);
+            if ($kind === 'office') {
+                $target = \App\Models\OfficeTarget::whereNull('performance_target_id')->findOrFail($id);
+                // Reuse assignment acceptance, office scoping, file storage and AI analysis.
+                $request->merge(['accomplishment' => trim($data['title']."\n".($data['description'] ?? ''))]);
+                $request->files->set('files', $files);
+                app(TargetMovController::class)->store(Request::createFrom($request), $target);
+                if ($request->filled('questionnaire_token')) return redirect()->to(route('office-targets.show', $target).'#target-movs')->with('mov_status', 'Files and answers submitted. Review the combined AI findings below.');
+                return redirect()->route('movs.index')->with('status', 'MOV uploaded for '.$target->title.'. Review the AI target assessment from the target.');
+            }
+            $data['performance_target_id'] = (int) $id;
+        }
+        abort_unless($this->uploadableReportTargets()->whereKey($data['performance_target_id'])->exists(), 403, 'Choose a target from your own reports.');
+        $context = app(\App\Services\MovQuestions::class)->submission($request, 'report:'.$data['performance_target_id']);
 
-        $mov = Mov::create([
-            'performance_target_id' => $data['performance_target_id'] ?? null,
-            'title' => $data['title'],
-            'description' => $data['description'] ?? null,
-            'file_path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'extension' => strtolower($file->getClientOriginalExtension()),
-            'file_size' => $file->getSize(),
-            'uploaded_by' => $request->user()->id,
-        ]);
+        $paths = [];
+        try {
+            $uploaded = \Illuminate\Support\Facades\DB::transaction(function () use ($files, $data, $request, $context, &$paths) {
+                $uploaded = [];
+                foreach ($files as $file) {
+                    $path = $file->store('movs', 'public');
+                    abort_unless($path, 500, 'Unable to save the MOV file. Please retry.');
+                    $paths[] = $path;
+                    $uploaded[] = Mov::create([
+                        'performance_target_id' => $data['performance_target_id'],
+                        'title' => $data['title'],
+                        'description' => $data['description'] ?? null,
+                        'file_path' => $path,
+                        'original_name' => $file->getClientOriginalName(),
+                        'mime_type' => $file->getClientMimeType(),
+                        'extension' => strtolower($file->getClientOriginalExtension()),
+                        'file_size' => $file->getSize(),
+                        'uploaded_by' => $request->user()->id,
+                        'submission_context' => $context,
+                    ]);
+                }
+                return $uploaded;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($paths);
+            throw $exception;
+        }
 
         if (config('spms.ai.enabled')) {
-            set_time_limit(150);
-            app(\App\Services\EvidenceAi::class)->analyze($mov);
+            set_time_limit(max(150, count($uploaded) * 100));
+            foreach ($context ? [$uploaded[0]] : $uploaded as $mov) app(\App\Services\EvidenceAi::class)->analyze($mov);
         }
 
         return redirect()
-            ->route('movs.show', $mov)
-            ->with('status', 'MOV uploaded successfully.');
+            ->route($context || count($uploaded) === 1 ? 'movs.show' : 'movs.index', $context || count($uploaded) === 1 ? $uploaded[0] : [])
+            ->with('status', count($uploaded).' MOV file(s) uploaded for the selected target.');
     }
 
     public function show(Mov $mov): View
     {
+        $this->authorizeEvidence($mov);
         return view('movs.show', [
             'mov' => $mov->load(['uploadedBy', 'performanceTarget']),
         ]);
@@ -85,6 +151,20 @@ class MovController extends Controller
 
     public function download(Mov $mov): StreamedResponse
     {
+        $this->authorizeEvidence($mov);
         return Storage::disk('public')->download($mov->file_path, $mov->original_name);
+    }
+
+    private function uploadableReportTargets()
+    {
+        return app(\App\Services\MovQuestions::class)->reportTargets(request()->user());
+    }
+
+    private function authorizeEvidence(Mov $mov): void
+    {
+        $user = request()->user();
+        if ((int) $mov->uploaded_by === (int) $user->id || $user->hasAnyRole(['Administrator', 'Planning Officer'])) return;
+        $managed = app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user);
+        abort_unless($mov->uploadedBy?->office_id && in_array((int) $mov->uploadedBy->office_id, $managed), 403);
     }
 }

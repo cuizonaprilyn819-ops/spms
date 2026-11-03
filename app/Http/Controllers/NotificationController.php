@@ -11,11 +11,20 @@ class NotificationController extends Controller
 {
     public function index(Request $request): View
     {
+        $notifications = $request->user()->notifications()->latest()->paginate(15);
+        $movIds = $notifications->getCollection()->where('type', \App\Notifications\TargetMovSubmittedNotification::class)
+            ->map(fn ($notification) => $notification->data['mov_id'] ?? null)->filter()->all();
+        $movs = \App\Models\TargetMov::with(['employee', 'target'])->whereIn('id', $movIds)->get()->keyBy('id');
+        foreach ($notifications as $notification) {
+            if ($notification->type !== \App\Notifications\TargetMovSubmittedNotification::class) continue;
+            $mov = $movs->get($notification->data['mov_id'] ?? null);
+            if ($mov && $mov->employee && $mov->target) {
+                // Refresh display text for older notifications without rewriting history/read status.
+                $notification->data = [...$notification->data, ...(new \App\Notifications\TargetMovSubmittedNotification($mov, $notification->data['mov_ids'] ?? []))->toArray($request->user())];
+            }
+        }
         return view('notifications.index', [
-            'notifications' => $request->user()
-                ->notifications()
-                ->latest()
-                ->paginate(15),
+            'notifications' => $notifications,
         ]);
     }
 

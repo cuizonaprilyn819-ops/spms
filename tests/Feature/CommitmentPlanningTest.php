@@ -349,10 +349,11 @@ class CommitmentPlanningTest extends TestCase
         [$office,$root,$target] = $this->root('count', 10);
         $ratings = ['quality_rating' => 4, 'efficiency_rating' => 4, 'timeliness_rating' => 4, 'remarks' => 'Evidence reviewed'];
         $this->actingAs($this->reviewer)->post(route('planning.rate', $target), $ratings)->assertStatus(422);
-        $this->actingAs($office->head)->post(route('planning.output', $target), ['reference' => 'FINAL-1', 'details' => 'Completed requests', 'quantity' => 10, 'evidence' => UploadedFile::fake()->create('proof.pdf', 1, 'application/pdf')])->assertRedirect();
+        $this->actingAs($office->head)->post(route('planning.output', $target), ['reference' => 'FINAL-1', 'details' => 'Completed requests', 'quantity' => 10, 'evidence' => UploadedFile::fake()->createWithContent('proof.pdf', '%PDF-1.4 evidence fixture')])->assertRedirect();
         $this->actingAs($this->reviewer)->post(route('planning.output-validate', PlanningOutput::sole()))->assertRedirect();
         $this->post(route('planning.rate', $target), $ratings)->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame('draft', $root->report->fresh()->status);
+        PlanningOutput::sole()->analysis()->create(['status' => 'completed', 'findings' => ['supported' => true, 'satisfies_target' => true, 'target_assessment' => 'All committed requests are evidenced.']]);
         $this->actingAs($office->head)->patch(route('report-workflow.submit', ['opcr', $root->report_id]))->assertRedirect()->assertSessionHasNoErrors();
         $this->actingAs($this->reviewer)->patch(route('report-workflow.approve', ['opcr', $root->report_id]))->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame('approved', $root->report->fresh()->status);

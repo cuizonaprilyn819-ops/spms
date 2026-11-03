@@ -2,15 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EvaluationCycle;
-use App\Models\Office;
 use App\Models\Opcr;
 use App\Notifications\ApprovalNotification;
-use App\Services\CommitmentPlanning;
 use App\Services\PlanningOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class OpcrController extends Controller
@@ -33,55 +29,31 @@ class OpcrController extends Controller
     public function create(): View
     {
         abort_unless(request()->user()->hasRole('Campus Director') && request()->user()->office_id, 403);
-        $offices = Office::forCampus()->whereKey(request()->user()->office_id);
-
         return view('opcrs.create', [
-            'cycles' => EvaluationCycle::where('status', EvaluationCycle::STATUS_OPEN)
-                ->orderByDesc('year')
-                ->orderBy('semester')
-                ->get(),
-            'offices' => $offices->get(),
+            'cycles' => \App\Models\EvaluationCycle::where('status', 'open')->orderByDesc('year')->get(),
+            'offices' => \App\Models\Office::forCampus()->whereKey(request()->user()->office_id)->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        CommitmentPlanning::legacyOnly(EvaluationCycle::find($request->input('evaluation_cycle_id')));
         abort_unless($request->user()->hasRole('Campus Director') && $request->user()->office_id, 403);
         $data = $request->validate([
-            'evaluation_cycle_id' => [
-                'required',
-                'integer',
-                Rule::exists('evaluation_cycles', 'id')
-                    ->where('status', EvaluationCycle::STATUS_OPEN),
-            ],
-            'office_id' => ['required', 'integer', Rule::exists('offices', 'id')->where('is_active', true)->where('campus', config('hinunangan.campus_id'))],
+            'evaluation_cycle_id' => ['required', 'integer', 'exists:evaluation_cycles,id'],
+            'office_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('offices', 'id')->where('is_active', true)->where('campus', config('hinunangan.campus_id'))],
             'title' => ['required', 'string', 'max:255'],
             'success_indicators' => ['nullable', 'string', 'max:5000'],
             'targets' => ['nullable', 'string', 'max:5000'],
         ]);
-
-        if ((int) $data['office_id'] !== (int) $request->user()->office_id) {
-            abort(403, 'You may only create an OPCR for your assigned office.');
-        }
-
-        $request->validate([
-            'office_id' => [
-                Rule::unique('opcrs', 'office_id')
-                    ->where('evaluation_cycle_id', $request->integer('evaluation_cycle_id')),
-            ],
-        ]);
-
-        EvaluationCycle::findOrFail($data['evaluation_cycle_id'])->ensurePcrCreationOpen();
-        $opcr = Opcr::create([
-            ...$data,
-            'status' => Opcr::STATUS_DRAFT,
-            'prepared_by' => $request->user()->id,
-        ]);
-
-        return redirect()
-            ->route('opcrs.show', $opcr)
-            ->with('status', 'OPCR created successfully.');
+        abort_unless((int) $data['office_id'] === (int) $request->user()->office_id, 403, 'Prepare an OPCR for your assigned office only.');
+        $opcr = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request) {
+            $cycle = \App\Models\EvaluationCycle::whereKey($data['evaluation_cycle_id'])->lockForUpdate()->firstOrFail();
+            \App\Services\CommitmentPlanning::legacyOnly($cycle);
+            $cycle->ensurePcrCreationOpen();
+            $request->validate(['office_id' => [\Illuminate\Validation\Rule::unique('opcrs', 'office_id')->where('evaluation_cycle_id', $cycle->id)]]);
+            return Opcr::create([...$data, 'status' => Opcr::STATUS_DRAFT, 'prepared_by' => $request->user()->id]);
+        });
+        return redirect()->route('opcrs.show', $opcr)->with('status', 'OPCR created successfully.');
     }
 
     public function show(Opcr $opcr): View|RedirectResponse

@@ -82,6 +82,32 @@ class OfficeAssignmentHierarchyTest extends TestCase
         $this->assertEquals($upcr->id, $target->offices()->sole()->pivot->upcr_id);
     }
 
+    public function test_parent_director_is_notified_without_head_mapping_and_shared_ancestors_receive_one_notification(): void
+    {
+        $context = $this->hierarchy();
+        extract($context);
+        $root->update(['head_id' => null]);
+        $unrelated = User::factory()->create(['office_id' => Office::factory()->create(['campus' => 6])->id])->assignRole('Campus Director');
+        $target = $this->assign($context, false);
+        $notification = $director->notifications()->sole()->data;
+        $this->assertSame('New target assigned to an office under your supervision', $notification['title']);
+        $this->assertStringContainsString('CISA', $notification['message']);
+        $this->assertStringNotContainsString('to your office.', $notification['message']);
+        $this->assertSame([$unit->id], $notification['assigned_office_ids']);
+        $this->assertSame(0, $unrelated->notifications()->count());
+        $sibling = Office::factory()->create(['name' => 'Other unit', 'campus' => 6, 'parent_office_id' => $department->id]);
+        $target->offices()->attach($sibling->id, ['allocated_target_value' => 1]);
+        $target->notifyAssignedSupervisors([$unit->id, $sibling->id]);
+        $this->assertSame(1, $director->notifications()->count());
+        $this->assertSame(1, $departmentHead->notifications()->count());
+        $target->notifyAssignedSupervisors([$unit->id, $sibling->id], true);
+        $this->assertSame(2, $director->notifications()->count());
+        $updated = $director->notifications()->get()->first(fn ($n) => $n->data['title'] === 'Office target updated')->data;
+        $this->assertEqualsCanonicalizing([$unit->id, $sibling->id], $updated['assigned_office_ids']);
+        $this->assertStringContainsString('Other unit', $updated['message']);
+        $this->assertSame(0, $unrelated->notifications()->count());
+    }
+
     public function test_missing_upcr_keeps_assignment_visible_without_creating_or_approving_reports(): void
     {
         $context = $this->hierarchy();

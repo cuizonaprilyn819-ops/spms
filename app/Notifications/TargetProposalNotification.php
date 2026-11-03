@@ -6,7 +6,7 @@ use Illuminate\Notifications\Notification;
 
 class TargetProposalNotification extends Notification
 {
-    public function __construct(public int $proposalId, public string $message) {}
+    public function __construct(public int $proposalId, public string $message, public ?string $url = null) {}
 
     public function via(object $notifiable): array
     {
@@ -15,6 +15,6 @@ class TargetProposalNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        return ['title' => 'Target proposal', 'message' => $this->message, 'proposal_id' => $this->proposalId, 'url' => route('planning.index')];
+        return ['title' => 'Target proposal', 'message' => $this->message, 'proposal_id' => $this->proposalId, 'url' => $this->url ?? route('planning.index')];
     }
 }

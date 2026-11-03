@@ -22,7 +22,7 @@
             </div>
             <section class="mb-10" aria-labelledby="my-report-forms-heading">
                 <h3 id="my-report-forms-heading" class="text-lg font-bold text-[#172f54]">My report forms</h3>
-                <p class="mt-1 text-sm text-slate-500">Forms you prepare depend on your role. Your assigned IPCR also appears here.</p>
+                <p class="mt-1 text-sm text-slate-500">Campus Directors prepare OPCR and personal IPCR. Supervisors prepare DPCR or UPCR for their office level, plus personal IPCR. Employees prepare IPCR only.</p>
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
                     @foreach ($myReportTypes as $type => $label)
                         <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

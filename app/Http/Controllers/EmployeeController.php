@@ -7,6 +7,7 @@ use App\Models\PositionTitle;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -15,6 +16,7 @@ use Spatie\Permission\Models\Role;
 class EmployeeController extends Controller
 {
     private const ASSIGNABLE_ROLES = ['Supervisor', 'Employee'];
+    private const SINGLETON_ROLES = ['Planning Officer', 'HR', 'HR Head', 'Campus Director'];
 
     public function index(Request $request): View
     {
@@ -45,13 +47,15 @@ class EmployeeController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validatedData($request);
-        $this->validatePositionRole($request, $data);
-        $role = $data['role'];
-        unset($data['role']);
-
-        $employee = User::create($data);
-        $employee->syncRoles([$role]);
+        DB::transaction(function () use ($request) {
+            $this->lockRoleAssignments();
+            $data = $this->validatedData($request);
+            $this->validatePositionRole($request, $data);
+            $role = $data['role'];
+            unset($data['role']);
+            $employee = User::create($data);
+            $employee->syncRoles([$role]);
+        });
 
         return redirect()
             ->route('employees.index')
@@ -70,13 +74,16 @@ class EmployeeController extends Controller
     {
         abort_if($request->filled('password') || $request->filled('password_confirmation'), 403);
 
-        $data = $this->validatedData($request, $employee);
-        $this->validatePositionRole($request, $data);
-        $role = $data['role'];
-        unset($data['role']);
-
-        $employee->update($data);
-        $employee->syncRoles([$role]);
+        DB::transaction(function () use ($request, $employee) {
+            $this->lockRoleAssignments();
+            $employee = User::whereKey($employee->id)->lockForUpdate()->firstOrFail();
+            $data = $this->validatedData($request, $employee);
+            $this->validatePositionRole($request, $data);
+            $role = $data['role'];
+            unset($data['role']);
+            $employee->update($data);
+            $employee->syncRoles([$role]);
+        });
 
         return redirect()
             ->route('employees.index')
@@ -153,24 +160,26 @@ class EmployeeController extends Controller
     private function assignableRoles(?User $employee = null): array
     {
         $roles = self::ASSIGNABLE_ROLES;
-        if (auth()->user()?->hasRole('Administrator')) $roles[] = 'Planning Officer';
-
         if (auth()->user()?->hasRole('Administrator')) {
-            $anotherCampusDirectorExists = User::role('Campus Director')
-                ->when($employee, fn ($query) => $query->where('users.id', '!=', $employee->id))
-                ->exists();
-
-            if (! $anotherCampusDirectorExists) {
-                array_unshift($roles, 'Campus Director');
+            foreach (['Campus Director', 'HR Head', 'Planning Officer'] as $role) {
+                // HR is the legacy equivalent of the HR Head selection; both use one seat.
+                $equivalentRoles = $role === 'HR Head' ? ['HR', 'HR Head'] : [$role];
+                $occupied = User::role($equivalentRoles)
+                    ->when($employee, fn ($query) => $query->whereKeyNot($employee->id))->exists();
+                if (! $occupied || $employee?->hasRole($role)) $roles[] = $role;
             }
-
-            $anotherHrHeadExists = User::role('HR Head')
-                ->when($employee, fn ($query) => $query->where('users.id', '!=', $employee->id))
-                ->exists();
-            if (! $anotherHrHeadExists) array_unshift($roles, 'HR Head');
+            // Keep legacy HR holders editable without silently changing their permissions.
+            if ($employee?->hasRole('HR')) $roles[] = 'HR';
         }
 
         return $roles;
+    }
+
+    private function lockRoleAssignments(): void
+    {
+        // The same locks protect empty seats and simultaneous create/update requests.
+        Role::where('guard_name', 'web')->whereIn('name', self::SINGLETON_ROLES)
+            ->orderBy('id')->lockForUpdate()->get();
     }
 
     private function validatePositionRole(Request $request, array $data): void

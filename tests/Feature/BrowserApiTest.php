@@ -72,9 +72,13 @@ class BrowserApiTest extends TestCase
 
     public function test_mov_upload_and_download_work_through_api(): void
     {
+        config(['spms.ai.enabled' => false]);
         $storage = Storage::fake('public');
         $user = $this->signIn('Employee');
+        $ipcr = Ipcr::factoryLike()->create(['employee' => $user, 'prepared_by_user' => $user]);
+        $target = \App\Models\PerformanceTarget::factoryLike()->create(['targetable' => $ipcr]);
         $this->post('/api/movs', [
+            'target_ref' => 'report:'.$target->id,
             'title' => 'API Evidence',
             'file' => UploadedFile::fake()->create('evidence.pdf', 50, 'application/pdf'),
         ])->assertOk()->assertJsonStructure(['redirect']);
