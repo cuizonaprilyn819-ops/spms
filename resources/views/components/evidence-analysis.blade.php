@@ -4,14 +4,22 @@
 @php($owner = (int) ($type === 'mov' ? $evidence->uploaded_by : ($type === 'planning-output' ? $evidence->submitted_by : $evidence->user_id)) === (int) Auth::id())
 @php($processing = $analysis?->isProcessing())
 <section class="mt-5 rounded-lg border border-blue-200 bg-blue-50/40 p-4" @if($owner && $processing) data-evidence-status="{{ route('evidence.status', [$type, $evidence->id]) }}" data-processing-key="{{ $type }}:{{ $evidence->submission_context['batch_id'] ?? $evidence->id }}" @endif>
-    <h3 class="font-bold text-spms-navy">MOV analysis and report statement</h3>
-    <p class="mt-1 text-xs text-gray-600">Formal, concise English; past tense for evidence-supported completed work. AI statements do not change completion or ratings.</p>
+    <h3 class="font-bold text-spms-navy">Evidence review</h3>
     @if($evidence->submission_context['questions'] ?? null)
         <details class="mt-3 text-sm"><summary class="cursor-pointer font-semibold">Your submitted answers</summary><dl class="mt-3 space-y-3">@foreach($evidence->submission_context['questions'] as $question)<div><dt class="font-semibold">{{ $question['label'] }}</dt><dd class="mt-1 whitespace-pre-line">{{ $evidence->submission_context['answers'][$question['id']] ?? 'Not provided' }}</dd></div>@endforeach</dl></details>
     @endif
     @if($analysis?->status === 'completed' && !$processing)
-        @if($analysis->findings['mov_title'] ?? null)<h4 class="mt-4 text-sm font-bold">AI-prepared MOV title</h4><p class="mt-1 text-sm">{{ $analysis->findings['mov_title'] }}</p>@endif
-        @if($analysis->findings['mov_description'] ?? null)<p class="mt-2 whitespace-pre-line text-sm">{{ $analysis->findings['mov_description'] }}</p>@endif
+        @php($pendingQuestions = ! empty($analysis->findings['followup_questions']))
+        @php($sufficient = ! $pendingQuestions && ($analysis->findings['satisfies_target'] ?? false) && ($analysis->findings['supported'] ?? false))
+        <div class="mt-3 rounded-lg border p-4 {{ $sufficient ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }}">
+            <p class="font-semibold {{ $sufficient ? 'text-green-800' : 'text-amber-800' }}">{{ $sufficient ? 'Evidence meets the target' : ($pendingQuestions ? 'A few details are needed' : 'More evidence is needed') }}</p>
+            <p class="mt-2 text-sm leading-relaxed text-gray-700">{{ \Illuminate\Support\Str::limit($analysis->summary, 240) }}</p>
+            <p class="mt-3 text-sm font-semibold">{{ $sufficient ? 'Next: review your report summary. Your supervisor makes the final decision.' : ($pendingQuestions ? 'Next: answer the questions below.' : 'Next: provide clearer or additional supporting files. Retrying the same file may give the same result.') }}</p>
+            @if($owner && ! $sufficient && ! $pendingQuestions && $type !== 'planning-output')
+                <a data-action-plain href="{{ route('movs.create', $type === 'mov' ? ['performance_target_id' => $evidence->performance_target_id] : ['office_target_id' => $evidence->office_target_id]) }}" class="mt-3 inline-flex rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800">Upload revised MOV</a>
+                <p class="mt-1 text-xs text-gray-600">Include all supporting files in the new upload.</p>
+            @endif
+        </div>
         @if($owner && ($analysis->findings['followup_questions'] ?? []))
         <form method="POST" action="{{ route('evidence.answers', [$type, $evidence->id]) }}" class="mt-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4" data-action-plain>
             @csrf
@@ -31,32 +39,38 @@
             <a href="{{ route('movs.create', $type === 'mov' ? ['performance_target_id' => $evidence->performance_target_id] : ['office_target_id' => $evidence->office_target_id]) }}" class="inline-block text-sm font-semibold underline">Upload revised evidence (include all supporting files)</a>
         </form>
         @endif
+        <details class="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <summary class="cursor-pointer text-sm font-semibold text-spms-navy">View full AI findings and references</summary>
+        @if($analysis->findings['mov_title'] ?? null)<h4 class="mt-4 text-sm font-bold">MOV title</h4><p class="mt-1 text-sm">{{ $analysis->findings['mov_title'] }}</p>@endif
+        @if($analysis->findings['mov_description'] ?? null)<p class="mt-2 whitespace-pre-line text-sm">{{ $analysis->findings['mov_description'] }}</p>@endif
         @if($analysis->findings['user_data_summary'] ?? null)<h4 class="mt-4 text-sm font-bold">User-provided data</h4><p class="mt-1 whitespace-pre-line text-sm">{{ $analysis->findings['user_data_summary'] }}</p>@endif
         @if($analysis->findings['file_findings_summary'] ?? null)<h4 class="mt-4 text-sm font-bold">Findings from uploaded files</h4><p class="mt-1 whitespace-pre-line text-sm">{{ $analysis->findings['file_findings_summary'] }}</p>@endif
         @if($analysis->findings['discrepancies'] ?? null)<h4 class="mt-4 text-sm font-bold text-amber-800">Discrepancies or missing evidence</h4><p class="mt-1 whitespace-pre-line text-sm text-amber-800">{{ $analysis->findings['discrepancies'] }}</p>@endif
         @if($analysis->findings['batch_evidence_ids'] ?? null)<p class="mt-2 text-xs text-gray-500">{{ count($analysis->findings['batch_evidence_ids']) }} uploaded files analyzed together. Repeated copies are not additional accomplishments.</p>@endif
         @if($analysis->findings['source_excerpts'] ?? null)<details class="mt-3 text-sm"><summary class="cursor-pointer font-semibold">Evidence references</summary><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($analysis->findings['source_excerpts'] as $excerpt)<li>{{ $excerpt }}</li>@endforeach</ul></details>@endif
-        <p class="mt-3 text-sm font-semibold">Target assessment: {{ ($analysis->findings['satisfies_target'] ?? false) ? 'Evidence satisfies the target' : 'Not confirmed sufficient — review or retry analysis' }}</p>
+        <p class="mt-3 text-sm font-semibold">Target assessment: {{ $sufficient ? 'Evidence satisfies the target' : 'Not confirmed sufficient' }}</p>
         @if($analysis->findings['target_assessment'] ?? null)<p class="mt-2 text-sm">{{ $analysis->findings['target_assessment'] }}</p>@endif
         <p class="mt-3 whitespace-pre-line text-sm">{{ $analysis->summary }}</p>
         @if($analysis->findings['limitations'] ?? null)<p class="mt-2 text-sm text-amber-800">{{ $analysis->findings['limitations'] }}</p>@endif
+        </details>
         @if($analysis->statement && ! ($analysis->findings['followup_questions'] ?? []))
             <p class="mt-3 text-xs font-semibold uppercase">Statement used in reports</p>
             <p class="mt-1 whitespace-pre-line text-sm">{{ $analysis->statement }}</p>
             @if($owner)
-                <form method="POST" action="{{ route('evidence.statement', [$type, $evidence->id]) }}" class="mt-3 space-y-2">
+                <details class="mt-3"><summary class="cursor-pointer text-sm font-semibold text-spms-navy">Edit report summary</summary>
+                <form method="POST" action="{{ route('evidence.statement', [$type, $evidence->id]) }}" class="mt-3 space-y-2" data-action-plain>
                     @csrf @method('PUT')
                     <label for="statement-{{ $type }}-{{ $evidence->id }}" class="text-sm font-semibold">Review or edit report statement</label>
                     <textarea id="statement-{{ $type }}-{{ $evidence->id }}" name="statement" rows="3" maxlength="5000" required class="w-full rounded-lg border-gray-300">{{ $analysis->statement }}</textarea>
                     <button class="rounded-lg bg-spms-navy px-3 py-2 text-sm font-semibold text-white">Save statement</button>
                 </form>
+                </details>
             @endif
         @elseif($analysis->findings['followup_questions'] ?? [])
             <p class="mt-3 text-sm text-amber-800">The final report statement is waiting for clarification and an evidence recheck.</p>
         @else
             <p class="mt-3 text-sm text-amber-800">No supported report statement could be generated from this file.</p>
         @endif
-        <details class="mt-3 text-sm"><summary class="cursor-pointer font-semibold">Evidence references</summary><ul class="mt-2 list-disc pl-5">@foreach($analysis->findings['source_excerpts'] ?? [] as $excerpt)<li>{{ $excerpt }}</li>@endforeach</ul></details>
     @elseif($analysis?->status === 'failed' && !$processing)
         <p class="mt-3 text-sm text-amber-800">{{ $analysis->error }}</p>
     @elseif($processing)
