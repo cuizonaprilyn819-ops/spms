@@ -5,6 +5,22 @@ and, when AI is enabled, evidence analysis. One job covers a questionnaire batch
 Submission gates continue to require completed, sufficient AI findings for every target.
 Processing and failed states are visible; owners receive automatic status updates.
 
+## Files-first submission
+
+New MOV uploads select a target and attach files before any questions are asked.
+The upload queues one batch analysis and requires no user-written title or description.
+AI supplies neutral wording and asks zero to eight questions only for report-critical
+details missing or unclear in the files. Complete files proceed directly to a summary.
+Existing questionnaire sessions remain usable during the transition.
+
+Only the uploader can answer follow-up questions. Answers are validated against the
+current analysis and target snapshot, saved across the batch, and trigger another
+background analysis of the original files. They remain claims, separate from file
+findings. Pending questions suppress the final statement and block report submission;
+answers do not automatically satisfy the target or change reported progress or ratings.
+Insufficient files require additional evidence, which can be uploaded as a new batch.
+Restart the local launcher (or the supervised queue worker) after updating this code.
+
 ## Worker
 
 `serve.ps1` starts a hidden MOV worker and stops that worker when the launcher exits.

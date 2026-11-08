@@ -53,7 +53,7 @@ class TargetMovController extends Controller
         ]);
         \App\Support\MovUpload::checkTotal($request->file('files'));
         $context = app(\App\Services\MovQuestions::class)->submission($request, 'office:'.$officeTarget->id);
-        if ($context && ! $officeTarget->assignedEmployees()->whereKey($user->id)->first()->pivot->completed_at) {
+        if ($context && ($context['flow'] ?? null) !== 'files-first' && ! $officeTarget->assignedEmployees()->whereKey($user->id)->first()->pivot->completed_at) {
             $request->validate(['completed_value' => ['required', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2']]);
         }
         if ($context && isset($data['completed_value'])) $context['reported_completed_value'] = $data['completed_value'];

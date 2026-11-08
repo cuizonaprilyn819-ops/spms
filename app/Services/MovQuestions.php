@@ -103,6 +103,11 @@ class MovQuestions
 
     public function submission(Request $request, string $reference): ?array
     {
+        if ($request->input('mov_flow') === 'files-first') {
+            return ['flow' => 'files-first', 'batch_id' => (string) Str::uuid(),
+                'target_snapshot' => $this->snapshot($request->user(), $reference),
+                'questions' => [], 'answers' => [], 'submitted_at' => now()->toIso8601String()];
+        }
         // Preserve non-AI integrations; an AI-enabled submission must answer its questions.
         if (! config('spms.ai.enabled') && ! $request->filled('questionnaire_token')) return null;
         $request->validate(['questionnaire_token' => ['required', 'uuid']]);

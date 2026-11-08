@@ -67,6 +67,7 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
     Route::post('evidence/{type}/{id}/analyze', [EvidenceAnalysisController::class, 'analyze'])->middleware('throttle:5,1')->name('evidence.analyze');
     Route::get('evidence/{type}/{id}/status', [EvidenceAnalysisController::class, 'status'])->name('evidence.status');
     Route::put('evidence/{type}/{id}/statement', [EvidenceAnalysisController::class, 'update'])->name('evidence.statement');
+    Route::post('evidence/{type}/{id}/answers', [EvidenceAnalysisController::class, 'answers'])->middleware('throttle:10,1')->name('evidence.answers');
 
     Route::get('planning', [CommitmentPlanningController::class, 'index'])->name('planning.index');
     Route::post('movs/questions', [MovController::class, 'questions'])->middleware('throttle:10,1')->name('movs.questions');

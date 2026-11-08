@@ -27,8 +27,8 @@
     @endif
     @if($assignment->pivot->accepted_at)
     @if(config('spms.ai.enabled'))
-    <form method="POST" action="{{ route('movs.questions') }}" class="group mt-4">@csrf<input type="hidden" name="target_ref" value="office:{{ $target->id }}"><button type="submit" class="inline-flex min-h-11 items-center rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60">Answer AI questions and upload MOV</button><p role="status" class="mt-3 hidden text-sm text-gray-600 group-[[data-submitting]]:block">Preparing questions for your target. Please wait; this may take up to 45 seconds.</p></form>
-    <p class="mt-2 text-xs text-gray-600">Answer questions for this target, attach your files, then review the AI evidence assessment and summary.</p>
+    <a href="{{ route('movs.create', ['office_target_id' => $target->id]) }}" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Upload MOV files</a>
+    <p class="mt-2 text-xs text-gray-600">Attach files first. AI analyzes the evidence, then asks only for missing details before preparing your report summary.</p>
     @else
     <form method="POST" action="{{ route('target-movs.store', $target) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
         @csrf

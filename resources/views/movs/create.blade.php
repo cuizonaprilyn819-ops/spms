@@ -6,13 +6,16 @@
     <div class="py-8">
         <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <p class="mb-4 text-sm font-semibold text-spms-navy">{{ $questionnaire ? 'Step 2: Answer the questions and attach your MOV files' : 'Step 1: Choose your target' }}</p>
+                <p class="mb-4 text-sm font-semibold text-spms-navy">{{ $questionnaire ? 'Answer the questions and attach your MOV files' : 'Choose your target and attach MOV files first' }}</p>
                 @if($errors->any())<p role="alert" class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ $errors->first() }}</p>@endif
-                <form method="POST" action="{{ $questionnaire ? route('movs.store') : route('movs.questions') }}" enctype="multipart/form-data" class="space-y-6">
+                <form method="POST" action="{{ route('movs.store') }}" enctype="multipart/form-data" class="space-y-6" data-action-plain>
                     @csrf
                     @if($questionnaire)
                         <input type="hidden" name="questionnaire_token" value="{{ $questionnaireToken }}">
                         <input type="hidden" name="target_ref" value="{{ $questionnaire['target_ref'] }}">
+                    @else
+                        <input type="hidden" name="mov_flow" value="files-first">
+                        <p class="text-sm text-gray-600">AI reads your files first, prepares the title and description, and asks only about details needed for the report that are missing or unclear. You can leave this page while analysis runs.</p>
                     @endif
 
                     <div>
@@ -68,6 +71,7 @@
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 
+                    @endif
                     <div>
                         <x-input-label for="files" :value="__('MOV Files')" />
                         <input id="files" name="files[]" type="file" multiple onchange="const files = Array.from(this.files); this.setCustomValidity(files.length > 20 ? 'Select at most 20 files.' : files.some(file => file.size > 10 * 1024 * 1024) ? 'Each file must be 10 MB or smaller.' : files.reduce((sum, file) => sum + file.size, 0) > 35 * 1024 * 1024 ? 'Select up to 35 MB per batch.' : ''); this.reportValidity();" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.webp" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-spms-navy file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#2b4276] focus:border-spms-sky focus:outline-none focus:ring-spms-sky" required>
@@ -77,10 +81,9 @@
                         <x-input-error :messages="$errors->get('file')" class="mt-2" />
                     </div>
 
-                    @endif
                     <div class="flex items-center justify-end gap-3">
                         <a href="{{ route('movs.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-spms-ink transition hover:bg-gray-50">Cancel</a>
-                        <x-primary-button>{{ $questionnaire ? 'Upload files and analyze answers' : 'Prepare AI questions' }}</x-primary-button>
+                        <x-primary-button>{{ $questionnaire ? 'Upload files and analyze answers' : 'Upload MOV and analyze files' }}</x-primary-button>
                     </div>
                 </form>
             </div>

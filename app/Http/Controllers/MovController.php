@@ -77,6 +77,12 @@ class MovController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $request->validate(['mov_flow' => ['nullable', 'in:files-first']]);
+        if ($request->input('mov_flow') === 'files-first') {
+            $reference = $request->validate(['target_ref' => ['required', 'string', 'regex:/^(office|report):[1-9][0-9]*$/']])['target_ref'];
+            $snapshot = app(\App\Services\MovQuestions::class)->snapshot($request->user(), $reference);
+            $request->merge(['title' => \Illuminate\Support\Str::limit('Evidence for: '.$snapshot['title'], 255, ''), 'description' => 'Uploaded evidence awaiting analysis.']);
+        }
         $data = $request->validate([
             'target_ref' => ['nullable', 'string', 'regex:/^(office|report):[1-9][0-9]*$/'],
             'performance_target_id' => ['required_without:target_ref', 'nullable', 'integer', 'exists:performance_targets,id'],
@@ -103,7 +109,7 @@ class MovController extends Controller
                 $request->merge(['accomplishment' => trim($data['title']."\n".($data['description'] ?? ''))]);
                 $request->files->set('files', $files);
                 app(TargetMovController::class)->store(Request::createFrom($request), $target);
-                if ($request->filled('questionnaire_token')) return redirect()->to(route('office-targets.show', $target).'#target-movs')->with('mov_status', 'Files and answers submitted. Review the combined AI findings below.');
+                if ($request->filled('questionnaire_token') || $request->input('mov_flow') === 'files-first') return redirect()->to(route('office-targets.show', $target).'#target-movs')->with('mov_status', 'Files saved. AI will analyze them and ask only for missing details.');
                 return redirect()->route('movs.index')->with('status', 'MOV uploaded for '.$target->title.'. Review the AI target assessment from the target.');
             }
             $data['performance_target_id'] = (int) $id;

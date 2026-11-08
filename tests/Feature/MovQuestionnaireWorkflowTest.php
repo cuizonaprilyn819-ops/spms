@@ -62,7 +62,7 @@ class MovQuestionnaireWorkflowTest extends TestCase
         $start = strpos($page, '<section id="target-movs"');
         $mov = substr($page, $start, strpos($page, '</section>', $start) - $start);
         $this->assertStringNotContainsString('Prepare My IPCR Report', $mov);
-        $this->assertStringContainsString('Answer AI questions and upload MOV', $mov);
+        $this->assertStringContainsString('Upload MOV files', $mov);
         $this->assertStringContainsString('Prepare My IPCR Report', substr($page, strpos($page, '</section>', $start)));
         Http::fakeSequence()->push($this->response([...$this->questions(), 'mov_title' => 'Article publication evidence', 'mov_description' => 'Supporting files for the assigned university articles.']));
         $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
@@ -88,6 +88,73 @@ class MovQuestionnaireWorkflowTest extends TestCase
         $response->assertUnprocessable()->assertJsonValidationErrors('questions');
         $this->assertStringContainsString('credits or the project spending limit', $response->json('errors.questions.0'));
         $this->assertStringNotContainsString('Private provider details', $response->getContent());
+    }
+
+    public function test_files_first_upload_asks_only_missing_details_then_rechecks_original_files(): void
+    {
+        [$user, $target] = $this->fixture();
+        $question = ['id' => 'q1', 'label' => 'Which campus is shown in the undated record?', 'type' => 'text', 'required' => true];
+        $pending = [...$this->findings(true), 'mov_title' => 'Article evidence', 'mov_description' => 'Two article records; campus needs clarification.', 'followup_questions' => [$question]];
+        Http::fakeSequence()->push($this->response($pending))->push($this->response([
+            ...$this->findings(false), 'mov_title' => 'Article evidence', 'mov_description' => 'Records reviewed with campus clarification.', 'followup_questions' => [],
+        ]));
+        $this->get(route('movs.create', ['office_target_id' => $target->id]))->assertOk()
+            ->assertSee('Upload MOV and analyze files')->assertSee('name="files[]"', false)->assertDontSee('name="questionnaire_token"', false);
+        Http::assertNothingSent();
+        $this->post(route('movs.store'), ['mov_flow' => 'files-first', 'target_ref' => 'office:'.$target->id,
+            'files' => [UploadedFile::fake()->createWithContent('articles.pdf', '%PDF-1.4 partial record'), UploadedFile::fake()->createWithContent('support.pdf', '%PDF-1.4 supporting record')]])->assertSessionHasNoErrors()->assertRedirect();
+        $file = TargetMov::with('analysis')->firstOrFail();
+        $this->assertFalse($file->analysis->findings['satisfies_target']);
+        $this->assertNull($file->analysis->statement);
+        $this->assertNull($target->assignedEmployees()->first()->pivot->completed_value);
+        $this->get(route('office-targets.show', $target))->assertOk()->assertSee($question['label']);
+        $report = Ipcr::create(['office_target_id' => $target->id, 'employee_id' => $user->id, 'prepared_by' => $user->id, 'title' => 'Test', 'status' => 'draft']);
+        $this->assertNotEmpty(app(ReportEvidence::class)->issues($report));
+        $url = route('evidence.answers', ['target-mov', $file->id]);
+        $version = hash('sha256', json_encode([$question]));
+        $this->postJson($url, ['analysis_version' => 'stale', 'answers' => ['q1' => 'Campus 6']])->assertUnprocessable();
+        $this->postJson($url, ['analysis_version' => $version, 'answers' => []])->assertUnprocessable();
+        $stranger = User::factory()->create()->assignRole('Employee');
+        $this->actingAs($stranger)->postJson($url, ['analysis_version' => $version, 'answers' => ['q1' => 'Campus 6']])->assertForbidden();
+        $this->actingAs($user)->post($url, ['analysis_version' => $version, 'answers' => ['q1' => 'Campus 6']])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame('Campus 6', $file->fresh()->submission_context['answers']['q1']);
+        foreach (TargetMov::all() as $member) $this->assertSame('Campus 6', $member->submission_context['answers']['q1']);
+        $this->assertFalse($file->fresh()->analysis->findings['satisfies_target']);
+        $this->assertNotEmpty(app(ReportEvidence::class)->issues($report));
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($r) => str_contains(json_encode($r['input']), 'Campus 6') && str_contains(json_encode($r['input']), 'input_file'));
+    }
+
+    public function test_complete_files_need_no_questions_or_user_typed_metadata(): void
+    {
+        [, $target] = $this->fixture();
+        Http::fakeSequence()->push($this->response([...$this->findings(true), 'mov_title' => 'Published article records', 'mov_description' => 'Two dated university articles.', 'followup_questions' => []]));
+        $this->post(route('movs.store'), ['mov_flow' => 'files-first', 'target_ref' => 'office:'.$target->id,
+            'files' => [UploadedFile::fake()->createWithContent('articles.pdf', '%PDF-1.4 complete records')]])->assertSessionHasNoErrors()->assertRedirect();
+        $file = TargetMov::with('analysis')->firstOrFail();
+        $this->assertTrue($file->analysis->findings['satisfies_target']);
+        $this->assertNotNull($file->analysis->statement);
+        $this->get(route('office-targets.show', $target))->assertOk()->assertSee('Published article records')->assertDontSee('Save answers and recheck MOV');
+        Http::assertSentCount(1);
+    }
+
+    public function test_report_target_accepts_file_first_batch_and_denies_another_uploaders_target(): void
+    {
+        [$user] = $this->fixture();
+        Storage::fake('public');
+        $report = Ipcr::factoryLike()->create(['employee' => $user, 'prepared_by_user' => $user]);
+        $target = \App\Models\PerformanceTarget::factoryLike()->create(['targetable' => $report]);
+        Http::fakeSequence()->push($this->response([...$this->findings(true), 'mov_title' => 'Report evidence', 'mov_description' => 'Supporting report records.', 'followup_questions' => []]));
+        $this->post(route('movs.store'), ['mov_flow' => 'files-first', 'target_ref' => 'report:'.$target->id,
+            'files' => [UploadedFile::fake()->createWithContent('records.pdf', '%PDF-1.4 report records')]])->assertSessionHasNoErrors()->assertRedirect();
+        $file = \App\Models\Mov::sole();
+        $this->assertTrue($file->analysis->findings['satisfies_target']);
+        $this->get(route('movs.show', $file))->assertOk()->assertSee('Report evidence');
+        $this->actingAs(User::factory()->create()->assignRole('Employee'))
+            ->postJson(route('movs.store'), ['mov_flow' => 'files-first', 'target_ref' => 'report:'.$target->id,
+                'files' => [UploadedFile::fake()->createWithContent('foreign.pdf', '%PDF-1.4 unauthorized')]])->assertForbidden();
+        $this->assertDatabaseCount('movs', 1);
+        Http::assertSentCount(1);
     }
 
     public function test_questions_answers_and_multiple_files_are_analyzed_together_and_summarized_separately(): void

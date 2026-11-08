@@ -37,7 +37,7 @@ class ReportEvidence
         if ($files->isEmpty()) return [$label.': upload MOV before submitting for review.'];
         if ($files->contains(function ($file) use ($files) {
             $analysis = $file->analysis;
-            if (! $analysis?->isReady() || ($analysis->findings['supported'] ?? false) !== true || ($analysis->findings['satisfies_target'] ?? false) !== true) return false;
+            if (! $analysis?->isReady() || ! empty($analysis->findings['followup_questions']) || ($analysis->findings['supported'] ?? false) !== true || ($analysis->findings['satisfies_target'] ?? false) !== true) return false;
             $context = $file->submission_context ?? null;
             if (! ($context['batch_id'] ?? null)) return true;
             $ids = $analysis->findings['batch_evidence_ids'] ?? [];
