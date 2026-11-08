@@ -42,6 +42,34 @@ class MovQuestionnaireWorkflowTest extends TestCase
         return ['summary' => $satisfied ? 'Two articles are evidenced.' : 'The files do not establish two published articles.', 'user_data_summary' => 'The user reports two university articles.', 'file_findings_summary' => $satisfied ? 'Two distinct dated articles are visible.' : 'Only one article is visible; the other file is unrelated.', 'discrepancies' => $satisfied ? '' : 'The claimed second article is not evidenced.', 'supported' => true, 'satisfies_target' => $satisfied, 'target_assessment' => $satisfied ? 'The two-article allocation is satisfied.' : 'The confirmed allocation requires two articles.', 'statement' => $satisfied ? 'Submitted 2 articles to the university platform.' : 'Submitted 1 evidenced article.', 'source_excerpts' => ['article1.pdf page 1: publication record.', 'article2.pdf page 1: supporting record.'], 'limitations' => ''];
     }
 
+    public function test_question_failure_is_visible_to_browser_api_and_native_page(): void
+    {
+        [, $target] = $this->fixture();
+        Http::fake(['api.openai.com/*' => Http::response(['error' => ['message' => 'Unavailable']], 503)]);
+        $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('questions');
+        $this->from(route('office-targets.show', $target))
+            ->post(route('movs.questions'), ['target_ref' => 'office:'.$target->id])
+            ->assertRedirect(route('office-targets.show', $target))->assertSessionHasErrors('questions');
+        $this->get(route('office-targets.show', $target))->assertOk()
+            ->assertSee('AI could not prepare the questions. Please retry.');
+    }
+
+    public function test_report_action_is_outside_mov_and_questions_open_through_browser_api(): void
+    {
+        [, $target] = $this->fixture();
+        $page = $this->get(route('office-targets.show', $target))->assertOk()->getContent();
+        $start = strpos($page, '<section id="target-movs"');
+        $mov = substr($page, $start, strpos($page, '</section>', $start) - $start);
+        $this->assertStringNotContainsString('Prepare My IPCR Report', $mov);
+        $this->assertStringContainsString('Answer AI questions and upload MOV', $mov);
+        $this->assertStringContainsString('Prepare My IPCR Report', substr($page, 0, $start));
+        Http::fakeSequence()->push($this->response($this->questions()));
+        $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
+            ->assertOk()->assertJsonStructure(['redirect']);
+        $this->get($response->json('redirect'))->assertOk()->assertSee('How many articles')->assertSee('name="files[]"', false);
+    }
+
     public function test_questions_answers_and_multiple_files_are_analyzed_together_and_summarized_separately(): void
     {
         [$user, $target] = $this->fixture();

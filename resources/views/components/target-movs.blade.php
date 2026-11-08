@@ -7,21 +7,17 @@
     $isDirector = $user->hasAnyRole(['Campus Director', 'Planning Officer']) && (int) $target->created_by === (int) $user->id;
 @endphp
 @if($canSubmit || $canReview || $isDirector)
-<section id="target-movs" class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<section id="target-movs" class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-action-plain>
     <h2 class="text-lg font-bold text-spms-ink">Means of Verification (MOV)</h2>
     @if(session('mov_status'))<p role="status" class="mt-3 text-sm text-green-700">{{ session('mov_status') }}</p>@endif
+    @if($errors->any())<div role="alert" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     @if($canSubmit)
     @php
         $assignment = $target->assignedEmployees()->whereKey($user->id)->first();
     @endphp
     @unless($assignment->pivot->accepted_at)<form method="POST" action="{{ route('office-targets.accept', $target) }}" class="mt-3">@csrf @method('PATCH')<button class="rounded-lg border px-4 py-2">Accept assignment</button></form>@endunless
-    @if($assignment->pivot->accepted_at && !$assignment->pivot->completed_at)
-        <a href="{{ route('ipcrs.create', ['office_target_id' => $target->id]) }}" class="mt-3 inline-block rounded-lg border px-4 py-2">Prepare My IPCR Report</a>
-        <p class="mt-2 text-xs text-gray-500">Report your actual contribution, including zero or partial accomplishment, for supervisor review.</p>
-    @endif
     @if($assignment->pivot->completed_at)
         <p class="mt-3 text-sm text-green-700">You marked this target complete. The evaluator will rate your work afterward.</p>
-        <a href="{{ route('ipcrs.create', ['office_target_id' => $target->id]) }}" class="mt-3 inline-flex rounded-lg bg-spms-navy px-5 py-3 text-sm font-semibold text-white">Prepare My IPCR Report</a>
     @elseif(\App\Models\TargetMov::where('office_target_id', $target->id)->where('user_id', $user->id)->exists())
         <form method="POST" action="{{ route('target-movs.complete', $target) }}" class="mt-4">
             @csrf @method('PATCH')
@@ -29,8 +25,9 @@
             <p class="mt-2 text-xs text-gray-500">Reports your completion to your supervisor and the assigning Campus Director.</p>
         </form>
     @endif
+    @if($assignment->pivot->accepted_at)
     @if(config('spms.ai.enabled'))
-    <form method="POST" action="{{ route('movs.questions') }}" class="mt-4">@csrf<input type="hidden" name="target_ref" value="office:{{ $target->id }}"><button class="inline-flex rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Answer AI questions and upload MOV</button></form>
+    <form method="POST" action="{{ route('movs.questions') }}" class="group mt-4">@csrf<input type="hidden" name="target_ref" value="office:{{ $target->id }}"><button type="submit" class="inline-flex min-h-11 items-center rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60">Answer AI questions and upload MOV</button><p role="status" class="mt-3 hidden text-sm text-gray-600 group-[[data-submitting]]:block">Preparing questions for your target. Please wait; this may take up to 45 seconds.</p></form>
     <p class="mt-2 text-xs text-gray-600">Answer questions for this target, attach your files, then review the AI evidence assessment and summary.</p>
     @else
     <form method="POST" action="{{ route('target-movs.store', $target) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
@@ -53,6 +50,7 @@
         @endforeach
         <x-primary-button>Submit MOV</x-primary-button>
     </form>
+    @endif
     @endif
     @endif
     @php

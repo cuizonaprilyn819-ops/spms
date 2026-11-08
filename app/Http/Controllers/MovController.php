@@ -68,7 +68,9 @@ class MovController extends Controller
             $token = $questions->prepare($request, $data['target_ref']);
         } catch (\Throwable $exception) {
             if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) throw $exception;
-            return back()->withInput()->withErrors(['questions' => $exception instanceof \RuntimeException ? $exception->getMessage() : 'AI could not prepare questions. Please retry.']);
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'questions' => $exception instanceof \RuntimeException ? $exception->getMessage() : 'AI could not prepare questions. Please retry.',
+            ]);
         }
         return redirect()->route('movs.create', ['questionnaire_token' => $token]);
     }
