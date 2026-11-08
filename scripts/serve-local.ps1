@@ -93,7 +93,7 @@ if ($connectionSettings['DB_CONNECTION'] -eq 'pgsql' -and
 $env:APP_ENV = 'local'
 $env:APP_URL = "http://127.0.0.1:$Port"
 $publicPath = Join-Path $repoPath 'public'
-$routerPath = Join-Path $repoPath 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
+$routerPath = Join-Path $repoPath 'scripts/local-router.php'
 $movWorker = $null
 Push-Location $publicPath
 try {

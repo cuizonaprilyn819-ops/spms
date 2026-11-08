@@ -1,3 +1,13 @@
+<IfModule mod_headers.c>
+    <IfModule mod_setenvif.c>
+        # Only hashed build assets are safe to cache immutably.
+        SetEnvIf Request_URI "^/build/assets/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8,}\.(css|js)$" spms_static_immutable
+        SetEnvIf Request_URI "^/(fonts/figtree(-italic)?\.ttf|images/logoslsu\.png|favicon\.ico)$" spms_static_reference
+        Header set Cache-Control "public, max-age=31536000, immutable" env=spms_static_immutable
+        Header set Cache-Control "public, max-age=86400" env=spms_static_reference
+    </IfModule>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
