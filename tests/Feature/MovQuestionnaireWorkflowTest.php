@@ -63,11 +63,21 @@ class MovQuestionnaireWorkflowTest extends TestCase
         $mov = substr($page, $start, strpos($page, '</section>', $start) - $start);
         $this->assertStringNotContainsString('Prepare My IPCR Report', $mov);
         $this->assertStringContainsString('Answer AI questions and upload MOV', $mov);
-        $this->assertStringContainsString('Prepare My IPCR Report', substr($page, 0, $start));
+        $this->assertStringContainsString('Prepare My IPCR Report', substr($page, strpos($page, '</section>', $start)));
         Http::fakeSequence()->push($this->response($this->questions()));
         $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
             ->assertOk()->assertJsonStructure(['redirect']);
         $this->get($response->json('redirect'))->assertOk()->assertSee('How many articles')->assertSee('name="files[]"', false);
+    }
+
+    public function test_exhausted_ai_quota_explains_why_upload_questions_cannot_start(): void
+    {
+        [, $target] = $this->fixture();
+        Http::fake(['api.openai.com/*' => Http::response(['error' => ['code' => 'insufficient_quota', 'message' => 'Private provider details']], 429)]);
+        $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id]);
+        $response->assertUnprocessable()->assertJsonValidationErrors('questions');
+        $this->assertStringContainsString('credits or the project spending limit', $response->json('errors.questions.0'));
+        $this->assertStringNotContainsString('Private provider details', $response->getContent());
     }
 
     public function test_questions_answers_and_multiple_files_are_analyzed_together_and_summarized_separately(): void

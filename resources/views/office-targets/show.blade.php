@@ -29,7 +29,7 @@
 <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase text-gray-500">Instructions</dt><dd class="mt-1 whitespace-pre-line text-sm text-gray-600">{{ $target->instructions ?: 'No additional instructions.' }}</dd></div>
 </dl><div class="mt-8"><a href="{{ route('office-targets.index') }}" class="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold">Back to Office Targets</a></div></div></div></div>
 <div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-employee-assignment :target="$target" /></div>
-<div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-report-action :target="$target" /></div>
 <div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-movs :target="$target" /></div>
+<div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-target-report-action :target="$target" /></div>
 <div class="mx-auto max-w-4xl px-4 pb-8 sm:px-6 lg:px-8"><x-workflow-audit :subject="$target" /></div>
 </x-app-layout>
