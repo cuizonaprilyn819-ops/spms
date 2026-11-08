@@ -5,9 +5,9 @@
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('UPCR Management') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">Create and view UPCR records linked to DPCR commitments.</p>
             </div>
-            @hasanyrole('Supervisor|HR|HR Head|Planning Officer')<a href="{{ route('upcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
+            @if (auth()->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR', 'HR Head', 'Planning Officer']) && (! auth()->user()->hasAnyRole(['Division Head', 'Unit Head']) || auth()->user()->hasAnyRole(['Planning Officer', 'HR', 'HR Head']) || auth()->user()->organizationalReportType() === 'upcr'))<a href="{{ route('upcrs.create') }}" class="inline-flex items-center justify-center rounded-lg bg-spms-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-spms-navy-hover focus:outline-none focus:ring-2 focus:ring-spms-sky focus:ring-offset-2">
                 Create UPCR
-            </a>@endhasanyrole
+            </a>@endif
         </div>
     </x-slot>
 

@@ -145,7 +145,7 @@ class DashboardController extends Controller
                     ->whereIn('targetable_id', Ipcr::where('employee_id', $user->id)->select('id'));
             });
 
-            if ($user->hasAnyRole(['Supervisor', 'HR Head']) && $user->office_id) {
+            if ($user->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head']) && $user->office_id) {
                 $query->orWhere(function ($formQuery) use ($user): void {
                     $formQuery->where('targetable_type', Opcr::class)
                         ->whereIn('targetable_id', Opcr::where('office_id', $user->office_id)->select('id'));
@@ -200,7 +200,7 @@ class DashboardController extends Controller
                 'In progress' => $inProgress,
                 'Not started' => $notStarted,
             ],
-            'employeeProgress' => $user->hasAnyRole(['Campus Director', 'Supervisor', 'HR Head'])
+            'employeeProgress' => $user->hasAnyRole(['Campus Director', 'Supervisor', 'Division Head', 'Unit Head', 'HR Head'])
                 ? $this->employeeProgress($user)
                 : collect(),
         ];
@@ -223,7 +223,7 @@ class DashboardController extends Controller
                     ->where('office_targets.created_by', $viewer->id)->select('user_id'));
             });
         }
-        if ($viewer->hasAnyRole(['Supervisor', 'HR Head'])) {
+        if ($viewer->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head'])) {
             $employees->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer));
         }
 

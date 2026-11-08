@@ -19,6 +19,8 @@
                         <option value="" @selected(!$role)>Employees and supervisors</option>
                         <option value="Employee" @selected($role === 'Employee')>Employees</option>
                         <option value="Supervisor" @selected($role === 'Supervisor')>Supervisors</option>
+                        <option value="Division Head" @selected($role === 'Division Head')>Division Heads</option>
+                        <option value="Unit Head" @selected($role === 'Unit Head')>Unit Heads</option>
                     </select>
                     <button type="submit" class="rounded-lg bg-spms-navy px-4 py-2 text-sm font-semibold text-white">Apply</button>
                 </form>
@@ -48,7 +50,7 @@
                                 <tr>
                                     <td class="px-6 py-4">
                                         <p class="font-semibold text-spms-ink">{{ $evaluation->employee?->name }}</p>
-                                        <p class="text-xs text-gray-500">{{ $evaluation->employee?->hasRole('Supervisor') ? 'Supervisor' : 'Employee' }} · {{ $evaluation->employee?->office?->name ?? 'No office' }}</p>
+                                        <p class="text-xs text-gray-500">{{ $evaluation->employee?->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) ? ($evaluation->employee?->roles->first(fn ($role) => in_array($role->name, ['Supervisor', 'Division Head', 'Unit Head']))?->name ?? 'Office head') : 'Employee' }} · {{ $evaluation->employee?->office?->name ?? 'No office' }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-gray-700">{{ $evaluation->performanceTarget?->target ?? 'Target unavailable' }}</td>
                                     <td class="whitespace-nowrap px-6 py-4 text-gray-700">{{ number_format((float) ($evaluation->quality_rating ?? $evaluation->rating), 2) }} / {{ number_format((float) ($evaluation->efficiency_rating ?? $evaluation->rating), 2) }} / {{ number_format((float) ($evaluation->timeliness_rating ?? $evaluation->rating), 2) }}</td>
@@ -88,7 +90,7 @@
                                 <tr>
                                     <td class="px-6 py-4">
                                         <p class="font-semibold text-spms-ink">{{ $ipcr->employee?->name }}</p>
-                                        <p class="text-xs text-gray-500">{{ $ipcr->employee?->hasRole('Supervisor') ? 'Supervisor' : 'Employee' }} · {{ $ipcr->employee?->office?->name ?? 'No office' }}</p>
+                                        <p class="text-xs text-gray-500">{{ $ipcr->employee?->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) ? ($ipcr->employee?->roles->first(fn ($role) => in_array($role->name, ['Supervisor', 'Division Head', 'Unit Head']))?->name ?? 'Office head') : 'Employee' }} · {{ $ipcr->employee?->office?->name ?? 'No office' }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-gray-700">{{ $ipcr->title }}</td>
                                     <td class="whitespace-nowrap px-6 py-4 text-gray-700">@if ($ipcr->average_rating !== null){{ number_format((float) $ipcr->quality_rating, 2) }} / {{ number_format((float) $ipcr->efficiency_rating, 2) }} / {{ number_format((float) $ipcr->timeliness_rating, 2) }}@else<span class="text-gray-400">—</span>@endif</td>

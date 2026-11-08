@@ -95,7 +95,7 @@ class OpcrController extends Controller
 
     private function isOfficeScoped(Request $request): bool
     {
-        return $request->user()->hasRole('Supervisor')
+        return $request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head'])
             && ! $request->user()->hasAnyRole(['Administrator', 'HR', 'HR Head', 'Campus Director'])
             && $request->user()->office_id !== null;
     }

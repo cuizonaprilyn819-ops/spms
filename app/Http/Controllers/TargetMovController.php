@@ -28,7 +28,7 @@ class TargetMovController extends Controller
             }
             abort_unless(TargetMov::where('office_target_id', $officeTarget->id)->where('user_id', $user->id)->exists(), 422, 'Submit MOV before marking this target complete.');
             DB::table('office_target_employee')->where('id', $assignment->id)->update(['completed_at' => now(), 'completed_value' => $assignment->completed_value ?? $assignment->allocated_target_value, 'updated_at' => now()]);
-            $recipients = User::where('office_id', $user->office_id)->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'HR Head']))->get();
+            $recipients = User::where('office_id', $user->office_id)->whereHas('roles', fn ($q) => $q->whereIn('name', ['Supervisor', 'Division Head', 'Unit Head', 'HR Head']))->get();
             if ($officeTarget->createdBy?->hasAnyRole(['Campus Director', 'Planning Officer'])) {
                 $recipients->push($officeTarget->createdBy);
             }

@@ -24,8 +24,8 @@
                 @hasanyrole('Administrator|Planning Officer')
                     <x-responsive-nav-link :href="route('target-documents.index')" :active="$routeIs('target-documents.*', 'target-drafts.*')">Planning Documents</x-responsive-nav-link>
                 @endhasanyrole
-                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee')
-                    @if($navigationUser->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor']))
+                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee')
+                    @if($navigationUser->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head']))
                         <x-responsive-nav-link :href="route('office-targets.index')" :active="$routeIs('office-targets.*')">Office Targets</x-responsive-nav-link>
                     @else
                         <x-responsive-nav-link :href="route('performance-targets.index')" :active="$routeIs('performance-targets.*', 'office-targets.show')">My Targets</x-responsive-nav-link>
@@ -33,7 +33,7 @@
                     <x-responsive-nav-link :href="route('accomplishments.index')" :active="$routeIs('accomplishments.*')">Accomplishments</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('movs.index')" :active="$routeIs('movs.*')">Evidence / MOV</x-responsive-nav-link>
                 @endhasanyrole
-                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')
+                @hasanyrole('Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II')
                     <x-responsive-nav-link :href="route('evaluations.index')" :active="$routeIs('evaluations.*')">Evaluations</x-responsive-nav-link>
                 @endhasanyrole
                 @hasanyrole('HR|HR Head')

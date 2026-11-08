@@ -13,7 +13,7 @@
 @endif
 @php($reviewable = in_array($report->status, [$report::STATUS_SUBMITTED, $report::STATUS_RESUBMITTED], true))
 <section class="mt-6 rounded-lg border border-gray-200 bg-white p-5">
-    @php($canReview = $reviewable && Auth::user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor']) && (int) $report->prepared_by !== (int) Auth::id() && (int) $report->employee_id !== (int) Auth::id())
+    @php($canReview = $reviewable && Auth::user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head']) && (int) $report->prepared_by !== (int) Auth::id() && (int) $report->employee_id !== (int) Auth::id())
     @if($report->isEditableBy(Auth::id()))
         @php($evidenceIssues = app(\App\Services\ReportEvidence::class)->issues($report))
         @if($evidenceIssues)

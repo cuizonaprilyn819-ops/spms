@@ -195,8 +195,8 @@ class ReportWorkflowController extends Controller
 
             return;
         }
-        abort_unless($user->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor']), 403);
-        if ($user->hasRole('Supervisor')) {
+        abort_unless($user->hasAnyRole(['Administrator', 'Planning Officer', 'HR Head', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head']), 403);
+        if ($user->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head'])) {
             $office = Office::find($this->officeId($form));
             $reviewOfficeId = $office && (int) $office->head_id === (int) $form->prepared_by ? $office->parent_office_id : $office?->id;
             abort_unless($user->office_id && (int) $user->office_id === (int) $reviewOfficeId, 403);
@@ -215,7 +215,7 @@ class ReportWorkflowController extends Controller
         $assignedReviewerId = $form->commitmentPlan?->reviewer_id;
 
         return User::query()->whereNotIn('id', array_filter([$form->prepared_by, $form->employee_id]))->where(function ($query) use ($officeId, $reportingOfficeIds, $reportingHeadIds, $assignedReviewerId): void {
-            $query->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Supervisor'))->where('office_id', $officeId));
+            $query->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['Supervisor', 'Division Head', 'Unit Head']))->where('office_id', $officeId));
             $query->orWhere(fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'Campus Director'))
                 ->where(fn ($offices) => $offices->whereIn('office_id', $reportingOfficeIds)->orWhereIn('id', $reportingHeadIds)));
             $query->orWhereHas('roles', fn ($r) => $r->whereIn('name', ['HR Head', 'Planning Officer']));

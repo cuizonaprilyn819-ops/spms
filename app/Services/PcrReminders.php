@@ -31,8 +31,8 @@ class PcrReminders
         $assignedOffices = OfficeTarget::where('evaluation_cycle_id', $cycle->id)->with('offices')->get()->flatMap->offices->unique('id')->keyBy('id');
         foreach ($users as $user) {
             $types = $this->compliance->requiredReports($user);
-            $isHead = (int) $user->office->head_id === $user->id || (! $user->office->head_id && $user->hasAnyRole(['Supervisor', 'HR Head']));
-            if (! $cycle->planning_enabled && $isHead && $assignedOffices->has($user->office_id) && ! in_array('upcr', $types)) {
+            $isHead = (int) $user->office->head_id === $user->id || (! $user->office->head_id && $user->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head']));
+            if (! $cycle->planning_enabled && ! $user->hasRole('Division Head') && $isHead && $assignedOffices->has($user->office_id) && ! in_array('upcr', $types)) {
                 $types[] = 'upcr';
             }
             foreach ($types as $type) {

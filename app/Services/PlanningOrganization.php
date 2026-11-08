@@ -99,7 +99,7 @@ class PlanningOrganization
         if ((int) $office->head_id === (int) $office->planning_reviewer_id || (int) $office->head?->office_id !== (int) $office->id) {
             throw ValidationException::withMessages(['office_id' => 'The head must belong to this office and have a separate reviewer.']);
         }
-        if (! $office->planningReviewer?->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'HR Head', 'HR'])) {
+        if (! $office->planningReviewer?->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head', 'HR Head', 'HR'])) {
             throw ValidationException::withMessages(['planning_reviewer_id' => 'Assign a reviewer with an existing management role.']);
         }
         if ($office->parentOffice && ! $campusRoot && ($office->parentOffice->campus !== $office->campus || $office->parentOffice->campus_id !== $office->campus_id || $office->parentOffice->organization_scope !== $office->organization_scope)) {

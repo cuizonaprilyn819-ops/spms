@@ -112,23 +112,23 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
     });
     Route::get('ratings', HrHeadRatingController::class)->middleware('role:HR|HR Head')->name('ratings.index');
     Route::get('ratings/pdf', [HrHeadRatingController::class, 'pdf'])->middleware('role:HR|HR Head')->name('ratings.pdf');
-    Route::post('report-attachments/{type}/{report}', [ReportAttachmentController::class, 'store'])->middleware('role:Supervisor')->name('report-attachments.store');
-    Route::get('report-attachments/{attachment}/download', [ReportAttachmentController::class, 'download'])->middleware('role:Supervisor')->name('report-attachments.download');
+    Route::post('report-attachments/{type}/{report}', [ReportAttachmentController::class, 'store'])->middleware('role:Supervisor|Division Head|Unit Head')->name('report-attachments.store');
+    Route::get('report-attachments/{attachment}/download', [ReportAttachmentController::class, 'download'])->middleware('role:Supervisor|Division Head|Unit Head')->name('report-attachments.download');
     Route::get('report-workflow/{type}/{report}/edit', [ReportWorkflowController::class, 'edit'])->name('report-workflow.edit');
     Route::put('report-workflow/{type}/{report}', [ReportWorkflowController::class, 'update'])->name('report-workflow.update');
     Route::post('report-workflow/{type}/{report}/paraphrase', [ReportWorkflowController::class, 'paraphrase'])->middleware('throttle:5,1')->name('report-workflow.paraphrase');
     Route::patch('report-workflow/{type}/{report}/submit', [ReportWorkflowController::class, 'submit'])->name('report-workflow.submit');
     Route::patch('report-workflow/{type}/{report}/return', [ReportWorkflowController::class, 'returnForCorrection'])->name('report-workflow.return');
     Route::patch('report-workflow/{type}/{report}/approve', [ReportWorkflowController::class, 'approve'])->name('report-workflow.approve');
-    Route::post('office-targets/{officeTarget}/upcr', [OfficeTargetController::class, 'linkUpcr'])->middleware('role:Administrator|Planning Officer|Supervisor|HR Head')->name('office-targets.link-upcr');
-    Route::post('office-targets/{officeTarget}/employees', [OfficeTargetController::class, 'assignEmployees'])->middleware('role:Supervisor|HR Head')->name('office-targets.assign-employees');
-    Route::post('office-targets/{officeTarget}/take', [OfficeTargetController::class, 'takeTarget'])->middleware('role:Supervisor|HR Head')->name('office-targets.take');
+    Route::post('office-targets/{officeTarget}/upcr', [OfficeTargetController::class, 'linkUpcr'])->middleware('role:Administrator|Planning Officer|Supervisor|Division Head|Unit Head|HR Head')->name('office-targets.link-upcr');
+    Route::post('office-targets/{officeTarget}/employees', [OfficeTargetController::class, 'assignEmployees'])->middleware('role:Supervisor|Division Head|Unit Head|HR Head')->name('office-targets.assign-employees');
+    Route::post('office-targets/{officeTarget}/take', [OfficeTargetController::class, 'takeTarget'])->middleware('role:Supervisor|Division Head|Unit Head|HR Head')->name('office-targets.take');
     Route::patch('office-targets/{officeTarget}/accept', [OfficeTargetController::class, 'acceptTarget'])->name('office-targets.accept');
     Route::post('office-targets/{officeTarget}/movs', [TargetMovController::class, 'store'])->name('target-movs.store');
     Route::patch('office-targets/{officeTarget}/complete', [TargetMovController::class, 'complete'])->name('target-movs.complete');
     Route::get('target-movs/{targetMov}/download', [TargetMovController::class, 'download'])->name('target-movs.download');
     Route::get('target-movs/{targetMov}/preview', [TargetMovController::class, 'preview'])->name('target-movs.preview');
-    Route::middleware('role:Administrator|Planning Officer|Campus Director|Supervisor|HR Head|Employee')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|Campus Director|Supervisor|Division Head|Unit Head|HR Head|Employee')->group(function () {
         Route::resource('office-targets', OfficeTargetController::class)->only(['index', 'show']);
         Route::get('office-targets/{officeTarget}/download', [OfficeTargetController::class, 'download'])->name('office-targets.download');
     });
@@ -168,7 +168,7 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
         Route::patch('evaluation-cycles/{evaluation_cycle}/deadlines', [EvaluationCycleController::class, 'deadlines'])->name('evaluation-cycles.deadlines');
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II')->group(function () {
         Route::resource('opcrs', OpcrController::class)->only(['index']);
     });
 
@@ -176,33 +176,33 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
         Route::resource('opcrs', OpcrController::class)->only(['create', 'store']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II')->group(function () {
         Route::resource('dpcrs', DpcrController::class)->only(['index']);
     });
 
-    Route::middleware('role:Supervisor|HR|HR Head|Planning Officer')->group(function () {
+    Route::middleware('role:Supervisor|Division Head|Unit Head|HR|HR Head|Planning Officer')->group(function () {
         Route::resource('dpcrs', DpcrController::class)->only(['create', 'store']);
     });
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head')->group(function () {
         Route::resource('evaluations', EvaluationController::class)
             ->only(['index', 'create', 'store', 'show']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee|HRM Office II')->group(function () {
-        Route::resource('upcrs', UpcrController::class)->only(['index'])->middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II');
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee|HRM Office II')->group(function () {
+        Route::resource('upcrs', UpcrController::class)->only(['index'])->middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II');
     });
 
-    Route::middleware('role:Supervisor|HR|HR Head|Planning Officer')->group(function () {
+    Route::middleware('role:Supervisor|Division Head|Unit Head|HR|HR Head|Planning Officer')->group(function () {
         Route::resource('upcrs', UpcrController::class)->only(['create', 'store']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee|HRM Office II')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee|HRM Office II')->group(function () {
         Route::resource('ipcrs', IpcrController::class)->only(['index']);
     });
 
     // Every personnel role prepares its own IPCR; office assignment scopes the available UPCRs.
     Route::resource('ipcrs', IpcrController::class)->only(['create', 'store']);
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee')->group(function () {
         Route::resource('accomplishments', AccomplishmentController::class)
             ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
         Route::resource('movs', MovController::class)
@@ -212,20 +212,20 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
         Route::get('movs/{mov}/preview', [MovController::class, 'preview'])->name('movs.preview');
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II')->group(function () {
         Route::resource('opcrs', OpcrController::class)->only(['show']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II')->group(function () {
         Route::resource('dpcrs', DpcrController::class)->only(['show']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee|HRM Office II')->group(function () {
-        Route::resource('upcrs', UpcrController::class)->only(['show'])->middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II');
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee|HRM Office II')->group(function () {
+        Route::resource('upcrs', UpcrController::class)->only(['show'])->middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|HRM Office II');
         Route::resource('ipcrs', IpcrController::class)->only(['show']);
     });
 
-    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Employee')->group(function () {
+    Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head|Employee')->group(function () {
         Route::resource('performance-targets', PerformanceTargetController::class)
             ->only(['index']);
     });

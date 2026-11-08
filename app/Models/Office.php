@@ -74,7 +74,7 @@ class Office extends Model
 
     public function targetHeads(): HasMany
     {
-        return $this->employees()->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'HR Head']));
+        return $this->employees()->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Supervisor', 'Unit Head', 'Division Head', 'HR Head']));
     }
 
     public function getAssignmentLabelAttribute(): string

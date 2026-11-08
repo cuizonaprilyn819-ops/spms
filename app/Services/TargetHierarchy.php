@@ -13,7 +13,7 @@ class TargetHierarchy
     /** A head sees their own office and its descendants, without duplicating allocations. */
     public function managedOfficeIds(User $user): array
     {
-        if (! $user->office_id || (! $user->hasAnyRole(['Supervisor', 'HR Head', 'Campus Director']) && (int) $user->office?->head_id !== $user->id)) return [];
+        if (! $user->office_id || (! $user->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head', 'Campus Director']) && (int) $user->office?->head_id !== $user->id)) return [];
         $ids = [(int) $user->office_id];
         $frontier = $ids;
         $children = Office::where('campus', $user->office->campus)->get(['id', 'parent_office_id'])->groupBy('parent_office_id');
@@ -59,7 +59,7 @@ class TargetHierarchy
         $ids = $this->reportingOfficeIds($officeIds);
         $heads = Office::whereIn('id', $ids)->whereNotNull('head_id')->pluck('head_id');
         return User::where(fn ($query) => $query->where(fn ($roles) => $roles->whereIn('office_id', $ids)
-            ->whereHas('roles', fn ($r) => $r->whereIn('name', ['Supervisor', 'HR Head', 'Campus Director'])))
+            ->whereHas('roles', fn ($r) => $r->whereIn('name', ['Supervisor', 'Division Head', 'Unit Head', 'HR Head', 'Campus Director'])))
             ->orWhereIn('id', $heads))->get();
     }
 

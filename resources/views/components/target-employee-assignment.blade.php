@@ -1,5 +1,5 @@
 @props(['target'])
-@hasanyrole('Supervisor|HR Head')
+@hasanyrole('Supervisor|Division Head|Unit Head|HR Head')
 @php
     $head = Auth::user();
     $office = $target->offices()->whereKey($head->office_id)->first();

@@ -8,6 +8,8 @@
             'Campus Director' => 'Review campus commitments and follow progress across your teams.',
             'Planning Officer' => 'Upload target planning documents from top management and prepare extracted target drafts.',
             'Supervisor' => 'Keep office targets, submissions, and employee progress in view.',
+            'Division Head' => 'Keep division targets, submissions, and employee progress in view.',
+            'Unit Head' => 'Keep unit targets, submissions, and employee progress in view.',
             'HR Head' => 'Monitor personnel progress and performance records.',
             'HR' => 'Review your targets and keep your performance records on track.',
             'HRM Office II' => 'Stay on top of your reports and assigned commitments.',
@@ -101,7 +103,7 @@
                     <h1 class="mt-1 text-xl font-semibold">Welcome, {{ Auth::user()->name }}.</h1>
                     <p class="mt-1 max-w-2xl text-sm text-slate-500">{{ $roleDescriptions[$primaryRole] ?? 'See your assignments and progress in one place.' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        @hasanyrole('Campus Director|Planning Officer|Supervisor')
+                        @hasanyrole('Campus Director|Planning Officer|Supervisor|Division Head|Unit Head')
                             <a href="{{ route('office-targets.index') }}" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-spms-navy transition hover:bg-spms-tint focus:outline-none focus:ring-2 focus:ring-spms-sky">View office targets</a>
                         @endhasanyrole
                         @role('Employee')
@@ -152,11 +154,11 @@
                     </div>
                 </div>
 
-                @if($personalDashboard['employeeProgress']->isNotEmpty() || Auth::user()->hasAnyRole(['Campus Director', 'Supervisor', 'HR Head']))
+                @if($personalDashboard['employeeProgress']->isNotEmpty() || Auth::user()->hasAnyRole(['Campus Director', 'Supervisor', 'Division Head', 'Unit Head', 'HR Head']))
                     <section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="employee-progress-heading">
                         <div class="border-b border-slate-100 px-6 py-5">
                             <h2 id="employee-progress-heading" class="text-lg font-bold text-spms-ink">Employee Progress</h2>
-                            <p class="mt-1 text-sm text-slate-500">{{ Auth::user()->hasRole('Supervisor') ? 'Target and MOV progress for employees in your office.' : 'Employee progress in your campus and on targets you assigned to offices.' }} Updates every 15 seconds while this page is visible.</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ Auth::user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) ? 'Target and MOV progress for employees in your office.' : 'Employee progress in your campus and on targets you assigned to offices.' }} Updates every 15 seconds while this page is visible.</p>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-100">
@@ -200,7 +202,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">{{ Auth::user()->hasRole('Supervisor') ? 'No Employee-role users are assigned to your office yet.' : 'No employees found in your campus or assigned targets.' }}</td>
+                                            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">{{ Auth::user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) ? 'No Employee-role users are assigned to your office yet.' : 'No employees found in your campus or assigned targets.' }}</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

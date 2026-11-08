@@ -23,7 +23,7 @@
         }
     }
     $canOpenParents = auth()->user()->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'HR', 'HR Head', 'HRM Office II'])
-        && ! auth()->user()->hasRole('Supervisor');
+        && ! auth()->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']);
 @endphp
 <nav class="spms-report-lineage" aria-label="Report lineage">
     @foreach($lineage as $node)

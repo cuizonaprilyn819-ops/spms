@@ -7,7 +7,7 @@
 @foreach($office->targetHeads as $head)
     <span class="mt-1 block text-xs text-gray-600">{{ $head->name }} — {{ $head->roles->pluck('name')->join(', ') }}</span>
 @endforeach
-@php($recipients = $office->targetHeads->filter(fn ($head) => $head->hasAnyRole(['Supervisor', 'HR Head'])))
+@php($recipients = $office->targetHeads->filter(fn ($head) => $head->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head'])))
 @if($recipients->isNotEmpty())
     <span class="mt-1 block text-xs font-medium text-green-700">Will notify: {{ $recipients->pluck('name')->join(', ') }}</span>
 @else

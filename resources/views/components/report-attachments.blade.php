@@ -1,7 +1,7 @@
 @props(['report', 'type'])
 @php
     $officeId = $type === 'opcr' ? $report->office_id : $report->employee?->office_id;
-    $canUpload = auth()->user()->hasRole('Supervisor') && auth()->user()->office_id
+    $canUpload = auth()->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) && auth()->user()->office_id
         && (int) auth()->user()->office_id === (int) $officeId;
 @endphp
 @if ($canUpload)

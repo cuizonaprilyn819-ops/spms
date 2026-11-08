@@ -32,7 +32,8 @@ class DpcrController extends Controller
 
     public function create(): View
     {
-        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && request()->user()->office_id, 403);
+        abort_unless(request()->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR', 'HR Head', 'Planning Officer']) && request()->user()->office_id, 403);
+        abort_if(request()->user()->hasAnyRole(['Division Head', 'Unit Head']) && ! request()->user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head']) && request()->user()->organizationalReportType() !== 'dpcr', 403);
         $opcrs = Opcr::with(['evaluationCycle', 'office'])->orderByDesc('created_at');
         $officeId = request()->user()->office_id;
         $opcrs->whereIn('office_id', app(\App\Services\PlanningOrganization::class)->ancestors(request()->user()->office))->where('status', Opcr::STATUS_APPROVED);
@@ -46,7 +47,8 @@ class DpcrController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR', 'HR Head', 'Planning Officer']) && $request->user()->office_id, 403);
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR', 'HR Head', 'Planning Officer']) && $request->user()->office_id, 403);
+        abort_if($request->user()->hasAnyRole(['Division Head', 'Unit Head']) && ! $request->user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head']) && $request->user()->organizationalReportType() !== 'dpcr', 403);
         $data = $request->validate([
             'opcr_id' => ['required', 'integer', Rule::exists('opcrs', 'id')],
             'employee_id' => ['required', 'integer', Rule::exists('users', 'id')],
@@ -98,7 +100,7 @@ class DpcrController extends Controller
 
     public function approve(Request $request, Dpcr $dpcr): RedirectResponse
     {
-        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor']), 403);
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head']), 403);
 
         $this->authorizeOfficeAccess($request, $dpcr);
 
@@ -123,7 +125,7 @@ class DpcrController extends Controller
 
     private function isOfficeScoped(Request $request): bool
     {
-        return $request->user()->hasRole('Supervisor')
+        return $request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head'])
             && ! $request->user()->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head', 'Campus Director']);
     }
 

@@ -216,7 +216,7 @@ class OfficeTargetController extends Controller
     public function assignEmployees(Request $request, OfficeTarget $officeTarget): RedirectResponse
     {
         CommitmentPlanning::legacyOnly($officeTarget->evaluationCycle);
-        abort_unless($request->user()->hasAnyRole(['Supervisor', 'HR Head']) && $request->user()->office_id, 403);
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head']) && $request->user()->office_id, 403);
         $this->authorizeAccess($request, $officeTarget);
         $data = $request->validate([
             'employee_ids' => ['required', 'array', 'min:1'],

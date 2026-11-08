@@ -14,7 +14,7 @@ class ReportAttachmentController extends Controller
         abort_unless($class, 404);
         $report = $class::findOrFail($id);
         $officeId = $type === 'opcr' ? $report->office_id : $report->employee?->office_id;
-        abort_unless($request->user()->hasRole('Supervisor') && $request->user()->office_id
+        abort_unless($request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head']) && $request->user()->office_id
             && (int) $request->user()->office_id === (int) $officeId, 403);
     }
 

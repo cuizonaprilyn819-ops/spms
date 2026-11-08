@@ -222,7 +222,7 @@ class AssistanceSubject
         }
         $office = Office::find($this->officeId($m));
 
-        return $u->hasRole('Administrator') || ($office && ((int) $office->planning_reviewer_id === $u->id || app(PlanningOrganization::class)->hasGrant($u, $office) || ($u->hasAnyRole(['Supervisor', 'HR Head', 'Campus Director']) && in_array($office->id, app(TargetHierarchy::class)->managedOfficeIds($u), true))));
+        return $u->hasRole('Administrator') || ($office && ((int) $office->planning_reviewer_id === $u->id || app(PlanningOrganization::class)->hasGrant($u, $office) || ($u->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head', 'Campus Director']) && in_array($office->id, app(TargetHierarchy::class)->managedOfficeIds($u), true))));
     }
 
     public function recipients(Model $m)

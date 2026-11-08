@@ -4,7 +4,7 @@
             <div>
                 <h2 class="text-xl font-bold leading-tight text-spms-ink">{{ __('Performance Targets') }}</h2>
                 <p class="mt-1 text-sm text-gray-500">
-                    @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor')
+                    @hasanyrole('Administrator|HR|HR Head|Campus Director|Supervisor|Division Head|Unit Head')
                         Manage targets, success indicators, weights, and deadlines across SPMS forms.
                     @else
                         View targets, success indicators, weights, and deadlines across SPMS forms.

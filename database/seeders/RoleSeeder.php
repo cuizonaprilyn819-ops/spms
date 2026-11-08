@@ -24,6 +24,8 @@ class RoleSeeder extends Seeder
             'Campus Director',
             'Planning Officer',
             'Supervisor',
+            'Division Head',
+            'Unit Head',
             'Employee',
         ];
 

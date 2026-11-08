@@ -13,7 +13,7 @@ class TargetActivityLog
 {
     public function forUser(User $viewer): ?LengthAwarePaginator
     {
-        if (! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'HR Head'])) {
+        if (! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head', 'HR Head'])) {
             return null;
         }
 

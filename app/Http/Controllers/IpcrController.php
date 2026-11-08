@@ -20,13 +20,13 @@ class IpcrController extends Controller
     {
         $query = Ipcr::with(['upcr.dpcr.opcr.evaluationCycle', 'upcr.dpcr.opcr.office', 'employee', 'preparedBy', 'approvedBy'])->where(fn ($q) => $q->whereDoesntHave('commitmentPlan')->orWhereHas('commitmentPlan', fn ($p) => $p->whereIn('id', app(PlanningOrganization::class)->visiblePlanIds(request()->user()))));
         $user = request()->user();
-        if ($user->hasRole('Supervisor')) {
+        if ($user->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head'])) {
             $query->whereHas('employee', fn ($q) => $q->whereIn('office_id', app(\App\Services\TargetHierarchy::class)->managedOfficeIds($user)));
         }
         if ($user->hasRole('Campus Director') && $user->office?->campus) {
             $query->whereHas('employee.office', fn ($q) => $q->where('campus', $user->office->campus));
         }
-        if (! $user->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor'])) {
+        if (! $user->hasAnyRole(['Administrator', 'Planning Officer', 'HR', 'HR Head', 'HRM Office II', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head'])) {
             $query->where('employee_id', $user->id);
         }
         $ipcrs = $query
@@ -94,7 +94,7 @@ class IpcrController extends Controller
             return redirect()->route('ipcrs.show', $ipcr)->with('status', 'IPCR prepared from your assigned target.');
         }
         abort_unless($request->user()->office_id, 403, 'An office assignment is required before preparing an IPCR.');
-        if (! $request->user()->hasRole('Supervisor')) {
+        if (! $request->user()->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head'])) {
             $request->merge(['employee_id' => $request->user()->id]);
         }
         $data = $request->validate([
@@ -137,7 +137,7 @@ class IpcrController extends Controller
             return redirect()->route('planning.show', $ipcr->commitmentPlan);
         }
         $viewer = request()->user();
-        if ($viewer->hasAnyRole(['Supervisor', 'HR Head']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
+        if ($viewer->hasAnyRole(['Supervisor', 'Division Head', 'Unit Head', 'HR Head']) && ! $viewer->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director'])) {
             abort_unless(in_array((int) $ipcr->employee?->office_id, app(\App\Services\TargetHierarchy::class)->managedOfficeIds($viewer)), 403);
         }
         if (request()->user()->usesMyReports()) {
@@ -154,7 +154,7 @@ class IpcrController extends Controller
         if ($ipcr->office_target_id) {
             return app(ReportWorkflowController::class)->approve($request, 'ipcr', $ipcr->id);
         }
-        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor']), 403);
+        abort_unless($request->user()->hasAnyRole(['Administrator', 'Campus Director', 'Supervisor', 'Division Head', 'Unit Head']), 403);
 
         if ($ipcr->isApproved()) {
             return redirect()

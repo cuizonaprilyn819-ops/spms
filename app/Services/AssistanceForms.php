@@ -67,7 +67,7 @@ class AssistanceForms
                 abort_unless($u->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director']) || (int) $u->office?->head_id === $u->id, 403);
             }
             if (in_array($kind, ['dpcr', 'upcr'], true)) {
-                abort_unless($u->hasAnyRole(['Administrator', 'Supervisor', 'HR', 'HR Head', 'Planning Officer']) || (int) $u->office?->head_id === $u->id, 403);
+                abort_unless($u->hasAnyRole(['Administrator', 'Supervisor', 'Division Head', 'Unit Head', 'HR', 'HR Head', 'Planning Officer']) || (int) $u->office?->head_id === $u->id, 403);
             }
             $parentKey = ['dpcr' => 'opcr_id', 'upcr' => 'dpcr_id', 'ipcr' => 'upcr_id', 'accomplishment' => 'performance_target_id'][$kind] ?? null;
             if ($parentKey && ! empty($values[$parentKey])) {

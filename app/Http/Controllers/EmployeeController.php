@@ -17,7 +17,7 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    private const ASSIGNABLE_ROLES = ['Supervisor', 'Employee'];
+    private const ASSIGNABLE_ROLES = ['Supervisor', 'Division Head', 'Unit Head', 'Employee'];
     private const SINGLETON_ROLES = ['Planning Officer', 'HR', 'HR Head', 'Campus Director'];
 
     public function index(Request $request): View
@@ -129,7 +129,7 @@ class EmployeeController extends Controller
             'positionTitles' => app(\App\Services\ReferenceData::class)->positionOptions(),
             'roles' => Role::query()
                 ->whereIn('name', $assignableRoles)
-                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Planning Officer' THEN 2 WHEN 'Supervisor' THEN 3 ELSE 4 END")
+                ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Planning Officer' THEN 2 WHEN 'Division Head' THEN 3 WHEN 'Unit Head' THEN 4 WHEN 'Supervisor' THEN 5 ELSE 6 END")
                 ->get(),
         ];
     }
@@ -196,8 +196,8 @@ class EmployeeController extends Controller
     private function validatePositionRole(Request $request, array $data): void
     {
         $position = isset($data['position_title_id']) ? PositionTitle::find($data['position_title_id']) : null;
-        if ($position && in_array(strtolower($position->title), ['office head', 'department head'], true) && $data['role'] !== 'Supervisor') {
-            throw ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have the Supervisor role.']);
+        if ($position && in_array(strtolower($position->title), ['office head', 'department head'], true) && ! in_array($data['role'], ['Supervisor', 'Division Head', 'Unit Head'], true)) {
+            throw ValidationException::withMessages(['role' => 'Office Heads and Department Heads must have a Supervisor, Division Head, or Unit Head role.']);
         }
     }
 }

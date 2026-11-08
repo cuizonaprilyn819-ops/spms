@@ -64,13 +64,13 @@ class HrHeadRatingController extends Controller
     {
         $role = $request->query('role');
 
-        return in_array($role, ['Employee', 'Supervisor'], true) ? $role : null;
+        return in_array($role, ['Employee', 'Supervisor', 'Division Head', 'Unit Head'], true) ? $role : null;
     }
 
     private function personnel(?string $role): \Closure
     {
         return static function ($query) use ($role): void {
-            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', $role ? [$role] : ['Employee', 'Supervisor']));
+            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', $role ? [$role] : ['Employee', 'Supervisor', 'Division Head', 'Unit Head']));
         };
     }
 }
