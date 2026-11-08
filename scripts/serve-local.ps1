@@ -1,6 +1,7 @@
 param(
     [ValidateRange(1024, 65535)]
-    [int]$Port = 8891
+    [int]$Port = 8891,
+    [string]$PhpPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,16 +20,45 @@ foreach ($line in Get-Content -LiteralPath $environmentPath) {
     }
 }
 
-$phpCommand = Get-Command php.exe -ErrorAction SilentlyContinue
-if (-not $phpCommand) {
-    throw 'PHP 8.2 or newer must be on PATH. Select a PHP version in Laragon first.'
+$phpCandidates = if ($PhpPath) { @($PhpPath) } else {
+    @((Get-Command php.exe -All -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)) + @('C:\xampp\php\php.exe')
 }
-$phpExecutable = $phpCommand.Source
+$phpExecutable = $null
+$driverOptions = @()
+$needsPgsql = $connectionSettings['DB_CONNECTION'] -eq 'pgsql'
+function Test-SpmsPhpRuntime {
+    param([string]$Executable, [bool]$NeedsPgsql, [switch]$LoadPgsql)
+    # Windows PowerShell treats native stderr as an error record. A broken
+    # candidate must be rejected without preventing the next runtime probe.
+    $ErrorActionPreference = 'Continue'
+    $probeOptions = @()
+    if ($LoadPgsql) { $probeOptions = @('-d', 'extension=pdo_pgsql') }
+    $probe = 'exit(PHP_VERSION_ID >= 80200 && (! $argv[1] || extension_loaded(''pdo_pgsql'')) ? 0 : 1);'
+    $null = & $Executable @probeOptions -r $probe ([int]$NeedsPgsql) 2>&1
+    return $LASTEXITCODE -eq 0
+}
+foreach ($candidate in ($phpCandidates | Select-Object -Unique)) {
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+    # Probe the actual PHP process. A failed extension load is only a warning,
+    # so checking the process exit code alone is not enough.
+    if (Test-SpmsPhpRuntime -Executable $candidate -NeedsPgsql $needsPgsql) {
+        $phpExecutable = $candidate
+        break
+    }
+    if ($needsPgsql) {
+        if (Test-SpmsPhpRuntime -Executable $candidate -NeedsPgsql $true -LoadPgsql) {
+            $phpExecutable = $candidate
+            $driverOptions = @('-d', 'extension=pdo_pgsql')
+            break
+        }
+    }
+}
+if (-not $phpExecutable) {
+    throw 'No compatible PHP runtime found. Use PHP 8.2+ with pdo_pgsql installed, for example: .\serve.ps1 -PhpPath C:\xampp\php\php.exe'
+}
 $phpOptions = @('-d', 'upload_max_filesize=25M', '-d', 'post_max_size=32M', '-d', 'max_input_vars=30000', '-d', 'memory_limit=512M', '-d', 'max_execution_time=300')
-$phpModules = & $phpExecutable -m
-if ($connectionSettings['DB_CONNECTION'] -eq 'pgsql' -and $phpModules -notcontains 'pdo_pgsql') {
-    $phpOptions += @('-d', 'extension=pdo_pgsql')
-}
+$phpOptions += $driverOptions
+Write-Host "PHP runtime: $phpExecutable"
 
 $runtimePath = Join-Path $env:LOCALAPPDATA 'SPMS'
 $pgData = Join-Path $runtimePath 'data-postgresql17'

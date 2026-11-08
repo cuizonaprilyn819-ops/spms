@@ -9,8 +9,16 @@ Start the configured local application from PowerShell in the project folder:
 Open `http://127.0.0.1:8891`. Keep the server process running while using SPMS.
 Use `.\serve.ps1 -Port 8892` to select another port.
 
-The launcher uses PHP on PATH, enables `pdo_pgsql` for that process when needed,
-and reads the ignored `.env`. It uses the persistent local database rather than
+The launcher checks PHP runtimes on PATH and the standard XAMPP installation,
+and starts only with PHP 8.2+ and a working PostgreSQL driver when required.
+It enables `pdo_pgsql` for that process only when the driver successfully loads.
+To select a runtime explicitly, use:
+
+```powershell
+.\serve.ps1 -PhpPath "C:\xampp\php\php.exe"
+```
+
+The launcher reads the ignored `.env`. It uses the persistent local database rather than
 the temporary in-memory test database.
 
 ## Persistent local PostgreSQL
