@@ -64,7 +64,7 @@ class MovQuestionnaireWorkflowTest extends TestCase
         $this->assertStringNotContainsString('Prepare My IPCR Report', $mov);
         $this->assertStringContainsString('Answer AI questions and upload MOV', $mov);
         $this->assertStringContainsString('Prepare My IPCR Report', substr($page, strpos($page, '</section>', $start)));
-        Http::fakeSequence()->push($this->response($this->questions()));
+        Http::fakeSequence()->push($this->response([...$this->questions(), 'mov_title' => 'Article publication evidence', 'mov_description' => 'Supporting files for the assigned university articles.']));
         $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
             ->assertOk()->assertJsonStructure(['redirect']);
         Http::assertSent(function ($request) {
@@ -76,7 +76,8 @@ class MovQuestionnaireWorkflowTest extends TestCase
             $this->assertIsArray(json_decode($request['input'][1]['content'][0]['text'], true));
             return true;
         });
-        $this->get($response->json('redirect'))->assertOk()->assertSee('How many articles')->assertSee('name="files[]"', false);
+        $this->get($response->json('redirect'))->assertOk()->assertSee('How many articles')->assertSee('name="files[]"', false)
+            ->assertSee('Article publication evidence')->assertSee('Supporting files for the assigned university articles.');
     }
 
     public function test_exhausted_ai_quota_explains_why_upload_questions_cannot_start(): void
@@ -97,13 +98,15 @@ class MovQuestionnaireWorkflowTest extends TestCase
         $start = $this->post(route('movs.questions'), ['target_ref' => 'office:'.$target->id])->assertSessionHasNoErrors()->assertRedirect();
         parse_str(parse_url($start->headers->get('Location'), PHP_URL_QUERY), $query);
         $this->get($start->headers->get('Location'))->assertOk()->assertSee('How many articles')->assertSee('Which platform')->assertSee('name="files[]"', false);
-        $data = ['target_ref' => 'office:'.$target->id, 'questionnaire_token' => $query['questionnaire_token'], 'title' => 'Article submissions', 'completed_value' => 2];
+        // The questionnaire upload must work without typing a title or description.
+        $data = ['target_ref' => 'office:'.$target->id, 'questionnaire_token' => $query['questionnaire_token'], 'completed_value' => 2];
         $this->post(route('movs.store'), [...$data, 'answers' => ['q1' => 2], 'files' => [UploadedFile::fake()->createWithContent('article1.pdf', '%PDF-1.4 first record')]])->assertSessionHasErrors('answers.q2');
         $this->assertDatabaseCount('target_movs', 0);
         $this->post(route('movs.store'), [...$data, 'answers' => ['q1' => 2, 'q2' => 'University platform'], 'files' => [UploadedFile::fake()->createWithContent('article1.pdf', '%PDF-1.4 first record'), UploadedFile::fake()->createWithContent('article2.pdf', '%PDF-1.4 second record')]])->assertSessionHasNoErrors()->assertRedirect();
         $files = TargetMov::with('analysis')->get();
         $this->assertCount(2, $files);
         foreach ($files as $file) {
+            $this->assertStringContainsString('Evidence for: University articles', $file->accomplishment);
             $this->assertSame('completed', $file->analysis->status);
             $this->assertTrue($file->analysis->findings['satisfies_target']);
             $this->assertCount(2, $file->analysis->findings['batch_evidence_ids']);

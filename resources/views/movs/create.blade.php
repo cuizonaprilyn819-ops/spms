@@ -56,14 +56,15 @@
                     <p class="text-xs text-gray-600">Enter the cumulative completed quantity, not an additional amount. Your answers and MOV files should support this figure.</p>
                     @endif
                     <div>
-                        <x-input-label for="title" :value="__('MOV Title')" />
-                        <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title')" placeholder="Example: Signed accomplishment report" required />
+                        <x-input-label for="title" :value="__('MOV Title (automatically prepared)')" />
+                        <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title', $questionnaire['mov_title'] ?? \Illuminate\Support\Str::limit('Evidence for: '.$questionnaire['target_snapshot']['title'], 255, ''))" />
+                        <p class="mt-2 text-xs text-gray-500">Prepared from your selected target. You can edit it or leave it as provided. AI summarizes your answers and files after upload.</p>
                         <x-input-error :messages="$errors->get('title')" class="mt-2" />
                     </div>
 
                     <div>
-                        <x-input-label for="description" :value="__('Description')" />
-                        <textarea id="description" name="description" rows="4" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky" placeholder="Optional notes about this MOV.">{{ old('description') }}</textarea>
+                        <x-input-label for="description" :value="__('Description (automatically prepared)')" />
+                        <textarea id="description" name="description" rows="3" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-spms-sky focus:ring-spms-sky">{{ old('description', $questionnaire['mov_description'] ?? \Illuminate\Support\Str::limit('Supporting files for: '.$questionnaire['target_snapshot']['success_indicator'], 2000, '')) }}</textarea>
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 

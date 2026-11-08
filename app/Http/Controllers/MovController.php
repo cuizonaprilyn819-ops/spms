@@ -80,7 +80,8 @@ class MovController extends Controller
         $data = $request->validate([
             'target_ref' => ['nullable', 'string', 'regex:/^(office|report):[1-9][0-9]*$/'],
             'performance_target_id' => ['required_without:target_ref', 'nullable', 'integer', 'exists:performance_targets,id'],
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required_without:questionnaire_token', 'nullable', 'string', 'max:255'],
+            'questionnaire_token' => ['nullable', 'uuid'],
             'description' => ['nullable', 'string', 'max:2000'],
             'file' => ['required_without:files', 'nullable', 'prohibits:files', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png,webp', 'max:10240'],
             'files' => ['required_without:file', 'nullable', 'prohibits:file', 'array', 'min:1', 'max:'.\App\Support\MovUpload::MAX_FILES],
@@ -88,6 +89,11 @@ class MovController extends Controller
         ]);
         $files = $request->file('files') ?: [$request->file('file')];
         \App\Support\MovUpload::checkTotal($files);
+        if ($request->filled('questionnaire_token')) {
+            $questionnaire = app(\App\Services\MovQuestions::class)->questionnaire($request, $request->input('questionnaire_token'));
+            $data['title'] = $data['title'] ?? $questionnaire['mov_title'] ?? \Illuminate\Support\Str::limit('Evidence for: '.$questionnaire['target_snapshot']['title'], 255, '');
+            $data['description'] = $data['description'] ?? $questionnaire['mov_description'] ?? \Illuminate\Support\Str::limit('Supporting files for: '.$questionnaire['target_snapshot']['success_indicator'], 2000, '');
+        }
 
         if ($request->filled('target_ref')) {
             [$kind, $id] = explode(':', $data['target_ref']);
