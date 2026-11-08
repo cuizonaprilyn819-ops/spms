@@ -33,6 +33,11 @@ class LoginRequest extends FormRequest
         ];
     }
 
+    public function messages(): array
+    {
+        return ['email.required' => 'Enter your email address.', 'email.email' => 'Enter a valid email address, such as name@slsu.edu.ph.', 'password.required' => 'Enter your password.'];
+    }
+
     /**
      * Attempt to authenticate the request's credentials.
      *

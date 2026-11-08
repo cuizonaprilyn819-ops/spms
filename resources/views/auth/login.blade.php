@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <h2 class="mb-5 text-center text-3xl font-semibold tracking-tight text-spms-ink">Sign in</h2>
+    <h1 class="mb-5 text-center text-3xl font-semibold tracking-tight text-spms-ink">Sign in</h1>
 
     <x-auth-session-status class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3" :status="session('status')" />
 
@@ -8,8 +8,8 @@
 
         <div>
             <label for="email" class="mb-2 block text-sm font-semibold text-spms-ink">Email address</label>
-            <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="name@slsu.edu.ph" class="block w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm text-spms-ink placeholder:text-slate-400 focus:border-spms-navy focus:ring-spms-navy">
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" @if($errors->has('email')) aria-invalid="true" aria-describedby="email-error" @endif placeholder="name@slsu.edu.ph" class="block w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm text-spms-ink placeholder:text-slate-400 focus:border-spms-navy focus:ring-spms-navy">
+            <x-input-error id="email-error" :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div x-data="{ showPassword: false }">
@@ -20,13 +20,13 @@
                 @endif
             </div>
             <div class="relative">
-                <input id="password" :type="showPassword ? 'text' : 'password'" type="password" name="password" required autocomplete="current-password" placeholder="Enter your password" class="block w-full rounded-xl border-slate-200 py-2.5 pl-4 pr-12 text-sm text-spms-ink placeholder:text-slate-400 focus:border-spms-navy focus:ring-spms-navy">
+                <input id="password" :type="showPassword ? 'text' : 'password'" type="password" name="password" required autocomplete="current-password" @if($errors->has('password')) aria-invalid="true" aria-describedby="password-error" @endif placeholder="Enter your password" class="block w-full rounded-xl border-slate-200 py-2.5 pl-4 pr-12 text-sm text-spms-ink placeholder:text-slate-400 focus:border-spms-navy focus:ring-spms-navy">
                 <button type="button" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword.toString()" class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-500 hover:text-spms-navy focus:outline-none focus:ring-2 focus:ring-inset focus:ring-spms-navy">
                     <svg x-show="!showPassword" aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z" /><circle cx="12" cy="12" r="3" /></svg>
                     <svg x-cloak x-show="showPassword" aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 6.1A10.5 10.5 0 0 1 12 6c6.25 0 9.75 6 9.75 6a17.2 17.2 0 0 1-3.2 3.7M6.2 6.8C3.6 8.5 2.25 12 2.25 12S5.75 18 12 18c1.4 0 2.7-.3 3.8-.8M9 9a4.2 4.2 0 0 0 6 6" /></svg>
                 </button>
             </div>
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            <x-input-error id="password-error" :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <label for="remember_me" class="inline-flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">

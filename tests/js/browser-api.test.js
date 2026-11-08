@@ -117,3 +117,18 @@ test('restored browser snapshots reload current permissions and workflow state',
     harness.pageshow(true);
     assert.equal(harness.reloads(), 1);
 });
+
+test('server and malformed-response failures show recovery advice without internal details', async t => {
+    const harness = formHarness(t, { ok: false, status: 500, json: async () => ({ message: 'SQLSTATE secret database details' }) });
+    await harness.submit();
+    assert.match(harness.form.error, /Try again shortly/);
+    assert.doesNotMatch(harness.form.error, /SQLSTATE|secret/);
+    assert.equal(harness.button.disabled, false);
+});
+
+test('unexpected HTML responses explain how to recover instead of showing JSON parser errors', async t => {
+    const harness = formHarness(t, { ok: true, status: 200, json: async () => { throw new SyntaxError('Unexpected token SQLSTATE'); } });
+    await harness.submit();
+    assert.match(harness.form.error, /Refresh the page/);
+    assert.doesNotMatch(harness.form.error, /Unexpected token|SQLSTATE/);
+});

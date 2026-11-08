@@ -48,7 +48,8 @@ export function installBrowserApi(Alpine) {
     }
 
     async function request(url, options = {}) {
-        const response = await fetch(url, {
+        let response;
+        try { response = await fetch(url, {
             credentials: 'same-origin',
             cache: 'no-store',
             ...options,
@@ -57,8 +58,15 @@ export function installBrowserApi(Alpine) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 ...options.headers,
             },
-        });
-        const payload = await response.json();
+        }); } catch {
+            throw new Error('We could not connect to SPMS. Check your connection and try again.');
+        }
+        if (response.status >= 500) throw new Error('SPMS could not complete this request. Try again shortly, or contact your administrator if this continues.');
+        if (response.status === 429) throw new Error('Too many requests. Wait a moment and try again.');
+        let payload;
+        try { payload = await response.json(); } catch {
+            throw new Error('This page could not be loaded. Refresh the page and sign in again if needed.');
+        }
         if (!response.ok) {
             const message = response.status === 419
                 ? 'Your session expired. Reload this page before trying again.'

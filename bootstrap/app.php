@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             $message = 'The database is temporarily unreachable. Please try again shortly.';
-            $headers = ['Retry-After' => '30', 'Cache-Control' => 'no-store'];
+            $headers = ['Retry-After' => '30', 'Cache-Control' => 'no-store', 'X-SPMS-Friendly-Error' => 'database-unavailable'];
 
             return $request->is('api/*') || $request->expectsJson()
                 ? response()->json(['message' => $message], 503, $headers)
@@ -36,17 +36,26 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(fn (\Illuminate\Http\Request $request, \Throwable $exception) =>
             $request->is('api/*') || $request->expectsJson()
         );
-        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $exception, \Illuminate\Http\Request $request) {
+            $friendlyDatabaseError = $response->headers->get('X-SPMS-Friendly-Error') === 'database-unavailable';
+            $response->headers->remove('X-SPMS-Friendly-Error');
+            if ($response->getStatusCode() >= 500 && ! $friendlyDatabaseError) {
+                $status = $response->getStatusCode();
+                $message = 'We could not complete your request. Please try again shortly. If this continues, contact your administrator.';
+                $response = $request->is('api/*') || $request->expectsJson()
+                    ? response()->json(['message' => $message], $status)
+                    : response()->view('errors.friendly', ['message' => $message], $status);
+            }
             $response = \App\Http\Middleware\PrivateWorkflowResponses::protect($response);
-            if ($response->getStatusCode() !== 419 || request()->is('api/*') || request()->expectsJson()) {
+            if ($response->getStatusCode() !== 419 || $request->is('api/*') || $request->expectsJson()) {
                 return $response;
             }
-            if (request()->is('login') && request()->isMethod('post')) {
+            if ($request->is('login') && $request->isMethod('post')) {
                 return redirect()->route('login')
                     ->with('status', 'Your sign-in page expired. Please enter your credentials and try again.')
                     ->header('Cache-Control', 'no-store, private');
             }
-            if ($response->getStatusCode() === 419 && request()->routeIs('logout')) {
+            if ($response->getStatusCode() === 419 && $request->routeIs('logout')) {
                 return \App\Http\Middleware\PrivateWorkflowResponses::protect(redirect()->route('logout.recover'));
             }
             return $response;
