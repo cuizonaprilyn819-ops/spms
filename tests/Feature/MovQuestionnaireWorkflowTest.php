@@ -138,6 +138,26 @@ class MovQuestionnaireWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_unsubstantiated_findings_are_visible_but_cannot_pass_the_target(): void
+    {
+        [$user, $target] = $this->fixture();
+        Http::fakeSequence()->push($this->response([...$this->findings(true),
+            'statement' => null, 'source_excerpts' => [], 'limitations' => 'This document contains simulated test evidence.',
+            'mov_title' => 'Simulated maintenance evidence', 'mov_description' => 'A simulated test record.', 'followup_questions' => [],
+        ]));
+        $this->post(route('movs.store'), ['mov_flow' => 'files-first', 'target_ref' => 'office:'.$target->id,
+            'files' => [UploadedFile::fake()->createWithContent('simulated.pdf', '%PDF-1.4 simulated test')]])->assertSessionHasNoErrors();
+        $file = TargetMov::with('analysis')->firstOrFail();
+        $this->assertSame('completed', $file->analysis->status);
+        $this->assertFalse($file->analysis->findings['supported']);
+        $this->assertFalse($file->analysis->findings['satisfies_target']);
+        $this->assertNull($file->analysis->statement);
+        $this->get(route('office-targets.show', $target))->assertOk()->assertSee('This document contains simulated test evidence.')->assertSee('target remains unverified');
+        $report = Ipcr::create(['office_target_id' => $target->id, 'employee_id' => $user->id, 'prepared_by' => $user->id, 'title' => 'Test', 'status' => 'draft']);
+        $this->assertNotEmpty(app(ReportEvidence::class)->issues($report));
+        $this->putJson(route('evidence.statement', ['target-mov', $file->id]), ['statement' => 'Completed the target.'])->assertUnprocessable();
+    }
+
     public function test_report_target_accepts_file_first_batch_and_denies_another_uploaders_target(): void
     {
         [$user] = $this->fixture();

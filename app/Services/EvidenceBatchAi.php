@@ -79,7 +79,15 @@ class EvidenceBatchAi
             $result['supported'] = (bool) $result['supported'];
             $result['satisfies_target'] = (bool) $result['satisfies_target'];
             $pending = ! empty($result['followup_questions']);
-            if (($result['satisfies_target'] && ! $result['supported']) || ($result['supported'] && ((! $pending && ! trim($result['statement'] ?? '')) || ! $result['source_excerpts']))) throw new RuntimeException('AI did not substantiate its findings. Retry analysis.');
+            // A readable but unsubstantiated assessment is an insufficient-evidence
+            // result, not a processing failure. Never expose its claim as verified.
+            if (($result['satisfies_target'] && ! $result['supported']) || ($result['supported'] && ((! $pending && ! trim($result['statement'] ?? '')) || ! $result['source_excerpts']))) {
+                $result['supported'] = false;
+                $result['satisfies_target'] = false;
+                $result['statement'] = null;
+                $result['target_assessment'] = 'Not verified: the assessment lacks supporting evidence references or a substantiated accomplishment statement. Review the findings and limitations below.';
+                $result['limitations'] = trim(($result['limitations'] ?? '')."\nThe AI assessment did not provide a substantiated accomplishment statement and evidence references. The target remains unverified; provide clearer or additional evidence for review.");
+            }
             if ($pending) {
                 $result['satisfies_target'] = false;
                 $result['statement'] = null;
