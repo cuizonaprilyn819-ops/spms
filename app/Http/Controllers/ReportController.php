@@ -110,9 +110,9 @@ class ReportController extends Controller
 
     public function finishedPdf(string $type, int $report): Response
     {
-        $data = $this->reportData($type, true, $report);
+        $data = $this->reportData($type, true, $report, true);
 
-        return Pdf::loadView('reports.exports.pdf', $data)->setPaper('a4', 'landscape')
+        return Pdf::loadView($type === 'ipcr' ? 'reports.exports.ipcr' : 'reports.exports.pdf', $data)->setPaper($type === 'ipcr' ? 'legal' : 'a4', 'landscape')
             ->download($this->filename($type, 'pdf', $report));
     }
 
@@ -136,8 +136,8 @@ class ReportController extends Controller
 
     public function pdf(string $type): Response
     {
-        $report = $this->reportData($type, true);
-        $pdf = Pdf::loadView('reports.exports.pdf', $report)->setPaper('a4', 'landscape');
+        $report = $this->reportData($type, true, null, true);
+        $pdf = Pdf::loadView($type === 'ipcr' ? 'reports.exports.ipcr' : 'reports.exports.pdf', $report)->setPaper($type === 'ipcr' ? 'legal' : 'a4', 'landscape');
 
         return $pdf->download($this->filename($type, 'pdf'));
     }
@@ -176,7 +176,7 @@ class ReportController extends Controller
     /**
      * @return array{type: string, title: string, generatedAt: Carbon, headers: array<int, string>, rows: array<int, array<int, string>>, forms: array<int, array<string, mixed>>, formHeaders: array<int, string>}
      */
-    private function reportData(string $type, bool $export = false, ?int $finishedId = null): array
+    private function reportData(string $type, bool $export = false, ?int $finishedId = null, bool $schoolPdf = false): array
     {
         abort_unless(array_key_exists($type, $this->titles), 404);
         abort_if(request()->user()->usesMyReports() && $type !== 'ipcr', 403);
@@ -197,7 +197,7 @@ class ReportController extends Controller
             'generatedAt' => now(),
             'headers' => $this->headers(),
             'rows' => $records->map(fn ($record): array => $this->row($type, $record))->values()->all(),
-            'forms' => $records->map(fn ($record): array => $this->form($type, $record))->values()->all(),
+            'forms' => $records->map(fn ($record): array => $this->form($type, $record, $schoolPdf))->values()->all(),
             'formHeaders' => $this->formHeaders($type),
         ];
 
@@ -352,7 +352,7 @@ class ReportController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function form(string $type, object $record): array
+    private function form(string $type, object $record, bool $schoolPdf = false): array
     {
         $targetLines = $record->commitmentPlan ? $record->commitmentPlan->targets()->get() : $record->performanceTargets;
         $rows = $targetLines->map(fn ($target): array => $this->formRow($type, $record, $target))->values()->all();
@@ -363,8 +363,11 @@ class ReportController extends Controller
             $rows = [[$record->success_indicators, '', $details, $rating($record->quality_rating), $rating($record->efficiency_rating), $rating($record->timeliness_rating), $rating($record->average_rating), $record->rating_remarks ?? '']];
         }
 
+        $schoolFormat = $schoolPdf && $type === 'ipcr' ? app(\App\Services\IpcrPdfFormat::class)->data($record, $targetLines, $rows) : [];
+
         return [
             'heading' => $this->formHeading($type),
+            'school_format' => $schoolFormat,
             'strategic_program' => app(\App\Services\ReportTargetContext::class)->display($record)['strategic_program'] ?? null,
             'program_outcome' => app(\App\Services\ReportTargetContext::class)->display($record)['program_outcome'] ?? null,
             'success_indicators' => $record->success_indicators,
@@ -505,7 +508,7 @@ class ReportController extends Controller
             'opcr' => 'Office Head of '.$this->officeLabel($type, $record),
             'dpcr' => 'Division/College personnel of '.$this->officeLabel($type, $record),
             'upcr' => 'Unit personnel of '.$this->officeLabel($type, $record),
-            'ipcr' => 'Employee of '.$this->officeLabel($type, $record),
+            'ipcr' => ($record->employee?->positionTitle?->title ?: 'Employee').' of '.$this->officeLabel($type, $record),
         };
     }
 
