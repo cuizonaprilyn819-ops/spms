@@ -7,6 +7,16 @@ $uri = rawurldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '');
 $hashed = preg_match('#^/build/assets/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8,}\.(css|js)$#D', $uri);
 $reference = in_array($uri, ['/fonts/figtree.ttf', '/fonts/figtree-italic.ttf', '/images/logoslsu.png', '/favicon.ico'], true);
 $path = realpath($publicPath.$uri);
+$movRoot = realpath(dirname(__DIR__).'/storage/app/public/movs');
+// Legacy report MOV originals still use the public disk, but access must go
+// through their authorized Laravel download/preview routes, never a storage URL.
+if (preg_match('#^/storage/movs(?:/|$)#i', $uri)
+    || ($path && $movRoot && strncasecmp($path, $movRoot.DIRECTORY_SEPARATOR, strlen($movRoot.DIRECTORY_SEPARATOR)) === 0)) {
+    http_response_code(404);
+    header('Cache-Control: private, no-store, max-age=0');
+    echo 'Not found';
+    return true;
+}
 $root = realpath($publicPath).DIRECTORY_SEPARATOR;
 if (($hashed || $reference) && in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD'], true)
     && $path && str_starts_with($path, $root) && is_file($path)) {

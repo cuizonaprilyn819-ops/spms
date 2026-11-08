@@ -50,6 +50,7 @@ export function installBrowserApi(Alpine) {
     async function request(url, options = {}) {
         const response = await fetch(url, {
             credentials: 'same-origin',
+            cache: 'no-store',
             ...options,
             headers: {
                 Accept: 'application/json',
@@ -162,5 +163,9 @@ export function installBrowserApi(Alpine) {
 
     window.addEventListener('popstate', () => {
         if (window.location.pathname + window.location.search !== currentPage) window.location.reload();
+    });
+    window.addEventListener('pageshow', event => {
+        // A browser history snapshot must not restore obsolete permissions or status.
+        if (event.persisted) window.location.reload();
     });
 }

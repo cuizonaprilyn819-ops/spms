@@ -11,6 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\PrivateWorkflowResponses::class);
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $request->is('api/*') || $request->expectsJson()
         );
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
+            $response = \App\Http\Middleware\PrivateWorkflowResponses::protect($response);
             if ($response->getStatusCode() !== 419 || request()->is('api/*') || request()->expectsJson()) {
                 return $response;
             }
@@ -45,7 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->header('Cache-Control', 'no-store, private');
             }
             if ($response->getStatusCode() === 419 && request()->routeIs('logout')) {
-                return redirect()->route('logout.recover');
+                return \App\Http\Middleware\PrivateWorkflowResponses::protect(redirect()->route('logout.recover'));
             }
             return $response;
         });

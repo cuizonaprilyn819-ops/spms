@@ -73,7 +73,7 @@ function formHarness(t, response) {
         submitter: { formAction: 'https://spms.test/movs/create', hasAttribute() { return false; } },
         preventDefault() { this.defaultPrevented = true; },
     };
-    return { submit: () => listeners.submit(event), popstate: () => windowListeners.popstate(), reloads: () => reloads, calls, destinations, form, button, event };
+    return { submit: () => listeners.submit(event), popstate: () => windowListeners.popstate(), pageshow: persisted => windowListeners.pageshow({ persisted }), reloads: () => reloads, calls, destinations, form, button, event };
 }
 
 test('submits to the form action with session cookies and CSRF protection', async t => {
@@ -83,6 +83,7 @@ test('submits to the form action with session cookies and CSRF protection', asyn
     assert.equal(harness.calls[0].url, 'https://spms.test/api/movs');
     assert.equal(harness.calls[0].options.method, 'POST');
     assert.equal(harness.calls[0].options.credentials, 'same-origin');
+    assert.equal(harness.calls[0].options.cache, 'no-store');
     assert.equal(harness.calls[0].options.headers['X-CSRF-TOKEN'], 'csrf-test');
     assert.equal(harness.calls[0].options.body.get('title'), 'Test evidence');
     assert.deepEqual(harness.destinations, ['/login']);
@@ -106,5 +107,13 @@ test('section history keeps the page open while browser back to another page rel
     assert.equal(harness.reloads(), 0);
     window.location.pathname = '/planning';
     harness.popstate();
+    assert.equal(harness.reloads(), 1);
+});
+
+test('restored browser snapshots reload current permissions and workflow state', t => {
+    const harness = formHarness(t, {});
+    harness.pageshow(false);
+    assert.equal(harness.reloads(), 0);
+    harness.pageshow(true);
     assert.equal(harness.reloads(), 1);
 });
