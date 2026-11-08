@@ -28,10 +28,10 @@ class PlanningOrganization
 
     public function accessibleOfficeIds(User $user): array
     {
-        $offices = Office::all()->keyBy('id');
         if ($user->hasRole('Administrator')) {
-            return $offices->modelKeys();
+            return Office::pluck('id')->all();
         }
+        $offices = Office::get(['id', 'parent_office_id', 'head_id', 'organization_scope', 'campus', 'campus_id'])->keyBy('id');
         $planner = $user->hasRole('Planning Officer');
         $grants = $planner ? PlanningGrant::where('user_id', $user->id)->get() : collect();
         $central = $grants->contains('scope', 'central');

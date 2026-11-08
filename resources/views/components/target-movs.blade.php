@@ -54,8 +54,9 @@
     @endif
     @endif
     @php
-        $movs = \App\Models\TargetMov::with('employee')->where('office_target_id', $target->id)
-            ->when(! $isDirector, fn ($q) => $canReview ? $q->whereIn('office_id', $managed) : $q->where('user_id', $user->id))->latest()->get();
+        $movs = \App\Models\TargetMov::with(['employee:id,name', 'analysis'])->where('office_target_id', $target->id)
+            ->when(! $isDirector, fn ($q) => $canReview ? $q->whereIn('office_id', $managed) : $q->where('user_id', $user->id))
+            ->latest()->orderByDesc('id')->paginate(10, ['*'], 'target_mov_page')->withQueryString()->fragment('target-movs');
     @endphp
     <div class="mt-5 space-y-4">
         @forelse($movs as $mov)
@@ -67,5 +68,6 @@
         </article>
         @empty<p class="text-sm text-gray-500">No MOV submitted yet.</p>@endforelse
     </div>
+    <div class="mt-4">{{ $movs->links() }}</div>
 </section>
 @endif

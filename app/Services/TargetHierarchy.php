@@ -16,8 +16,10 @@ class TargetHierarchy
         if (! $user->office_id || (! $user->hasAnyRole(['Supervisor', 'HR Head', 'Campus Director']) && (int) $user->office?->head_id !== $user->id)) return [];
         $ids = [(int) $user->office_id];
         $frontier = $ids;
+        $children = Office::where('campus', $user->office->campus)->get(['id', 'parent_office_id'])->groupBy('parent_office_id');
         while ($frontier) {
-            $frontier = Office::where('campus', $user->office->campus)->whereIn('parent_office_id', $frontier)->whereNotIn('id', $ids)->pluck('id')->all();
+            $frontier = collect($frontier)->flatMap(fn ($id) => $children->get($id, collect())->pluck('id'))
+                ->reject(fn ($id) => in_array($id, $ids))->unique()->values()->all();
             $ids = array_merge($ids, $frontier);
         }
 
