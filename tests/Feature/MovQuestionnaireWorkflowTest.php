@@ -67,6 +67,15 @@ class MovQuestionnaireWorkflowTest extends TestCase
         Http::fakeSequence()->push($this->response($this->questions()));
         $response = $this->postJson('/api/movs/questions', ['target_ref' => 'office:'.$target->id])
             ->assertOk()->assertJsonStructure(['redirect']);
+        Http::assertSent(function ($request) {
+            // JSON mode checks input messages, not only the top-level instructions.
+            $this->assertSame('json_object', $request['text']['format']['type']);
+            $this->assertSame('developer', $request['input'][0]['role']);
+            $this->assertStringContainsString('JSON', $request['input'][0]['content'][0]['text']);
+            $this->assertSame('user', $request['input'][1]['role']);
+            $this->assertIsArray(json_decode($request['input'][1]['content'][0]['text'], true));
+            return true;
+        });
         $this->get($response->json('redirect'))->assertOk()->assertSee('How many articles')->assertSee('name="files[]"', false);
     }
 
