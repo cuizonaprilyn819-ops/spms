@@ -27,6 +27,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        foreach ([\App\Models\Office::class, \App\Models\PositionTitle::class] as $model) {
+            $invalidate = function ($record) {
+                app(\App\Services\ReferenceData::class)->clear();
+                // Other requests can rebuild while a write transaction is open.
+                // Invalidate again only after that transaction commits.
+                if ($record->getConnection()->transactionLevel() > 0) {
+                    $record->getConnection()->afterCommit(fn () => app(\App\Services\ReferenceData::class)->clear());
+                }
+            };
+            $model::saved($invalidate);
+            $model::deleted($invalidate);
+        }
         Event::listen(NotificationSent::class, function ($event) {
             if ($event->channel !== 'database' || ! config('spms.email_notifications') || $event->notification instanceof TargetConflictNotification) {
                 return;

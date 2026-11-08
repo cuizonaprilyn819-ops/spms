@@ -60,6 +60,7 @@ class SyncHinunanganOffices extends Command
             $this->info(count($names).' approved offices; campus '.$campus.'. Employee assignments preserved.');
         });
 
+        if (! $this->option('dry-run')) app(\App\Services\ReferenceData::class)->clear();
         return self::SUCCESS;
     }
 

@@ -37,7 +37,7 @@ class EmployeeController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
-        $offices = Office::forCampus()->orderBy('name')->get();
+        $offices = app(\App\Services\ReferenceData::class)->officeOptions();
 
         return view('employees.index', compact('employees', 'offices'));
     }
@@ -125,13 +125,8 @@ class EmployeeController extends Controller
         $assignableRoles = $this->assignableRoles($employee);
 
         return [
-            'offices' => Office::query()->where(function ($query) use ($employee) {
-                $query->where(fn ($active) => $active->forCampus());
-                if ($employee?->office_id) {
-                    $query->orWhere('id', $employee->office_id);
-                }
-            })->orderBy('name')->get(),
-            'positionTitles' => PositionTitle::query()->where('is_active', true)->orderBy('title')->get(),
+            'offices' => app(\App\Services\ReferenceData::class)->officeOptions($employee),
+            'positionTitles' => app(\App\Services\ReferenceData::class)->positionOptions(),
             'roles' => Role::query()
                 ->whereIn('name', $assignableRoles)
                 ->orderByRaw("CASE name WHEN 'Campus Director' THEN 0 WHEN 'HR Head' THEN 1 WHEN 'Planning Officer' THEN 2 WHEN 'Supervisor' THEN 3 ELSE 4 END")

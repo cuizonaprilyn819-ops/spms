@@ -34,6 +34,12 @@ return [
 
     'stores' => [
 
+        // Keep reference lookups separate from queue locks and permission caches.
+        'reference' => [
+            'driver' => 'file',
+            'path' => storage_path('framework/cache/reference-data'),
+        ],
+
         'array' => [
             'driver' => 'array',
             'serialize' => false,

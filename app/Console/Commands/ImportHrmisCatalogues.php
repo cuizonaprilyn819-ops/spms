@@ -86,6 +86,7 @@ class ImportHrmisCatalogues extends Command
             }
         });
 
+        app(\App\Services\ReferenceData::class)->clear();
         $this->components->info(sprintf(
             'Imported %d departments and %d CSC position titles.',
             count($offices),
