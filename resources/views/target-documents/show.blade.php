@@ -1,16 +1,24 @@
 <x-app-layout>
     <x-slot name="header"><h2 class="text-xl font-bold text-spms-ink">Analyze and Review Targets</h2></x-slot>
-    <div class="mx-auto max-w-5xl space-y-5 px-4 py-8">
+    <div class="mx-auto max-w-5xl space-y-5 px-4 py-8" data-action-plain>
         <a href="{{ route('target-documents.index') }}" class="text-sm font-semibold text-spms-navy">← Your documents</a>
         @if(session('status'))<p role="status" class="spms-alert rounded-lg bg-blue-50 p-4 text-sm text-blue-900" data-tone="info">{{ session('status') }}</p>@endif
         <section class="rounded-xl border border-gray-200 bg-white p-6">
-            <h1 class="break-all text-xl font-bold">{{ $document->original_name }}</h1>
-            <form method="POST" action="{{ route('target-documents.destroy', $document) }}" class="mt-3" x-data @submit="if (!window.confirm('Delete this document and its extracted drafts? Previously assigned targets will be kept.')) $event.preventDefault()">
+            <h1 class="break-words text-xl font-bold">{{ $document->original_name }}</h1>
+            <div class="mt-4 flex flex-wrap items-center gap-3 border-b border-gray-100 pb-5">
+            <a href="{{ route('target-documents.download', $document) }}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-spms-navy transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700">
+                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" /></svg>
+                Download original
+            </a>
+            <form method="POST" action="{{ route('target-documents.destroy', $document) }}" x-data @submit="if (!window.confirm('Delete this document and its extracted drafts? Previously assigned targets will be kept.')) $event.preventDefault()">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Delete document</button>
+                <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
+                    Delete document
+                </button>
             </form>
-            <a href="{{ route('target-documents.download', $document) }}" class="mt-2 inline-block text-sm font-semibold text-spms-navy">Download original document</a>
+            </div>
             @if($errors->any())<div role="alert" class="mt-3 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
             @if($document->error)<p role="alert" class="spms-alert mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" data-tone="danger">{{ $document->error }}</p>@endif
             @if($document->status !== 'review')
@@ -18,7 +26,11 @@
                     @csrf
                     <p class="mb-3 text-sm text-gray-600">Analyze the document to prepare target drafts. Nothing is assigned until you review and confirm each target.</p>
                     @if($document->status === 'analyzing')<p class="mb-3 text-sm text-amber-800">Analysis is in progress. Refresh this page to check results. If interrupted, you can retry after ten minutes.</p>@endif
-                    <button type="submit" :disabled="busy" class="rounded-lg bg-spms-navy px-5 py-3 text-sm font-semibold text-white disabled:opacity-50" x-text="busy ? 'Analyzing document… reading the source table may take several minutes' : 'Analyze document with AI'">Analyze document with AI</button>
+                    <button type="submit" :disabled="busy" :aria-busy="busy" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-spms-navy px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700 disabled:cursor-wait disabled:opacity-60">
+                        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" /></svg>
+                        <span x-text="busy ? 'Analyzing document…' : 'Analyze document with AI'">Analyze document with AI</span>
+                    </button>
+                    <p x-cloak x-show="busy" role="status" class="mt-3 text-sm text-gray-600">Reading the source table may take several minutes. Please keep this page open.</p>
                 </form>
             @else
                 @if($document->drafts->isNotEmpty())
