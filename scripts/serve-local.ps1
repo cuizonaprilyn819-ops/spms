@@ -1,7 +1,8 @@
 param(
     [ValidateRange(1024, 65535)]
     [int]$Port = 8891,
-    [string]$PhpPath
+    [string]$PhpPath,
+    [switch]$NoMovWorker
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,8 +57,20 @@ foreach ($candidate in ($phpCandidates | Select-Object -Unique)) {
 if (-not $phpExecutable) {
     throw 'No compatible PHP runtime found. Use PHP 8.2+ with pdo_pgsql installed, for example: .\serve.ps1 -PhpPath C:\xampp\php\php.exe'
 }
-$phpOptions = @('-d', 'upload_max_filesize=25M', '-d', 'post_max_size=32M', '-d', 'max_input_vars=30000', '-d', 'memory_limit=512M', '-d', 'max_execution_time=300')
+$phpOptions = @('-d', 'upload_max_filesize=10M', '-d', 'post_max_size=40M', '-d', 'max_input_vars=30000', '-d', 'memory_limit=512M', '-d', 'max_execution_time=300')
 $phpOptions += $driverOptions
+function Test-SpmsWebp {
+    param([switch]$LoadGd)
+    $ErrorActionPreference = 'Continue'
+    $options = @($driverOptions)
+    if ($LoadGd) { $options += @('-d', 'extension=gd') }
+    $null = & $phpExecutable @options -r 'exit(function_exists(''imagewebp'') ? 0 : 1);' 2>&1
+    return $LASTEXITCODE -eq 0
+}
+if (-not (Test-SpmsWebp)) {
+    if (Test-SpmsWebp -LoadGd) { $phpOptions += @('-d', 'extension=gd') }
+    else { Write-Warning 'PHP GD/WebP is unavailable. MOV originals remain available; enable GD for smaller previews.' }
+}
 Write-Host "PHP runtime: $phpExecutable"
 
 $runtimePath = Join-Path $env:LOCALAPPDATA 'SPMS'
@@ -81,10 +94,19 @@ $env:APP_ENV = 'local'
 $env:APP_URL = "http://127.0.0.1:$Port"
 $publicPath = Join-Path $repoPath 'public'
 $routerPath = Join-Path $repoPath 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
+$movWorker = $null
 Push-Location $publicPath
 try {
+    if (-not $NoMovWorker) {
+        $logDirectory = Join-Path $repoPath 'storage/logs'
+        $artisanPath = '"' + (Join-Path $repoPath 'artisan') + '"'
+        $workerArgs = @($phpOptions) + @('-d', 'max_execution_time=0', $artisanPath, 'queue:work', 'mov-processing', '--queue=mov-processing', '--sleep=2', '--tries=1', '--timeout=600', '--memory=384')
+        $movWorker = Start-Process -FilePath $phpExecutable -ArgumentList $workerArgs -WorkingDirectory $repoPath -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logDirectory "mov-worker-$Port.log") -RedirectStandardError (Join-Path $logDirectory "mov-worker-$Port-error.log") -PassThru
+        Write-Host 'MOV background worker started.'
+    }
     # Keep the pgsql extension option in the process that actually serves the app.
     & $phpExecutable @phpOptions -S "127.0.0.1:$Port" -t $publicPath $routerPath
 } finally {
+    if ($movWorker -and -not $movWorker.HasExited) { Stop-Process -Id $movWorker.Id -ErrorAction SilentlyContinue }
     Pop-Location
 }

@@ -1,4 +1,5 @@
 import './bootstrap';
+import { installEvidenceProcessing } from './evidence-processing';
 import '../css/semantic-ui.css';
 import '../css/target-assistance.css';
 import { installTargetAssistance } from './target-assistance';
@@ -56,3 +57,4 @@ installDashboardRefresh(Alpine);
 installActionButtons();
 installWorkspacePages();
 installTargetAssistance();
+installEvidenceProcessing();

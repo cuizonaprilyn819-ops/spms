@@ -375,9 +375,8 @@ class CommitmentPlanningController extends Controller
             throw $e;
         }
 
-        if (config('spms.ai.enabled') && $outputId) {
-            set_time_limit(150);
-            app(EvidenceAi::class)->analyze(PlanningOutput::findOrFail($outputId));
+        if ($outputId) {
+            app(\App\Services\EvidenceProcessing::class)->queue(PlanningOutput::findOrFail($outputId), (bool) config('spms.ai.enabled'));
         }
 
         return back()->with('status', 'Output recorded as reported work, pending validation.');

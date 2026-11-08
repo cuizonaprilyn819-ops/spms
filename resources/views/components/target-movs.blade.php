@@ -45,8 +45,8 @@
         <textarea id="accomplishment" name="accomplishment" rows="3" required maxlength="5000" class="block w-full rounded-lg border-gray-300" placeholder="Describe the work completed for this target.">{{ old('accomplishment') }}</textarea>
         <x-input-error :messages="$errors->get('accomplishment')" />
         <x-input-label for="mov-file" value="Supporting File" />
-        <input id="mov-file" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png" required class="block w-full text-sm" onchange="this.setCustomValidity(this.files.length > 20 ? 'Select a maximum of 20 files or images.' : Array.from(this.files).reduce((sum, file) => sum + file.size, 0) > 35 * 1024 * 1024 ? 'Select up to 35 MB per batch.' : ''); this.reportValidity();">
-        <p class="text-xs text-gray-500">Up to 20 PDF, JPG, JPEG, or PNG files per submission. Maximum 10 MB per file and 35 MB per batch. Save Word or Excel documents as PDF before uploading.</p>
+        <input id="mov-file" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" required class="block w-full text-sm" onchange="this.setCustomValidity(this.files.length > 20 ? 'Select a maximum of 20 files or images.' : Array.from(this.files).reduce((sum, file) => sum + file.size, 0) > 35 * 1024 * 1024 ? 'Select up to 35 MB per batch.' : ''); this.reportValidity();">
+        <p class="text-xs text-gray-500">Up to 20 PDF, JPG, JPEG, PNG, or WebP files per submission. Maximum 10 MB per file and 35 MB per batch. Save Word or Excel documents as PDF before uploading.</p>
         <x-input-error :messages="$errors->get('files')" />
         @foreach ($errors->get('files.*') as $fileErrors)
             <x-input-error :messages="$fileErrors" />

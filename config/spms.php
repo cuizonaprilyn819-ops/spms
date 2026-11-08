@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'mov' => [
+        'connection' => env('SPMS_MOV_CONNECTION', 'mov-processing'),
+        'ocr_binary' => env('SPMS_MOV_OCR_BINARY'),
+    ],
     'target_assistance' => ['enabled' => env('SPMS_TARGET_ASSISTANCE_ENABLED', true)],
     'ai' => [
         'enabled' => env('SPMS_AI_ENABLED', false),

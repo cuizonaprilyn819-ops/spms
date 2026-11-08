@@ -30,6 +30,14 @@ return [
     */
 
     'connections' => [
+        'mov-processing' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => 'jobs',
+            'queue' => 'mov-processing',
+            'retry_after' => 900,
+            'after_commit' => true,
+        ],
         'target-assistance' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

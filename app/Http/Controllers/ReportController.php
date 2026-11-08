@@ -358,7 +358,7 @@ class ReportController extends Controller
         $rows = $targetLines->map(fn ($target): array => $this->formRow($type, $record, $target))->values()->all();
         if ($type === 'ipcr' && $record->office_target_id) {
             $details = TargetMov::where('office_target_id', $record->office_target_id)->where('user_id', $record->employee_id)
-                ->with('analysis')->orderBy('created_at')->get()->map(fn ($mov) => $mov->analysis?->status === 'completed' && $mov->analysis->statement ? $mov->analysis->statement : $mov->accomplishment)->unique()->implode("\n\n");
+                ->with('analysis')->orderBy('created_at')->get()->map(fn ($mov) => $mov->analysis?->isReady() && $mov->analysis->statement ? $mov->analysis->statement : $mov->accomplishment)->unique()->implode("\n\n");
             $rating = fn ($value) => $value === null ? '' : number_format((float) $value, 2);
             $rows = [[$record->success_indicators, '', $details, $rating($record->quality_rating), $rating($record->efficiency_rating), $rating($record->timeliness_rating), $rating($record->average_rating), $record->rating_remarks ?? '']];
         }
@@ -405,11 +405,11 @@ class ReportController extends Controller
         $average = $latestEvaluation ? number_format((float) $latestEvaluation->rating, 2) : '';
         $computed = $latestEvaluation ? number_format((float) $latestEvaluation->computed_rating, 2) : '';
         $remarks = trim(($latestEvaluation?->remarks ?? '').' '.($latestEvaluation?->adjectival_rating ? '['.$latestEvaluation->adjectival_rating.']' : ''));
-        $evidenceStatements = $target->movs()->with('analysis')->get()->map(fn ($mov) => $mov->analysis?->status === 'completed' ? $mov->analysis->statement : null)->filter()->unique()->implode("\n\n");
+        $evidenceStatements = $target->movs()->with('analysis')->get()->map(fn ($mov) => $mov->analysis?->isReady() ? $mov->analysis->statement : null)->filter()->unique()->implode("\n\n");
         $planningAccomplishment = null;
         if ($target->commitment_plan_id) {
             $summary = app(CommitmentPlanning::class)->summary($target);
-            $planningStatements = $summary['outputs']->each(fn ($output) => $output->loadMissing('analysis'))->map(fn ($output) => $output->analysis?->status === 'completed' ? $output->analysis->statement : null)->filter()->unique()->implode("\n\n");
+            $planningStatements = $summary['outputs']->each(fn ($output) => $output->loadMissing('analysis'))->map(fn ($output) => $output->analysis?->isReady() ? $output->analysis->statement : null)->filter()->unique()->implode("\n\n");
             $planningAccomplishment = 'Committed: '.$target->quantity.' '.$target->unit.'; Reported: '.($summary['reported'] ?? 'Unavailable').'; Validated: '.($summary['validated'] ?? 'Unavailable').'; Unallocated: '.($summary['unallocated'] ?? 'Not applicable');
             if ($planningStatements !== '') $planningAccomplishment .= "\n\n".$planningStatements;
             $remarks = trim($remarks.' Root OPCR target #'.$target->root_target_id.'; source #'.$target->parent_target_id.'; revision '.$target->plan_revision.($target->needs_reconciliation ? '; reconciliation required' : ''));

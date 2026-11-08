@@ -20,6 +20,7 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="SPMS_AI_ENABLED" value="false"/>
+        <env name="SPMS_MOV_CONNECTION" value="sync"/>
         <env name="SPMS_TARGET_ASSISTANCE_ENABLED" value="false"/>
         <env name="APP_KEY" value="base64:YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

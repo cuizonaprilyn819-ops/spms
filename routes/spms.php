@@ -65,6 +65,7 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
     Route::get('historical-pcrs/{historicalPcr}/pages/{page}', [HistoricalPcrController::class, 'page'])->whereNumber('page')->name('historical-pcrs.page');
     Route::get('historical-pcrs/{historicalPcr}/export/{format}', [HistoricalPcrController::class, 'export'])->where('format', 'docx|xlsx|pdf')->name('historical-pcrs.export');
     Route::post('evidence/{type}/{id}/analyze', [EvidenceAnalysisController::class, 'analyze'])->middleware('throttle:5,1')->name('evidence.analyze');
+    Route::get('evidence/{type}/{id}/status', [EvidenceAnalysisController::class, 'status'])->name('evidence.status');
     Route::put('evidence/{type}/{id}/statement', [EvidenceAnalysisController::class, 'update'])->name('evidence.statement');
 
     Route::get('planning', [CommitmentPlanningController::class, 'index'])->name('planning.index');
@@ -207,6 +208,7 @@ Route::middleware(['auth', \App\Http\Middleware\TargetAssistanceWorkflow::class]
             ->only(['index', 'create', 'store', 'show']);
         Route::get('movs/{mov}/download', [MovController::class, 'download'])
             ->name('movs.download');
+        Route::get('movs/{mov}/preview', [MovController::class, 'preview'])->name('movs.preview');
     });
 
     Route::middleware('role:Administrator|Planning Officer|HR|HR Head|Campus Director|Supervisor|HRM Office II')->group(function () {

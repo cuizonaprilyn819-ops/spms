@@ -49,7 +49,7 @@ class TargetMovController extends Controller
             'accomplishment' => ['required', 'string', 'max:5000'],
             'completed_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
             'files' => ['required', 'array', 'min:1', 'max:'.\App\Support\MovUpload::MAX_FILES],
-            'files.*' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'files.*' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
         ]);
         \App\Support\MovUpload::checkTotal($request->file('files'));
         $context = app(\App\Services\MovQuestions::class)->submission($request, 'office:'.$officeTarget->id);
@@ -94,9 +94,8 @@ class TargetMovController extends Controller
             throw $exception;
         }
 
-        if (config('spms.ai.enabled')) {
-            set_time_limit(max(600, count($uploaded) * 100));
-            foreach ($context ? [$uploaded[0]] : $uploaded as $evidence) app(\App\Services\EvidenceAi::class)->analyze($evidence);
+        foreach ($context ? [$uploaded[0]] : $uploaded as $evidence) {
+            app(\App\Services\EvidenceProcessing::class)->queue($evidence, (bool) config('spms.ai.enabled'));
         }
 
         return back()->with('mov_status', 'MOV submitted successfully. Your office heads and assigning Campus Director have been notified.');
@@ -112,8 +111,10 @@ class TargetMovController extends Controller
     public function preview(Request $request, TargetMov $targetMov)
     {
         $this->authorizeFile($request, $targetMov);
+        $preview = app(\App\Services\EvidenceFiles::class)->previewPath($targetMov);
+        if ($preview) return Storage::disk('local')->response($preview, 'preview.webp', ['Content-Type' => 'image/webp', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
         $mime = Storage::disk('local')->mimeType($targetMov->path);
-        abort_unless(in_array($mime, ['application/pdf', 'image/jpeg', 'image/png'], true), 415, 'Preview is available for PDF and images only.');
+        abort_unless(in_array($mime, ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'], true), 415, 'Preview is available for PDF and images only.');
 
         return Storage::disk('local')->response($targetMov->path, $targetMov->original_name, [
             'Content-Type' => $mime,

@@ -80,9 +80,9 @@ class MovController extends Controller
             'performance_target_id' => ['required_without:target_ref', 'nullable', 'integer', 'exists:performance_targets,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'file' => ['required_without:files', 'nullable', 'prohibits:files', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png', 'max:10240'],
+            'file' => ['required_without:files', 'nullable', 'prohibits:files', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png,webp', 'max:10240'],
             'files' => ['required_without:file', 'nullable', 'prohibits:file', 'array', 'min:1', 'max:'.\App\Support\MovUpload::MAX_FILES],
-            'files.*' => ['required', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png', 'max:10240'],
+            'files.*' => ['required', 'file', 'mimes:pdf,docx,xlsx,jpg,jpeg,png,webp', 'max:10240'],
         ]);
         $files = $request->file('files') ?: [$request->file('file')];
         \App\Support\MovUpload::checkTotal($files);
@@ -131,9 +131,8 @@ class MovController extends Controller
             throw $exception;
         }
 
-        if (config('spms.ai.enabled')) {
-            set_time_limit(max(150, count($uploaded) * 100));
-            foreach ($context ? [$uploaded[0]] : $uploaded as $mov) app(\App\Services\EvidenceAi::class)->analyze($mov);
+        foreach ($context ? [$uploaded[0]] : $uploaded as $mov) {
+            app(\App\Services\EvidenceProcessing::class)->queue($mov, (bool) config('spms.ai.enabled'));
         }
 
         return redirect()
@@ -153,6 +152,15 @@ class MovController extends Controller
     {
         $this->authorizeEvidence($mov);
         return Storage::disk('public')->download($mov->file_path, $mov->original_name);
+    }
+
+    public function preview(Mov $mov)
+    {
+        $this->authorizeEvidence($mov);
+        $path = app(\App\Services\EvidenceFiles::class)->previewPath($mov);
+        if ($path) return Storage::disk('local')->response($path, 'preview.webp', ['Content-Type' => 'image/webp', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+        abort_unless(in_array(strtolower(pathinfo($mov->original_name, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp'], true), 415);
+        return Storage::disk('public')->response($mov->file_path, $mov->original_name, ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     private function uploadableReportTargets()

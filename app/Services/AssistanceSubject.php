@@ -172,7 +172,7 @@ class AssistanceSubject
             return false;
         }
         if (in_array($this->kind($m), ['mov', 'target-mov', 'planning-output'], true)) {
-            return $m->analysis?->status === 'completed' && ($m->analysis?->findings['supported'] ?? false) && (! ($m instanceof PlanningOutput) || $m->target?->plan?->report?->status !== 'approved');
+            return $m->analysis?->isReady() && ($m->analysis?->findings['supported'] ?? false) && (! ($m instanceof PlanningOutput) || $m->target?->plan?->report?->status !== 'approved');
         }
         if ($m instanceof HistoricalPcr) {
             return true;

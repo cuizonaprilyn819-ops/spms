@@ -48,9 +48,9 @@
                     </div>
                 </dl>
 
-                @if (in_array($mov->extension, ['jpg', 'jpeg'], true))
+                @if (in_array($mov->extension, ['jpg', 'jpeg', 'png', 'webp'], true))
                     <div class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-spms-surface">
-                        <img src="{{ $mov->file_url }}" alt="{{ $mov->title }}" class="max-h-[32rem] w-full object-contain">
+                        <img src="{{ route('movs.preview', $mov) }}" loading="lazy" decoding="async" alt="{{ $mov->title }}" class="max-h-[32rem] w-full object-contain">
                     </div>
                 @endif
 
