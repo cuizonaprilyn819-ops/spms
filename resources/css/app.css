@@ -188,6 +188,7 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
 @keyframes spms-reveal { from { opacity: .6; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @media (min-width: 768px) { .spms-sidebar { width: 252px; } }
 @media (max-width: 1023px) {
+    .planning-form > .grid { grid-template-columns: minmax(0, 1fr); }
     .spms-topbar [x-ref=accountButton] > span:not(.spms-account-avatar) { display: none; }
     .planning-plan-list, .planning-plan-list tbody { display: block; }
     .planning-plan-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
@@ -373,6 +374,9 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
 .spms-recovery-message a { margin-top: 10px; }
 .spms-assistant button { min-height: 44px; }
 .spms-assistant textarea { border-color: #ccd7e5; border-radius: 5px; }
+.spms-assistant > section { max-height: calc(100vh - 7rem); max-height: calc(100dvh - 7rem); }
+.spms-assistant [role=log] { min-height: 0; flex-shrink: 1; }
+.spms-assistant > section > :not([role=log]) { flex-shrink: 0; }
 @media (min-width: 768px) { .spms-menu-toggle { display: none; } }
 @media (max-width: 1100px) { .spms-university { display: none; } .spms-topbar-tools { width: 100%; } .spms-content { padding-inline: 22px; } }
 @media (max-width: 767px) {
@@ -392,6 +396,10 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
     .spms-breadcrumb > span { display: inline; }
     .spms-page-heading { padding-top: 10px; }
     .spms-page-heading :is(h1, h2) { font-size: 24px; }
+    .spms-page-heading > div > div > .flex { flex-direction: column; align-items: stretch; gap: 14px; }
+    .spms-page-heading .flex { flex-wrap: wrap; }
+    .spms-page-heading .flex > * { min-width: 0; }
+    .spms-page-heading .spms-action { flex-shrink: 0; }
     .spms-workspace main :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea), .spms-guest :is(input:not([type=checkbox]):not([type=hidden]), select, textarea) { font-size: 16px; max-width: 100%; }
     .spms-workspace main :is(.p-6, .p-8) { padding: 18px 16px; }
     .spms-workspace main .planning-page { padding-inline: 0; }
