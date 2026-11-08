@@ -55,9 +55,9 @@ Badges support `soft`, `solid` and `outline` variants and optional pills. Satura
 
 ## Action buttons
 
-On desktop, recognizable form and page actions use 44 px icon buttons. Their text appears in a label on hover or keyboard focus. Labels are placed above page content so scrolling tables cannot clip them; Escape dismisses the label. Each control retains its accessible name and original form behavior. Motion runs briefly on interaction and respects reduced-motion preferences.
+Recognizable form and page actions show both an icon and a visible text label on desktop and mobile, with a minimum 44 px touch target. Users should not need to hover to identify Save, Delete, Upload or Submit. Action rows wrap where needed, and long labels wrap within the available width. Each control retains its accessible name and original form behavior. Motion runs briefly on interaction and respects reduced-motion preferences.
 
-On small screens and touch devices, keep the icon and text visible together. Navigation, account/menu triggers, field selectors, sign-in controls, and content links keep their existing presentation. The progressive enhancement in `resources/js/action-buttons.js` uses recognizable action labels, follows API-rendered content and changing busy labels, and falls back to the original text buttons if JavaScript is unavailable. Use `data-action-plain` on a control or container when its text should always remain visible.
+Navigation, account/menu triggers, field selectors, sign-in controls, and content links keep their existing presentation; the mobile navigation toggle includes “Menu”. The progressive enhancement in `resources/js/action-buttons.js` uses recognizable action labels, follows API-rendered content and changing busy labels, and falls back to the original text buttons if JavaScript is unavailable. Use `data-action-plain` to preserve a custom button's presentation. A deliberate compact desktop control may use `data-action-icon-only`; it retains an accessible name and a hover/focus label, and shows its text on touch screens. Ordinary actions must not opt into this compact mode.
 
 ## Page structure
 

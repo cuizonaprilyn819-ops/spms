@@ -8,7 +8,7 @@
             <img src="{{ asset('images/logoslsu.png') }}" alt="Southern Leyte State University logo" class="h-11 w-11 shrink-0 rounded-full object-contain">
             <span class="min-w-0"><span class="block truncate text-lg font-semibold tracking-tight text-white">SLSU <span class="font-normal text-white/70">SPMS</span></span><span class="block text-[11px] text-white/65">Performance workspace</span></span>
         </a>
-        <button x-ref="menuToggle" type="button" @click="open = !open" :aria-expanded="open" aria-controls="workspace-navigation" class="spms-menu-toggle md:hidden" aria-label="Toggle navigation menu"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button x-ref="menuToggle" type="button" @click="open = !open" :aria-expanded="open" aria-controls="workspace-navigation" class="spms-menu-toggle gap-2 px-2 text-sm font-semibold md:hidden" aria-label="Toggle navigation menu"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span></button>
     </div>
     <div id="workspace-navigation" :class="{'block': open, 'hidden': !open}" class="hidden md:min-h-0 md:flex-1 md:block">
         <div class="flex h-full flex-col">
@@ -27,7 +27,7 @@
                     @if($navigationUser->hasAnyRole(['Administrator', 'Planning Officer', 'Campus Director', 'Supervisor']))
                         <x-responsive-nav-link :href="route('office-targets.index')" :active="$routeIs('office-targets.*')">Office Targets</x-responsive-nav-link>
                     @else
-                        <x-responsive-nav-link :href="route('performance-targets.index')" :active="$routeIs('performance-targets.*')">My Targets</x-responsive-nav-link>
+                        <x-responsive-nav-link :href="route('performance-targets.index')" :active="$routeIs('performance-targets.*', 'office-targets.show')">My Targets</x-responsive-nav-link>
                     @endif
                     <x-responsive-nav-link :href="route('accomplishments.index')" :active="$routeIs('accomplishments.*')">Accomplishments</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('movs.index')" :active="$routeIs('movs.*')">Evidence / MOV</x-responsive-nav-link>

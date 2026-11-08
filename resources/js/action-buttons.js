@@ -144,6 +144,7 @@ export function installActionButtons() {
     }
 
     function show(control) {
+        if (!control.hasAttribute('data-action-icon-only')) return;
         if (window.matchMedia('(max-width: 767px), (hover: none), (pointer: coarse)').matches) return;
         clearTimeout(hideTimer);
         makeTooltip();

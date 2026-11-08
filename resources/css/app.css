@@ -111,10 +111,14 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    inline-size: 44px;
+    inline-size: auto;
+    max-inline-size: 100%;
     min-inline-size: 44px;
-    block-size: 44px;
-    padding: 0 !important;
+    min-block-size: 44px;
+    gap: 8px;
+    padding: 10px 14px !important;
+    font-size: 13px;
+    line-height: 1.4;
     margin-inline: 0;
     border: 1px solid var(--workspace-primary-line);
     border-radius: 9px;
@@ -140,7 +144,10 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
 [data-submitting] .spms-action:disabled { cursor: wait; }
 .spms-action-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; pointer-events: none; }
 .spms-action-icon svg { display: block; width: 20px; height: 20px; }
-.spms-action-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.spms-action-label { white-space: normal; overflow-wrap: anywhere; }
+.spms-workspace main :is(div, form, nav).flex:has(> .spms-action) { flex-wrap: wrap; }
+.spms-action[data-action-icon-only] { inline-size: 44px; block-size: 44px; padding: 0 !important; }
+.spms-action[data-action-icon-only] .spms-action-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .spms-action:is(:hover, :focus-visible):not(:disabled) .spms-action-icon { animation: spms-icon-nudge .3s ease-out; }
 .spms-action[data-action-icon=add]:is(:hover, :focus-visible) .spms-action-icon { animation-name: spms-icon-turn; }
 .spms-action[data-action-icon=delete]:is(:hover, :focus-visible) .spms-action-icon { animation-name: spms-icon-tilt; }
@@ -173,8 +180,8 @@ details[open] > :not(summary) { animation: spms-reveal .16s ease-out; }
 @keyframes spms-icon-tilt { 30% { transform: rotate(-9deg); } 65% { transform: rotate(7deg); } }
 @keyframes spms-icon-lift { 50% { transform: translateY(-3px); } }
 @media (max-width: 767px), (hover: none), (pointer: coarse) {
-    .spms-action { inline-size: auto; max-inline-size: 100%; block-size: auto; min-block-size: 44px; gap: 8px; padding: 10px 12px !important; font-size: 13px; line-height: 1.4; }
-    .spms-action-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; overflow-wrap: anywhere; }
+    .spms-action, .spms-action[data-action-icon-only] { inline-size: auto; max-inline-size: 100%; block-size: auto; min-block-size: 44px; gap: 8px; padding: 10px 12px !important; font-size: 13px; line-height: 1.4; }
+    .spms-action-label, .spms-action[data-action-icon-only] .spms-action-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; overflow-wrap: anywhere; }
     .spms-action-tooltip { display: none; }
 }
 [x-cloak] { display: none !important; }
