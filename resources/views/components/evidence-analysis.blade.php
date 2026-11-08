@@ -74,7 +74,10 @@
     @elseif($analysis?->status === 'failed' && !$processing)
         <p class="mt-3 text-sm text-amber-800">{{ $analysis->error }}</p>
     @elseif($processing)
-        <p role="status" class="mt-3 text-sm">Processing MOV… You can leave this page. Your original files are saved; results will update here automatically.</p>
+        @php($feedback = $analysis->processingFeedback())
+        <p role="status" data-processing-label class="mt-3 text-sm font-semibold">{{ $feedback['label'] }}</p>
+        <p data-processing-message class="mt-2 text-sm text-gray-600">{{ $feedback['message'] }}</p>
+        <p data-processing-warning @class(['mt-2 text-sm text-amber-800', 'hidden' => !$feedback['warning']])>{{ $feedback['warning'] }}</p>
         @if($analysis->updated_at->lt(now()->subMinutes(15)))<p class="mt-2 text-sm text-amber-800">Processing is taking longer than expected. You can retry or ask your administrator to check processing.</p>@endif
     @else
         <p class="mt-3 text-sm text-gray-600">This MOV has not been analyzed yet.</p>

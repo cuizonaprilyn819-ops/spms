@@ -27,6 +27,20 @@ Restart the local launcher (or the supervised queue worker) after updating this 
 Restart the launcher after pulling these changes. Use `-NoMovWorker` if a separately
 managed worker already handles this queue.
 
+The launcher monitors its worker and restarts it after an unexpected exit, including
+memory-limit exits and queue restart signals. Repeated short-lived exits use backoff
+up to 30 seconds. Keep the launcher terminal open; Ctrl+C stops its server and worker.
+Server output is in `storage/logs/local-server-<port>.log` and the corresponding
+`-error.log`; worker output remains in `mov-worker-<port>.log` and `-error.log`.
+This local supervisor is not a Windows boot service; it runs only while the launcher
+is open. Hosted installations still need an independently supervised worker.
+
+MOV cards distinguish **Queued for analysis** from **Analyzing your MOV**, and polling
+updates these labels without replacing forms. A queued wait over two minutes asks
+the operator to check the worker; an analysis over five minutes shows a delay notice.
+These are wait notices, not claims that AI has processed a queued file. Existing
+retry safeguards and report submission gates remain in effect.
+
 On hosted installations, supervise this command independently of the web server:
 
 ```powershell

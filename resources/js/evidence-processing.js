@@ -26,7 +26,20 @@ export function installEvidenceProcessing() {
             };
             try {
                 const first = await load(nodes[0]);
-                if (!['completed', 'failed'].includes(first.status)) continue;
+                if (!['completed', 'failed'].includes(first.status)) {
+                    if (location.href !== page || document.hidden) continue;
+                    for (const node of nodes) {
+                        if (!node.isConnected) continue;
+                        for (const [selector, value] of [['[data-processing-label]', first.label], ['[data-processing-message]', first.message], ['[data-processing-warning]', first.warning]]) {
+                            const element = node.querySelector?.(selector);
+                            if (element && typeof value === 'string') {
+                                element.textContent = value;
+                                if (selector === '[data-processing-warning]') element.classList.toggle('hidden', !value);
+                            }
+                        }
+                    }
+                    continue;
+                }
                 // One poll per batch; fetch the other cards only once, on completion.
                 for (const [index, node] of nodes.entries()) {
                     const data = index ? await load(node) : first;

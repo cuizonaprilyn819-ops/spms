@@ -45,6 +45,24 @@ test('updates each completed batch card without replacing other page content', a
     assert.match(nodes[1].replacement.html, /\/2\/status/);
 });
 
+test('updates queued and analyzing feedback for the batch without replacing cards or forms', async t => {
+    const { nodes, calls, tick } = setup(t, 2);
+    const elements = nodes.map(() => Object.fromEntries(['label', 'message', 'warning'].map(key => [key, {
+        textContent: 'Queued', hidden: true,
+        classList: { toggle(name, value) { this.hidden = value; } },
+    }])));
+    nodes.forEach((node, i) => { node.querySelector = selector => elements[i][selector.match(/processing-(\w+)/)[1]]; });
+    globalThis.fetch = async url => {
+        calls.push(url);
+        return { ok: true, redirected: false, json: async () => ({ status: 'analyzing', label: 'Analyzing your MOV', message: 'Checking your files.', warning: 'Taking longer than expected.' }) };
+    };
+    await tick();
+    assert.equal(calls.length, 1);
+    assert.ok(nodes.every(node => node.isConnected));
+    assert.ok(elements.every(fields => fields.label.textContent === 'Analyzing your MOV'));
+    assert.ok(elements.every(fields => fields.warning.textContent === 'Taking longer than expected.' && fields.warning.classList.hidden === false));
+});
+
 test('does not poll hidden pages or discard pending cards on network failure', async t => {
     const { nodes, calls, tick } = setup(t);
     document.hidden = true;

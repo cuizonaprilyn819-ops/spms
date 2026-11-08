@@ -34,7 +34,8 @@ class EvidenceAnalysisController extends Controller
         $analysis = $evidence->analysis;
         $running = $analysis?->isProcessing();
         $terminal = ! $running && in_array($analysis?->status, ['completed', 'failed'], true);
-        return response()->json(['status' => $running ? ($analysis?->status === 'queued' ? 'queued' : 'analyzing') : ($analysis?->status ?? 'not-analyzed'),
+        $feedback = $running ? $analysis->processingFeedback() : [];
+        return response()->json([...$feedback, 'status' => $running ? $feedback['status'] : ($analysis?->status ?? 'not-analyzed'),
             'html' => $terminal ? view('components.evidence-analysis', compact('evidence'))->render() : null,
         ])->header('Cache-Control', 'private, no-store');
     }

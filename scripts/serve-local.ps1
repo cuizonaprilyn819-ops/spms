@@ -20,6 +20,10 @@ foreach ($line in Get-Content -LiteralPath $environmentPath) {
         $connectionSettings[$Matches[1]] = $Matches[2].Trim('"').Trim("'")
     }
 }
+foreach ($name in @('DB_CONNECTION', 'DB_HOST', 'DB_PORT')) {
+    $runtimeValue = [Environment]::GetEnvironmentVariable($name)
+    if ($null -ne $runtimeValue) { $connectionSettings[$name] = $runtimeValue }
+}
 
 $phpCandidates = if ($PhpPath) { @($PhpPath) } else {
     @((Get-Command php.exe -All -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)) + @('C:\xampp\php\php.exe')
@@ -95,18 +99,54 @@ $env:APP_URL = "http://127.0.0.1:$Port"
 $publicPath = Join-Path $repoPath 'public'
 $routerPath = Join-Path $repoPath 'scripts/local-router.php'
 $movWorker = $null
+$serverProcess = $null
+$logDirectory = Join-Path $repoPath 'storage/logs'
+$artisanPath = '"' + (Join-Path $repoPath 'artisan') + '"'
+$workerArgs = @($phpOptions) + @('-d', 'max_execution_time=0', $artisanPath, 'queue:work', 'mov-processing', '--queue=mov-processing', '--sleep=2', '--tries=1', '--timeout=600', '--memory=384')
+function Start-SpmsMovWorker {
+    $process = Start-Process -FilePath $phpExecutable -ArgumentList $workerArgs -WorkingDirectory $repoPath -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logDirectory "mov-worker-$Port.log") -RedirectStandardError (Join-Path $logDirectory "mov-worker-$Port-error.log") -PassThru
+    Write-Host "MOV background worker started (PID $($process.Id))."
+    return $process
+}
 Push-Location $publicPath
 try {
+    $serverArgs = @($phpOptions) + @('-S', "127.0.0.1:$Port", '-t', ('"' + $publicPath + '"'), ('"' + $routerPath + '"'))
+    $serverProcess = Start-Process -FilePath $phpExecutable -ArgumentList $serverArgs -WorkingDirectory $publicPath -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logDirectory "local-server-$Port.log") -RedirectStandardError (Join-Path $logDirectory "local-server-$Port-error.log") -PassThru
+    if ($serverProcess.WaitForExit(500)) { throw "Local server could not start. Check storage/logs/local-server-$Port-error.log." }
+    Write-Host "SPMS: http://127.0.0.1:$Port (server PID $($serverProcess.Id)). Keep this terminal open; Ctrl+C stops the server and worker."
     if (-not $NoMovWorker) {
-        $logDirectory = Join-Path $repoPath 'storage/logs'
-        $artisanPath = '"' + (Join-Path $repoPath 'artisan') + '"'
-        $workerArgs = @($phpOptions) + @('-d', 'max_execution_time=0', $artisanPath, 'queue:work', 'mov-processing', '--queue=mov-processing', '--sleep=2', '--tries=1', '--timeout=600', '--memory=384')
-        $movWorker = Start-Process -FilePath $phpExecutable -ArgumentList $workerArgs -WorkingDirectory $repoPath -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logDirectory "mov-worker-$Port.log") -RedirectStandardError (Join-Path $logDirectory "mov-worker-$Port-error.log") -PassThru
-        Write-Host 'MOV background worker started.'
+        $movWorker = Start-SpmsMovWorker
     }
-    # Keep the pgsql extension option in the process that actually serves the app.
-    & $phpExecutable @phpOptions -S "127.0.0.1:$Port" -t $publicPath $routerPath
+    $nextWorkerStart = Get-Date
+    $restartDelay = 2
+    while (-not $serverProcess.WaitForExit(2000)) {
+        if ($NoMovWorker) { continue }
+        if ($movWorker) { $movWorker.Refresh() }
+        if ($movWorker -and -not $movWorker.HasExited) {
+            if (((Get-Date) - $movWorker.StartTime).TotalSeconds -ge 60) { $restartDelay = 2 }
+            continue
+        }
+        if ($movWorker) {
+            Write-Warning "MOV worker stopped. Restarting in $restartDelay seconds; check storage/logs/mov-worker-$Port-error.log if this repeats."
+            $movWorker.Dispose()
+            $movWorker = $null
+            $nextWorkerStart = (Get-Date).AddSeconds($restartDelay)
+            $restartDelay = [Math]::Min(30, $restartDelay * 2)
+        }
+        if ((Get-Date) -ge $nextWorkerStart) {
+            try { $movWorker = Start-SpmsMovWorker }
+            catch {
+                Write-Warning 'MOV worker could not restart. Check its runtime and log files.'
+                $nextWorkerStart = (Get-Date).AddSeconds(30)
+            }
+        }
+    }
 } finally {
-    if ($movWorker -and -not $movWorker.HasExited) { Stop-Process -Id $movWorker.Id -ErrorAction SilentlyContinue }
+    foreach ($child in @($movWorker, $serverProcess)) {
+        if ($child) {
+            if (-not $child.HasExited) { Stop-Process -Id $child.Id -ErrorAction SilentlyContinue }
+            $child.Dispose()
+        }
+    }
     Pop-Location
 }
