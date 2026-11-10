@@ -53,6 +53,19 @@ Use **Add supporting file without changing quantity** to supplement an existing 
 
 ## Upward proposals
 
+### Campus-based planning in either direction
+
+For a new, empty period, administrators can choose **Campus OPCR** under **Campuses and planning access → Activate campus or university planning**. This is the default choice in the activation form. Verify campus offices, departments/divisions, units, duties, independent reviewers and campus Planning Officer assignments first. Campus-based activation does not require a University OPCR or a central planning grant. A campus root may have a recorded university reporting office, or no university office; neither creates a University OPCR commitment in this mode.
+
+- **Downward:** Campus OPCR → DPCR → UPCR → IPCR. Create the Campus OPCR with no parent plan. Use guided target setting to confirm campus coverage, responsible departments, quantity interpretation, standards and source. Each lower plan selects its immediate parent and receives relevant target shares.
+- **Upward:** IPCR proposal → UPCR review → DPCR review → Campus OPCR. In Commitment Planning, choose **Start with an individual proposal**. An employee can propose planned work before any parent plan exists. The unit head, department head and campus head review it in order. At the campus, the responsible head or an independently assigned campus planner reviews scope and quantity before adding it to the Campus OPCR draft. An author cannot review their own proposal.
+
+An upward proposal is proposed work, not a confirmed allocation. Reviewers can return or reject it. Once incorporated into the Campus OPCR, the normal commitment approval, child eligibility, quantity, employee agreement and conflict-review checks apply. Accepted quantities remain linked through the downward reporting structure. Multiple levels referring to the same output do not multiply the output.
+
+Campus-based proposals stop at the campus even if its office has a university parent. Campus roots cannot claim university-wide coverage or assign targets into another campus. Campus planners retain their explicit access grants. University-based periods remain available through the separate activation option.
+
+The additive `planning_root_level` setting is chosen at activation. A null value preserves existing periods: already activated multi-campus periods retain University OPCR → Campus OPCR → DPCR → UPCR → IPCR; legacy periods retain their original workflow. Activation cannot switch a period that already has planning or PCR records. No existing account, report, source file, period selection or reporting relationship is changed automatically.
+
 Personnel propose new targets or OPCR amendments through their supervisory chain. Office heads' proposals start with their parent office; employee proposals start with their own head. Reviewers forward, return or reject proposals with notes. Returned proposals can be revised and resubmitted. At the top office, an authorized reviewer adds an accepted proposal to an OPCR draft or reviewed amendment. Authors cannot review their own proposals; an administrator can handle a top-office proposal where an external review is needed. Downstream commitments still require the normal approval chain.
 
 ## AI and API behavior

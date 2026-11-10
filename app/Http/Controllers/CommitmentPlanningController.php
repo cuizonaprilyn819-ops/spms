@@ -46,8 +46,13 @@ class CommitmentPlanningController extends Controller
     private function notifyProposal(TargetProposal $proposal): void
     {
         $office = Office::findOrFail($proposal->review_office_id);
-        $recipient = $office->head_id === $proposal->submitted_by ? User::role('Administrator')->whereKeyNot($proposal->submitted_by)->first() : $office->head;
-        User::role('Planning Officer')->whereKeyNot($proposal->submitted_by)->get()->filter(fn ($person) => $this->planning->organization->hasGrant($person, $office))->each(fn ($person) => $person->notify(new TargetProposalNotification($proposal->id, 'A target proposal is ready for validation.')));
+        $recipient = $office->head;
+        if ((int) $office->head_id === (int) $proposal->submitted_by) {
+            $reviewer = $office->planningReviewer;
+            $recipient = $reviewer && $reviewer->id !== $proposal->submitted_by && $this->planning->organization->isOwner($reviewer, $office)
+                ? $reviewer : User::role('Administrator')->whereKeyNot($proposal->submitted_by)->first();
+        }
+        User::role('Planning Officer')->whereKeyNot($proposal->submitted_by)->whereKeyNot($recipient?->id ?? 0)->get()->filter(fn ($person) => $this->planning->organization->hasGrant($person, $office))->each(fn ($person) => $person->notify(new TargetProposalNotification($proposal->id, 'A target proposal is ready for validation.')));
         $recipient?->notify(new TargetProposalNotification($proposal->id, 'A target proposal is ready for supervisory review.'));
     }
 
@@ -70,7 +75,7 @@ class CommitmentPlanningController extends Controller
         $parents = CommitmentPlan::with('office')->get()->filter(fn ($p) => $this->planning->organization->canView($request->user(), $p) || in_array($p->office_id, $parentOfficeIds, true));
         $people = User::with('office')->orderBy('name')->get()->filter(fn ($u) => $request->user()->hasRole('Administrator') || $u->id === $request->user()->id || ($u->office && $this->planning->organization->isOwner($request->user(), $u->office)));
 
-        return view('planning.index', ['plans' => $plans, 'parentPlans' => $parents, 'cycles' => EvaluationCycle::orderByDesc('year')->get(), 'offices' => $offices, 'people' => $people, 'proposals' => TargetProposal::latest()->get()->filter(fn ($p) => $p->submitted_by === $request->user()->id || $this->planning->organization->isOwner($request->user(), Office::findOrFail($p->review_office_id)))]);
+        return view('planning.index', ['plans' => $plans, 'parentPlans' => $parents, 'cycles' => EvaluationCycle::orderByDesc('year')->get(), 'offices' => $offices, 'people' => $people, 'proposals' => TargetProposal::with(['office', 'reviewOffice', 'cycle', 'author'])->latest()->get()->filter(fn ($p) => $p->submitted_by === $request->user()->id || $this->planning->organization->isOwner($request->user(), $p->reviewOffice))]);
     }
 
     public function organization(Request $r, Office $office)
@@ -490,10 +495,12 @@ class CommitmentPlanningController extends Controller
     public function resubmitProposal(Request $r, TargetProposal $proposal)
     {
         abort_unless($proposal->submitted_by === $r->user()->id && $proposal->state === 'returned', 403);
-        abort_unless(EvaluationCycle::findOrFail($proposal->evaluation_cycle_id)->isOpen(), 422);
+        $cycle = EvaluationCycle::findOrFail($proposal->evaluation_cycle_id);
+        abort_unless($cycle->planning_enabled && $cycle->isOpen(), 422);
         $data = $this->targetData($r);
         $origin = Office::findOrFail($proposal->office_id);
-        $reviewOffice = $origin->head_id === $r->user()->id ? ($origin->parent_office_id ?: $origin->id) : $origin->id;
+        $this->planning->organization->verify($origin);
+        $reviewOffice = $this->planning->organization->firstProposalOffice($cycle, $origin, $r->user())->id;
         $proposal->update(['proposal' => $data, 'state' => 'pending', 'review_office_id' => $reviewOffice]);
         $this->planning->event(null, $r->user(), 'Proposal revised and resubmitted', ['proposal_id' => $proposal->id]);
         $this->notifyProposal($proposal);
@@ -527,13 +534,14 @@ class CommitmentPlanningController extends Controller
         $this->planning->organization->verify($office);
         $cycle = EvaluationCycle::findOrFail($d['evaluation_cycle_id']);
         abort_unless($cycle->planning_enabled && $cycle->isOpen(), 422);
+        $rootOffice = $this->planning->organization->rootForOffice($cycle, $office);
         $amends = PerformanceTarget::find($d['amends_target_id'] ?? null);
         if ($amends) {
             $applicable = PerformanceTarget::where('root_target_id', $amends->root_target_id)->whereIn('commitment_plan_id', $this->planning->organization->visiblePlanIds($r->user()))->exists();
             $eligible = DB::table('target_eligibilities')->where('performance_target_id', $amends->id)->where('office_id', $office->id)->where(fn ($q) => $q->where('employee_id', $r->user()->id)->when($office->head_id === $r->user()->id, fn ($q) => $q->orWhereNull('employee_id')))->exists();
-            abort_unless($amends->plan && ($applicable || $eligible || $this->planning->organization->canView($r->user(), $amends->plan)) && $amends->plan->level === 'opcr' && $amends->plan->evaluation_cycle_id === $cycle->id, 403);
+            abort_unless($amends->plan && ($applicable || $eligible || $this->planning->organization->canView($r->user(), $amends->plan)) && $amends->plan->level === 'opcr' && ! $amends->plan->parent_id && $amends->plan->office_id === $rootOffice->id && $amends->plan->evaluation_cycle_id === $cycle->id, 403);
         }
-        $reviewOffice = $office->head_id === $r->user()->id ? ($office->parent_office_id ?: $office->id) : $office->id;
+        $reviewOffice = $this->planning->organization->firstProposalOffice($cycle, $office, $r->user())->id;
         $proposal = TargetProposal::create([...$d, 'office_id' => $office->id, 'submitted_by' => $r->user()->id, 'review_office_id' => $reviewOffice, 'proposal' => $data]);
         $this->planning->event(null, $r->user(), 'Upward proposal submitted', ['proposal_id' => $proposal->id]);
         $this->notifyProposal($proposal);
@@ -544,9 +552,12 @@ class CommitmentPlanningController extends Controller
     public function reviewProposal(Request $r, TargetProposal $proposal)
     {
         $d = $r->validate(['decision' => ['required', Rule::in(['forward', 'reject', 'return', 'materialize'])], 'review_notes' => ['required', 'string', 'max:5000'], 'root_plan_id' => ['nullable', Rule::exists('commitment_plans', 'id')]]);
-        if ($d['decision'] === 'materialize' && EvaluationCycle::findOrFail($proposal->evaluation_cycle_id)->multi_campus_enabled) {
+        $cycle = $proposal->cycle;
+        abort_unless($cycle->planning_enabled && $cycle->isOpen(), 422);
+        $rootOffice = $this->planning->organization->rootForOffice($cycle, $proposal->office);
+        if ($d['decision'] === 'materialize' && $cycle->multi_campus_enabled) {
             $root = CommitmentPlan::findOrFail($d['root_plan_id'] ?? null);
-            abort_unless($root->level === 'opcr' && ! $root->parent_id && $root->office_id === $proposal->review_office_id && $root->evaluation_cycle_id === $proposal->evaluation_cycle_id, 422);
+            abort_unless($root->level === 'opcr' && ! $root->parent_id && $root->office_id === $rootOffice->id && $root->office_id === $proposal->review_office_id && $root->evaluation_cycle_id === $proposal->evaluation_cycle_id, 422);
             abort_unless($proposal->state === 'pending' && $proposal->submitted_by !== $r->user()->id && $this->planning->organization->isOwner($r->user(), $root->office), 403);
             $this->manage($r, $root);
             if ($root->state === 'approved') {
@@ -562,8 +573,9 @@ class CommitmentPlanningController extends Controller
             abort_unless($this->planning->organization->isOwner($r->user(), $office) && $r->user()->id !== $proposal->submitted_by, 403);
             abort_unless($proposal->state === 'pending' && EvaluationCycle::findOrFail($proposal->evaluation_cycle_id)->isOpen(), 422);
             if ($d['decision'] === 'forward') {
-                abort_unless($office->parent_office_id, 422, 'At the top office, add this proposal to an OPCR draft.');
-                $proposal->update(['review_office_id' => $office->parent_office_id, 'review_notes' => $d['review_notes']]);
+                $next = $this->planning->organization->nextProposalOffice($proposal->cycle, $office);
+                abort_unless($next, 422, 'This proposal has reached its OPCR root. Review it for an OPCR draft, return it, or reject it.');
+                $proposal->update(['review_office_id' => $next->id, 'review_notes' => $d['review_notes']]);
             } elseif ($d['decision'] === 'materialize') {
                 $root = CommitmentPlan::findOrFail($d['root_plan_id'] ?? null);
                 abort_unless($root->level === 'opcr' && $root->office_id === $office->id && $root->evaluation_cycle_id === $proposal->evaluation_cycle_id, 422);

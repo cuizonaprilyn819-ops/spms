@@ -26,7 +26,7 @@ class EvaluationCycle extends Model
         'opened_at',
         'closed_at',
         'planning_enabled', 'planning_readiness', 'pmt_chairperson_id',
-        'multi_campus_enabled', 'university_office_id',
+        'multi_campus_enabled', 'university_office_id', 'planning_root_level',
         'pcr_creation_closes_at', 'pcr_submission_due_at', 'pcr_reminder_days',
     ];
 
@@ -53,6 +53,18 @@ class EvaluationCycle extends Model
             self::FIRST_SEMESTER,
             self::SECOND_SEMESTER,
         ];
+    }
+
+    public function usesUniversityOpcr(): bool
+    {
+        return $this->multi_campus_enabled && ($this->planning_root_level ?? 'university') === 'university';
+    }
+
+    public function planningLevels(): array
+    {
+        $levels = ['opcr' => $this->multi_campus_enabled ? 'Campus OPCR' : 'OPCR', 'dpcr' => 'DPCR', 'upcr' => 'UPCR', 'ipcr' => 'IPCR'];
+
+        return $this->usesUniversityOpcr() ? ['university' => 'University OPCR', ...$levels] : $levels;
     }
 
     public function getLabelAttribute(): string

@@ -87,28 +87,37 @@ class PlanningCampusController extends Controller
     public function activate(Request $r, EvaluationCycle $cycle)
     {
         abort_unless($r->user()->hasRole('Administrator'), 403);
-        $d = $r->validate(['university_office_id' => ['required', Rule::exists('offices', 'id')], 'planning_readiness' => ['required', 'string', 'min:20', 'max:5000'], 'confirmed' => ['accepted']]);
+        $d = $r->validate(['planning_root_level' => ['sometimes', 'required', Rule::in(['campus', 'university'])], 'university_office_id' => ['nullable', Rule::exists('offices', 'id')], 'planning_readiness' => ['required', 'string', 'min:20', 'max:5000'], 'confirmed' => ['accepted']]);
         DB::transaction(function () use ($cycle, $d, $r) {
             $cycle = EvaluationCycle::whereKey($cycle->id)->lockForUpdate()->firstOrFail();
             Office::orderBy('id')->lockForUpdate()->get();
             abort_unless($cycle->isOpen() && ! $cycle->planning_enabled, 422, 'Choose a new open period that has not been activated.');
             abort_if($cycle->opcrs()->exists() || CommitmentPlan::where('evaluation_cycle_id', $cycle->id)->exists() || OfficeTarget::where('evaluation_cycle_id', $cycle->id)->exists(), 422, 'Existing records retain their workflow. Use a new empty period.');
-            $root = Office::findOrFail($d['university_office_id']);
-            $this->planning->organization->verify($root);
-            abort_unless($root->organization_scope === 'university', 422, 'Choose a verified university root office.');
-            $branches = Office::where('organization_scope', 'campus')->where('is_active', true)->get()->filter(fn ($o) => in_array($root->id, $this->planning->organization->ancestors($o), true));
+            // Older clients specifying a university retain their original activation behavior.
+            $mode = $d['planning_root_level'] ?? (! empty($d['university_office_id']) ? 'university' : 'campus');
+            $root = null;
+            if ($mode === 'university') {
+                abort_unless(! empty($d['university_office_id']), 422, 'Choose the university root office for a university-based period.');
+                $root = Office::findOrFail($d['university_office_id']);
+                $this->planning->organization->verify($root);
+                abort_unless($root->organization_scope === 'university', 422, 'Choose a verified university root office.');
+            }
+            $branches = Office::where('organization_scope', 'campus')->where('is_active', true)->get()
+                ->filter(fn ($o) => ! $root || in_array($root->id, $this->planning->organization->ancestors($o), true));
             abort_if($branches->isEmpty(), 422, 'Configure and verify campus branches first.');
             foreach ($branches as $office) {
                 $this->planning->organization->verify($office);
             }
-            abort_unless(PlanningGrant::where('scope', 'central')->whereHas('user.roles', fn ($q) => $q->where('name', 'Planning Officer'))->exists(), 422, 'Record a central Planning Officer assignment first.');
+            if ($mode === 'university') {
+                abort_unless(PlanningGrant::where('scope', 'central')->whereHas('user.roles', fn ($q) => $q->where('name', 'Planning Officer'))->exists(), 422, 'Record a central Planning Officer assignment first.');
+            }
             foreach ($branches->pluck('campus_id')->unique() as $campusId) {
                 abort_unless(PlanningGrant::where('scope', 'campus')->where('campus_id', $campusId)->whereHas('user.roles', fn ($q) => $q->where('name', 'Planning Officer'))->exists(), 422, 'Record a Planning Officer assignment for every participating campus.');
             }
-            $cycle->update(['planning_enabled' => true, 'multi_campus_enabled' => true, 'university_office_id' => $root->id, 'planning_readiness' => $d['planning_readiness']]);
-            $this->planning->event(null, $r->user(), 'Multi-campus planning activated', ['cycle_id' => $cycle->id, ...$d]);
+            $cycle->update(['planning_enabled' => true, 'multi_campus_enabled' => true, 'planning_root_level' => $mode, 'university_office_id' => $root?->id, 'planning_readiness' => $d['planning_readiness']]);
+            $this->planning->event(null, $r->user(), 'Multi-campus planning activated', ['cycle_id' => $cycle->id, ...$d, 'planning_root_level' => $mode, 'university_office_id' => $root?->id]);
         });
 
-        return back()->with('status', 'Multi-campus planning enabled for this period.');
+        return back()->with('status', 'Planning enabled for this period. Targets may cascade downward or be proposed upward through the configured reporting line.');
     }
 }

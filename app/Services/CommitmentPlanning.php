@@ -74,6 +74,7 @@ class CommitmentPlanning
             if (! $cycle->multi_campus_enabled && $office->organization_scope !== 'legacy') {
                 $this->fail('Use an activated multi-campus period for university and campus offices. Existing periods retain their workflow.');
             }
+            $rootOffice = $this->organization->rootForOffice($cycle, $office);
             if ($level !== 'ipcr' && $employee) {
                 $this->fail('Choose a person only for an IPCR; organizational plans belong to their office.');
             }
@@ -83,13 +84,13 @@ class CommitmentPlanning
                 $this->fail('Assign a reviewer who is separate from the preparer and ratee.');
             }
             if ($level === 'opcr') {
-                $campusChild = $cycle->multi_campus_enabled && $office->organization_scope === 'campus';
+                $campusChild = $cycle->usesUniversityOpcr() && $office->organization_scope === 'campus';
                 if ($campusChild) {
                     if (! $parent || $parent->level !== 'opcr' || $parent->parent_id || $parent->evaluation_cycle_id !== $cycle->id || $parent->office_id !== $cycle->university_office_id || (int) $office->parent_office_id !== $parent->office_id) {
                         $this->fail('A campus OPCR must select this period’s university OPCR.');
                     }
-                } elseif ($parent || ($cycle->multi_campus_enabled && $office->id !== $cycle->university_office_id)) {
-                    $this->fail('Start with the designated university OPCR for this period.');
+                } elseif ($parent || ! $rootOffice->is($office)) {
+                    $this->fail('Start with the configured OPCR root for this period. Campus-based periods start at Campus OPCR.');
                 }
                 if ($office->planning_level !== 'office' || $employee) {
                     $this->fail('An OPCR belongs to a verified top-level office.');

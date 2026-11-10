@@ -10,16 +10,20 @@
     $defaultLevel = $planLevels->first();
 @endphp
 @role('Administrator')<p><a class="spms-button spms-button-secondary inline-flex" href="{{ route('planning.campuses') }}">Campuses and planning access</a></p>@endrole
+<section class="grid gap-4 md:grid-cols-2" aria-label="Choose a planning direction">
+    <div class="planning-card"><h2>Start with Campus OPCR</h2><p>Campus OPCR → DPCR → UPCR → IPCR</p><p class="mt-2 text-sm text-slate-600">Prepare the campus targets, then cascade relevant shares through departments, units and employees.</p><a class="spms-button mt-3 inline-flex" href="#new-plan">Create a commitment plan</a></div>
+    <div class="planning-card"><h2>Start with an individual proposal</h2><p>IPCR proposal → UPCR review → DPCR review → Campus OPCR</p><p class="mt-2 text-sm text-slate-600">Propose individual work even before parent plans exist. Each responsible head reviews it upward. Accepted targets enter the OPCR draft before linked commitments are confirmed.</p><a class="spms-action-info mt-3 inline-flex" data-action-icon="send" href="#proposals">Propose a target upward</a></div>
+</section>
 <nav class="spms-section-nav" aria-label="Planning sections"><a href="#plans" aria-current="location">Plans</a><a href="#new-plan">Create a plan</a><a href="#proposals">Upward proposals</a>@if($dutiesPeople->isNotEmpty() || auth()->user()->hasAnyRole(['Administrator', 'Planning Officer']))<a href="#office-setup">Duties &amp; office setup</a>@endif</nav>
 <section id="plans" class="planning-card"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 class="!mb-1">Plans by reporting level</h2><p class="text-sm text-slate-500">Open a plan to review its targets, allocation, and supporting work.</p></div><span class="text-xs text-slate-500">{{ $plans->count() }} {{ Str::plural('plan', $plans->count()) }} on this page</span></div><div class="overflow-x-auto"><table data-workspace-table class="planning-table planning-plan-list"><thead><tr><th>Plan</th><th>Office / person</th><th>Period</th><th>Commitments</th><th>Revision</th></tr></thead><tbody>
 @forelse($plans as $p)<tr><td data-label="Plan"><a class="font-semibold text-blue-800 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700" href="{{ route('planning.show',$p) }}">{{ strtoupper($p->level) }} #{{ $p->id }}</a></td><td data-label="Office / person"><span class="font-medium">{{ $p->office->name }}</span>@if($p->employee)<span class="block text-xs text-slate-500">{{ $p->employee->name }}</span>@endif</td><td data-label="Period">{{ $p->cycle->label }}</td><td data-label="Commitments"><x-planning-status :state="$p->state" /></td><td data-label="Revision">{{ $p->revision }}</td></tr>
 @empty<tr><td colspan="5" class="!py-8"><p class="font-medium">No plans are available to you yet.</p><p class="mt-1 text-slate-500">Create a draft below when your evaluation period and reporting structure are ready.</p></td></tr>
 @endforelse
 </tbody></table></div></section>
-<details id="new-plan" class="planning-card"><summary>Create a commitment plan</summary><p class="mt-2 text-sm text-slate-500">Start with the university OPCR for multi-campus periods, then campus OPCR, DPCR, UPCR and IPCR. Each child selects its immediate parent.</p><form class="planning-form" method="post" action="{{ route('planning.store') }}">
+<details id="new-plan" class="planning-card"><summary>Create a commitment plan</summary><p class="mt-2 text-sm text-slate-500">Campus-based periods start with Campus OPCR, then DPCR, UPCR and IPCR. University-based periods retain their University OPCR above the campus. Each child selects its immediate parent. Use an upward proposal below to start before parent plans exist.</p><form class="planning-form" method="post" action="{{ route('planning.store') }}">
 @csrf
 <div class="grid gap-3 sm:grid-cols-3"><label>Period<select name="evaluation_cycle_id" required>
-@foreach($cycles->where('planning_enabled',true)->where('status','open') as $c)<option value="{{ $c->id }}">{{ $c->label }}</option>
+@foreach($cycles->where('planning_enabled',true)->where('status','open') as $c)<option value="{{ $c->id }}">{{ $c->label }} · {{ $c->usesUniversityOpcr() ? 'University-based' : 'Campus-based' }}</option>
 @endforeach</select></label>
 <label>Level<select name="level">
 @foreach($planLevels as $l)<option value="{{ $l }}">{{ strtoupper($l) }}</option>
@@ -33,23 +37,31 @@
 @foreach($people as $person)<option value="{{ $person->id }}" @selected($defaultLevel==='ipcr' && $person->id===auth()->id())>{{ $person->name }} — {{ $person->office?->name }}</option>
 @endforeach</select></label>
 <label>Head’s actual-level IPCR explanation, when applicable<textarea name="head_exception_reason"></textarea></label><button>Create draft</button></form></details>
-<details id="proposals" class="planning-card"><summary>Propose a target upward</summary><p class="mt-2 text-sm text-gray-600">A proposal passes through your reporting line. It does not change approved commitments.</p>
+<details id="proposals" class="planning-card"><summary>Propose a target upward</summary><p class="mt-2 text-sm text-gray-600">Start from your planned IPCR work. Your unit head reviews it for UPCR, the department head reviews it for DPCR, and the campus head reviews it for Campus OPCR. You can propose before any plan exists. A campus-based period stops at Campus OPCR; university-based periods continue to the University OPCR. Approved commitments change through reviewed amendments.</p>
 <form class="planning-form" method="post" action="{{ route('planning.proposal') }}">
 @csrf<label>Period<select name="evaluation_cycle_id">
 @foreach($cycles->where('planning_enabled',true)->where('status','open') as $c)<option value="{{ $c->id }}">{{ $c->label }}</option>
 @endforeach</select></label>
 <label>Existing OPCR target ID to amend (optional)<input name="amends_target_id" type="number" min="1"></label>
 @include('planning.target-fields')<button>Send proposal</button></form></details>
-@foreach($proposals as $proposal)<section class="planning-card"><h2>Proposal #{{ $proposal->id }} · {{ $proposal->proposal['target'] }}</h2><p><x-planning-status :state="$proposal->state" /> <span class="ml-2 text-sm text-slate-500">{{ $proposal->office->name }}</span></p><p>{{ $proposal->review_notes }}</p>
+@foreach($proposals as $proposal)<section class="planning-card"><h2>Proposal #{{ $proposal->id }} · {{ $proposal->proposal['target'] }}</h2><p><x-planning-status :state="$proposal->state" /> <span class="ml-2 text-sm text-slate-500">{{ $proposal->office->name }}</span></p><p class="mt-2 text-sm text-slate-600">Current review office: {{ $proposal->reviewOffice->name }} · {{ $proposal->cycle->label }}</p><p>{{ $proposal->review_notes }}</p>
+<p class="mt-2 text-sm text-slate-600">Proposed by {{ $proposal->author->name }}</p>
+<dl class="mt-3 grid gap-3 sm:grid-cols-3">
+    <div><dt class="text-sm text-slate-600">Proposed quantity</dt><dd class="font-semibold">{{ $proposal->proposal['quantity'] }} {{ $proposal->proposal['unit'] }}</dd></div>
+    <div><dt class="text-sm text-slate-600">Measurement</dt><dd>{{ $proposal->proposal['measurement'] }}</dd></div>
+    <div><dt class="text-sm text-slate-600">Proposed deadline</dt><dd>{{ $proposal->proposal['deadline'] }}</dd></div>
+</dl>
+<div class="mt-3 space-y-2 text-sm"><p><strong>Success indicator:</strong> {{ $proposal->proposal['success_indicator'] }}</p><p><strong>Quality and timeliness standards:</strong> {{ $proposal->proposal['standards'] }}</p><p class="whitespace-pre-wrap"><strong>Source:</strong> {{ $proposal->proposal['source_evidence'] }}</p></div>
 @if($proposal->state==='returned' && $proposal->submitted_by === auth()->id())<form class="planning-form" method="post" action="{{ route('planning.proposal-resubmit',$proposal) }}">
 @csrf
 @include('planning.target-fields',['prefill'=>$proposal->proposal])<button>Resubmit revised proposal</button></form>
 @endif
 @if($proposal->state==='pending' && $proposal->submitted_by !== auth()->id())<form class="planning-form" method="post" action="{{ route('planning.proposal-review',$proposal) }}">
 @csrf
-<label>Decision<select name="decision"><option value="forward">Forward to parent office</option><option value="materialize">Add to OPCR draft / amendment</option><option value="return">Return for revision</option><option value="reject">Reject</option></select></label>
+@php($atProposalRoot = in_array($proposal->review_office_id,app(\App\Services\PlanningOrganization::class)->rootOfficeIds($proposal->cycle),true))
+<label>Decision<select name="decision">@if(!$atProposalRoot)<option value="forward">Forward to next reporting level</option>@else<option value="materialize">Review for OPCR draft / amendment</option>@endif<option value="return">Return for revision</option><option value="reject">Reject</option></select></label>
 <label>OPCR plan, when adding to commitments<select name="root_plan_id"><option value="">Select if applicable</option>
-@foreach($plans->where('level','opcr') as $p)<option value="{{ $p->id }}">#{{ $p->id }} {{ $p->office->name }}</option>
+@foreach($plans->where('level','opcr')->whereNull('parent_id')->where('office_id',$proposal->review_office_id)->where('evaluation_cycle_id',$proposal->evaluation_cycle_id) as $p)<option value="{{ $p->id }}">#{{ $p->id }} {{ $p->level_label }} · {{ $p->office->name }}</option>
 @endforeach</select></label><label>Review notes<textarea name="review_notes" required></textarea></label><button>Record decision</button></form>
 @endif</section>
 @endforeach

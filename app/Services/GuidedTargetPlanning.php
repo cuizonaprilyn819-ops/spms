@@ -20,6 +20,9 @@ class GuidedTargetPlanning
     public function normalize(CommitmentPlan $plan, array $data): array
     {
         abort_unless($plan->level === 'opcr' && ! $plan->parent_id, 422, 'Set scope on the root OPCR; campus plans fetch their parent targets.');
+        if ($plan->office->organization_scope === 'campus' && $data['coverage'] === 'university') {
+            $this->fail('A Campus OPCR covers its own campus or selected departments. Use a university-based period for university-wide coverage.');
+        }
         $ids = array_values(array_unique(array_map('intval', $data['recipient_ids'])));
         $campuses = array_values(array_unique(array_map('intval', $data['campus_ids'] ?? [])));
         $recipients = Office::whereIn('id', $ids)->get();

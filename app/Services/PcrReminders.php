@@ -24,7 +24,9 @@ class PcrReminders
             if (! $cycle->multi_campus_enabled) {
                 return $office->forCampus();
             }
-            $ids = Office::where('is_active', true)->get()->filter(fn ($o) => in_array($cycle->university_office_id, app(PlanningOrganization::class)->ancestors($o), true))->modelKeys();
+            $organization = app(PlanningOrganization::class);
+            $roots = $organization->rootOfficeIds($cycle);
+            $ids = Office::where('is_active', true)->get()->filter(fn ($o) => count(array_intersect($roots, $organization->ancestors($o))) > 0)->modelKeys();
 
             return $office->whereIn('id', $ids);
         })->with(['office', 'roles'])->get();

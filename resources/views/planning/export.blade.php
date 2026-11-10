@@ -1,10 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Commitment plan</title><style>body{font:11px DejaVu Sans,sans-serif;color:#132238}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:7px;text-align:left;vertical-align:top}th{background:#eef2f6}p{line-height:1.5}</style></head><body>
-<h1>{{ strtoupper($plan->level) }} — {{ $plan->office->name }}</h1><p>{{ $plan->employee?->name }} · {{ $plan->cycle->label }} · Revision {{ $plan->revision }} · Commitments {{ $plan->state }}<br>Planning approval is separate from final performance review. Generated {{ now()->format('M d, Y H:i') }}.</p>
+<h1>{{ $plan->level_label }} — {{ $plan->office->name }}</h1><p>{{ $plan->employee?->name }} · {{ $plan->cycle->label }} · Revision {{ $plan->revision }} · Commitments {{ $plan->state }}<br>Planning approval is separate from final performance review. Generated {{ now()->format('M d, Y H:i') }}.</p>
 @php
     $reportingPath=[]; $seenPlans=[]; $cursor=$plan;
     while($cursor && !isset($seenPlans[$cursor->id])) {
         $seenPlans[$cursor->id]=true;
-        $levelLabel=$cursor->cycle->multi_campus_enabled && $cursor->level==='opcr' ? ($cursor->parent_id ? 'Campus OPCR' : 'University OPCR') : strtoupper($cursor->level);
+        $levelLabel=$cursor->level_label;
         array_unshift($reportingPath,$levelLabel.' — '.($cursor->employee?->name ?? $cursor->office->name));
         $cursor=$cursor->parent;
     }

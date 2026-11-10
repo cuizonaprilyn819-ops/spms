@@ -3,6 +3,7 @@
     <legend>Who is responsible for this target?</legend>
     <label>Coverage<select name="coverage" required>
         @foreach(['departments'=>'Selected departments / offices','campus'=>'One campus','university'=>'University-wide'] as $value=>$label)
+        @continue($value==='university' && $plan->office->organization_scope==='campus')
         <option value="{{ $value }}" @selected(old('coverage',$scope['coverage'] ?? '')===$value)>{{ $label }}</option>
         @endforeach
     </select></label>

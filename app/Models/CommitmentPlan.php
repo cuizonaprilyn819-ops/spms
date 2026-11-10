@@ -13,6 +13,15 @@ class CommitmentPlan extends Model
         return ['agreed_at' => 'datetime', 'approved_at' => 'datetime'];
     }
 
+    public function getLevelLabelAttribute(): string
+    {
+        if ($this->level === 'opcr' && $this->cycle->multi_campus_enabled) {
+            return $this->office->organization_scope === 'campus' ? 'Campus OPCR' : 'University OPCR';
+        }
+
+        return strtoupper($this->level);
+    }
+
     public function report()
     {
         return $this->morphTo();

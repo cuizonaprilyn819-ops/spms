@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CommitmentPlan;
+use App\Models\EvaluationCycle;
 use App\Models\Office;
 use App\Models\PlanningGrant;
 use App\Models\User;
@@ -93,7 +94,7 @@ class PlanningOrganization
         if ($office->organization_scope === 'university' && ($office->campus_id || $office->planning_level !== 'office')) {
             throw ValidationException::withMessages(['office_id' => 'The university root is an office without a campus assignment.']);
         }
-        if ($campusRoot ? ($office->parentOffice?->organization_scope !== 'university' || $office->parentOffice?->planning_level !== 'office') : ($office->planning_level === 'office' ? $office->parent_office_id !== null : $office->parentOffice?->planning_level !== $expected[$office->planning_level])) {
+        if ($campusRoot ? ($office->parent_office_id && ($office->parentOffice?->organization_scope !== 'university' || $office->parentOffice?->planning_level !== 'office')) : ($office->planning_level === 'office' ? $office->parent_office_id !== null : $office->parentOffice?->planning_level !== $expected[$office->planning_level])) {
             throw ValidationException::withMessages(['office_id' => 'Use Office → Division → Unit reporting relationships.']);
         }
         if ((int) $office->head_id === (int) $office->planning_reviewer_id || (int) $office->head?->office_id !== (int) $office->id) {
@@ -117,6 +118,42 @@ class PlanningOrganization
         }
 
         return Office::whereIn('id', $this->ancestors($plan->office))->where('head_id', $user->id)->exists();
+    }
+
+    public function rootOfficeIds(EvaluationCycle $cycle): array
+    {
+        if ($cycle->usesUniversityOpcr()) {
+            return $cycle->university_office_id ? [(int) $cycle->university_office_id] : [];
+        }
+
+        return Office::where('organization_scope', $cycle->multi_campus_enabled ? 'campus' : 'legacy')
+            ->where('planning_level', 'office')->where('is_active', true)->pluck('id')->all();
+    }
+
+    public function rootForOffice(EvaluationCycle $cycle, Office $office): Office
+    {
+        $roots = $this->rootOfficeIds($cycle);
+        foreach ($this->ancestors($office) as $id) {
+            if (in_array($id, $roots, true)) {
+                return Office::findOrFail($id);
+            }
+        }
+
+        throw ValidationException::withMessages(['office_id' => 'This office has no reporting path to an OPCR root configured for this period.']);
+    }
+
+    public function nextProposalOffice(EvaluationCycle $cycle, Office $office): ?Office
+    {
+        $root = $this->rootForOffice($cycle, $office);
+
+        return $root->is($office) ? null : $office->parentOffice;
+    }
+
+    public function firstProposalOffice(EvaluationCycle $cycle, Office $office, User $author): Office
+    {
+        $this->rootForOffice($cycle, $office);
+
+        return (int) $office->head_id === $author->id ? ($this->nextProposalOffice($cycle, $office) ?? $office) : $office;
     }
 
     public function canPrepare(User $user, CommitmentPlan $plan): bool

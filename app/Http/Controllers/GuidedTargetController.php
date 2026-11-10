@@ -47,7 +47,7 @@ class GuidedTargetController extends Controller
         $offices = Office::where('planning_level', 'division')->with('campusRecord')->get()->filter(fn ($o) => in_array($plan->office_id, $this->planning->organization->ancestors($o), true));
 
         return view('planning.scope', ['plan' => $plan, 'draft' => $draft, 'document' => $document ?? $draft?->documentDraft, 'proposal' => $proposal ?? $draft?->proposal,
-            'offices' => $offices, 'campuses' => Campus::where('is_active', true)->get(),
+            'offices' => $offices, 'campuses' => Campus::where('is_active', true)->when($plan->office->organization_scope === 'campus', fn ($q) => $q->whereKey($plan->office->campus_id))->get(),
             'preview' => $draft ? $this->guided->normalize($plan, $draft->payload) : null]);
     }
 
